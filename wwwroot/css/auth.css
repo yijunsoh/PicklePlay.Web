@@ -1,0 +1,171 @@
+/* auth.css - RESPONSIVE VERSION */
+body {
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Add subtle overlay on top of background */
+body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+}
+
+.auth-container {
+    display: flex;
+    max-width: 900px;
+    width: 95%; /* ✅ Changed from 100% to 95% for padding */
+    height: auto; /* ✅ Changed from 650px to auto */
+    min-height: 500px; /* ✅ Minimum height */
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    background: white;
+    margin: 20px; /* ✅ Added margin */
+}
+
+/* Left Logo Panel */
+.logo-panel {
+    background-color: #A1D336;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    padding: 20px;
+}
+
+.logo-panel img {
+    max-width: 80%;
+    height: auto;
+}
+
+/* Right Form Panel */
+.form-panel {
+    background: white;
+    flex: 2;
+    overflow: hidden;
+    position: relative;
+}
+
+.form-wrapper {
+    display: flex;
+    width: 200%;
+    transition: transform 0.6s ease-in-out;
+    height: 100%;
+}
+
+.form-section {
+    width: 50%;
+    padding: 40px 30px; /* ✅ Reduced padding for mobile */
+    overflow-y: auto;
+}
+
+.signup-section {
+    background: white;
+}
+
+.btn-custom {
+    background-color: #A1D336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-custom:hover {
+    background-color: #8BC42C;
+    color: white;
+}
+
+/* ✅ IMPROVED RESPONSIVE DESIGN */
+@media (max-width: 992px) {
+    .auth-container {
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .form-section {
+        padding: 30px 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .auth-container {
+        flex-direction: column;
+        height: auto;
+        margin: 10px;
+        border-radius: 15px;
+    }
+
+    .logo-panel {
+        flex: none;
+        height: 120px;
+        padding: 15px;
+    }
+
+    .logo-panel img {
+        max-width: 60%;
+    }
+
+    .form-panel {
+        flex: none;
+    }
+
+    .form-section {
+        padding: 25px 20px;
+        width: 100%; /* ✅ Full width on mobile */
+    }
+    
+    .form-wrapper {
+        width: 100%; /* ✅ Single column on mobile */
+        transform: none !important; /* ✅ Disable slider on mobile */
+    }
+}
+
+@media (max-width: 576px) {
+    .auth-container {
+        margin: 5px;
+        border-radius: 10px;
+    }
+    
+    .form-section {
+        padding: 20px 15px;
+    }
+    
+    .logo-panel {
+        height: 100px;
+    }
+}
+
+/* Form styling */
+.form-control:focus {
+    border-color: #A1D336;
+    box-shadow: 0 0 0 0.2rem rgba(161, 211, 54, 0.25);
+}
+
+.text-primary {
+    color: #A1D336 !important;
+}
+
+.btn-outline-secondary {
+    border-color: #A1D336;
+    color: #A1D336;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #A1D336;
+    color: white;
+}

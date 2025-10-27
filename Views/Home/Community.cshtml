@@ -1,0 +1,182 @@
+@{
+    ViewData["Title"] = "Community - PicklePlay";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        body {
+            background: url("/images/pickleball-equipmenton-court2.jpg") no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-content {
+            margin-top: 0;
+            padding-top: 20px;
+        }
+
+        .community-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .community-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge-type {
+            font-size: 0.8rem;
+        }
+
+        .section-box {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-backdrop.show {
+            opacity: 0.5;
+        }
+    </style>
+}
+
+<!-- Main Content -->
+<div class="container main-content">
+    <a href="@Url.Action("EditProfile", "Home")" class="btn btn-warning mb-3">&larr; Back</a>
+    
+    <!-- Create Button -->
+    <div class="mb-3">
+        <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#createCommunityModal">
+            + Create Community
+        </button>
+    </div>
+
+    <!-- Owned Communities -->
+    <div class="section-box">
+        <h5>Your Communities</h5>
+        <div id="owned-communities">
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>🏸 KL Pickleball Club</h6>
+                    <span class="badge bg-primary badge-type">Owner</span>
+                </div>
+                <p>Members: 12 | Games: 5</p>
+                <a href="@Url.Action("CommunityPages", "Home")" class="btn btn-primary btn-sm">Enter</a>
+            </div>
+
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>🔥 Selangor Smashers</h6>
+                    <span class="badge bg-primary badge-type">Owner</span>
+                </div>
+                <p>Members: 25 | Games: 9</p>
+                <a href="@Url.Action("CommunityPages", "Home", new { id = 2 })" class="btn btn-primary btn-sm">Enter</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggested Communities -->
+    <div class="section-box">
+        <h5>Suggested Communities</h5>
+        <div id="suggested-communities">
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>🎾 Penang Pickleballers</h6>
+                    <span class="badge bg-info badge-type">Suggested</span>
+                </div>
+                <p>Members: 20 | Games: 7</p>
+                <button class="btn btn-outline-success btn-sm">Request to Join</button>
+            </div>
+
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>🌊 Johor Rallies</h6>
+                    <span class="badge bg-info badge-type">Suggested</span>
+                </div>
+                <p>Members: 30 | Games: 12</p>
+                <button class="btn btn-outline-success btn-sm">Request to Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Joined Communities -->
+    <div class="section-box">
+        <h5>Joined Communities</h5>
+        <div id="joined-communities">
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>⚡ Weekend Warriors</h6>
+                    <span class="badge bg-success badge-type">Member</span>
+                </div>
+                <p>Members: 15 | Games: 4</p>
+                <a href="@Url.Action("CommunityPages", "Home", new { id = 3 })" class="btn btn-primary btn-sm">Enter</a>
+                <button class="btn btn-outline-danger btn-sm">Leave</button>
+            </div>
+
+            <div class="community-card">
+                <div class="community-header">
+                    <h6>🌟 Kota Kinabalu Champs</h6>
+                    <span class="badge bg-success badge-type">Member</span>
+                </div>
+                <p>Members: 18 | Games: 6</p>
+                <a href="@Url.Action("CommunityPages", "Home", new { id = 4 })" class="btn btn-primary btn-sm">Enter</a>
+                <button class="btn btn-outline-danger btn-sm">Leave</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Community Modal -->
+<div class="modal fade" id="createCommunityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request to Create Community</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createCommunityForm">
+                    <div class="mb-3">
+                        <label for="communityName" class="form-label">Community Name</label>
+                        <input type="text" class="form-control" id="communityName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="communityDesc" class="form-label">Description</label>
+                        <textarea class="form-control" id="communityDesc" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="communityPrivacy" class="form-label">Privacy</label>
+                        <select class="form-control" id="communityPrivacy">
+                            <option value="public">Public</option>
+                            <option value="private">Private</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Send Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Create Community Form Handler
+        document.getElementById('createCommunityForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const communityName = document.getElementById('communityName').value;
+            alert(`Request to create "${communityName}" has been submitted!`);
+            $('#createCommunityModal').modal('hide');
+            this.reset();
+        });
+    </script>
+}

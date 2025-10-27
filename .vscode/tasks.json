@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "dotnet",
+      "task": "build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "label": "dotnet: build"
+    },
+    {
+      "label": "dotnet: watch",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["watch", "run"],
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

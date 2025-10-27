@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "driver": "MySQL",
+            "server": "localhost",
+            "port": 3306,
+            "database": "pickleplay",
+            "username": "root",
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "name": "PicklePlay"
+        }
+    ]
+}

@@ -1,0 +1,249 @@
+@{
+    ViewData["Title"] = "Sign Up Successful - PicklePlay";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        body {
+            background: url("/images/pickleball_background.jpg") no-repeat center center fixed;
+            background-size: cover;
+        }
+        
+        .success-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .success-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .success-icon {
+            color: #28a745;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .steps-container {
+            text-align: left;
+            margin: 30px 0;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .step-number {
+            background: #A1D336;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .email-display {
+            background: #e7f3ff;
+            border: 2px solid #A1D336;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .btn-custom {
+            background-color: #A1D336;
+            border-color: #A1D336;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .btn-outline-custom {
+            border-color: #A1D336;
+            color: #A1D336;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .btn-outline-custom:hover {
+            background-color: #A1D336;
+            color: white;
+        }
+        
+        .btn-resend {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            border: none;
+        }
+        
+        .btn-resend:hover {
+            background-color: #138496;
+            border-color: #138496;
+            color: white;
+        }
+        
+        .btn-resend:disabled {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .resend-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #155724;
+        }
+        
+        .resend-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+}
+
+<div class="success-container">
+    <div class="success-card">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        
+        <h2 class="mb-3">Sign Up Successful!</h2>
+        
+        <!-- Success Message for Resend -->
+        @if (ViewBag.ResendSuccess)
+        {
+            <div class="resend-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Verification email has been resent!</strong>
+                <p class="mb-0 mt-1">Check your inbox (and spam folder) for the new email.</p>
+            </div>
+        }
+
+        <p class="mb-4">Thank you for signing up! We've sent a verification email to:</p>
+        
+        <!-- Email Display -->
+        <div class="email-display">
+            <i class="fas fa-envelope me-2"></i>
+            @if (!string.IsNullOrEmpty(ViewBag.UserEmail))
+            {
+                @ViewBag.UserEmail
+            }
+            else
+            {
+                <span class="text-muted">your email address</span>
+            }
+        </div>
+
+        <div class="steps-container">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Check your email</strong><br>
+                    Look for an email from PicklePlay (check spam folder too)
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Click verification link</strong><br>
+                    This will activate your account immediately
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>Login to your account</strong><br>
+                    Start exploring PicklePlay features
+                </div>
+            </div>
+        </div>
+
+        <!-- Resend Verification Section -->
+        <div class="resend-section">
+            <h5 class="mb-3">Didn't receive the verification email?</h5>
+            
+            <form id="resendForm" asp-controller="Auth" asp-action="ResendVerification" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="email" value="@ViewBag.UserEmail" />
+                
+                <button type="submit" class="btn btn-resend w-100" id="resendBtn">
+                    <i class="fas fa-paper-plane me-2"></i>Resend Verification Email
+                </button>
+            </form>
+            
+            <p class="text-muted mt-2 small text-center">
+                Click to send a new verification link to your email.
+            </p>
+        </div>
+
+        <div class="mt-4">
+            <div class="d-flex flex-column flex-md-row justify-content-center gap-2">
+                <a href="@Url.Action("Login", "Auth")" class="btn btn-custom">
+                    Go to Login
+                </a>
+                <a href="@Url.Action("Signup", "Auth")" class="btn btn-outline-custom">
+                    Sign Up Another Account
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Font Awesome for icons -->
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js" crossorigin="anonymous"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resendForm = document.getElementById('resendForm');
+            const resendBtn = document.getElementById('resendBtn');
+            
+            if (resendForm) {
+                resendForm.addEventListener('submit', function(e) {
+                    // Show loading state
+                    resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+                    resendBtn.disabled = true;
+                    
+                    // Form will submit normally
+                });
+            }
+        });
+    </script>
+}

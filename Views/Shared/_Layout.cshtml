@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PicklePlay</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom Auth CSS -->
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+    
+    <!-- Remove or comment out the conflicting _Layout.css -->
+    <!-- <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /> -->
+    
+    <style>
+        /* Reset body styles to prevent conflicts */
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .navbar-custom {
+            background-color: #A1D336 !important;
+            border: none !important;
+        }
+
+        .navbar-custom .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.5rem;
+            margin: 0 !important;
+        }
+
+        .navbar-custom .nav-link {
+            color: white !important;
+            font-weight: bold;
+            padding: 8px 15px !important;
+        }
+
+        .navbar-custom .navbar-toggler {
+            border-color: white !important;
+            margin: 0 !important;
+        }
+
+        .navbar-custom .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='white' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+        }
+
+        .profile-img-navbar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            margin: 0 !important;
+        }
+
+        /* Ensure navbar items align properly */
+        .navbar-collapse {
+            flex-grow: 0 !important;
+        }
+
+        .navbar-nav {
+            align-items: center !important;
+        }
+    </style>
+    
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <!-- Navbar -->
+    @if (Context.Session.GetString("UserEmail") != null)
+    {
+        <nav class="navbar navbar-expand-lg navbar-custom">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="@Url.Action("Index", "Home")">
+                    <img src="~/images/logoV3.png" alt="Logo" width="40" height="40" class="d-inline-block align-text-center me-2">
+                    PicklePlay
+                </a>
+
+                <!-- Toggle button for mobile -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Navbar links -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Index", "Home")">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Community", "Home")">Community</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Search", "Home")">Search</a>
+                        </li>
+                    </ul>
+
+                    <!-- User profile -->
+                    <div class="d-flex align-items-center">
+                        <span class="text-white fw-bold me-2">@(Context.Session.GetString("UserName") ?? "User")</span>
+                        <a href="@Url.Action("EditProfile", "Home")" class="me-3">
+                            <img src="~/images/profile_image.jpg" alt="Profile" class="profile-img-navbar">
+                        </a>
+                        <!-- Logout Form -->
+                        <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    }
+
+    <div>
+        @RenderBody()
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom Auth JS -->
+    <script src="~/js/auth.js" asp-append-version="true"></script>
+    
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

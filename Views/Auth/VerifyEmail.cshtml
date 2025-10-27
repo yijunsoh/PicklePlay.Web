@@ -1,0 +1,234 @@
+@{
+    ViewData["Title"] = "Email Verification - PicklePlay";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        body {
+            background: url("/images/pickleball_background.jpg") no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .verification-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .verification-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .success-icon {
+            color: #28a745;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .error-icon {
+            color: #dc3545;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .warning-icon {
+            color: #ffc107;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .btn-custom {
+            background-color: #A1D336;
+            border-color: #A1D336;
+            color: white;
+            padding: 12px 40px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .btn-custom:hover {
+            background-color: #8bb82d;
+            border-color: #8bb82d;
+            color: white;
+        }
+
+        .btn-resend {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+            padding: 12px 40px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .btn-resend:hover {
+            background-color: #138496;
+            border-color: #138496;
+            color: white;
+        }
+
+        .email-display {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        /* Loading overlay for resend button */
+        .resend-loading {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 25px;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+    </style>
+}
+
+<div class="verification-container">
+    <div class="verification-card">
+        <!-- Success Messages -->
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success">
+                @TempData["SuccessMessage"]
+            </div>
+        }
+
+        <!-- Error Messages -->
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">
+                @TempData["ErrorMessage"]
+            </div>
+        }
+
+        @if (ViewBag.Success)
+        {
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2 class="mb-3">Email Verified Successfully!</h2>
+            <p class="mb-4">@ViewBag.Message</p>
+            <a href="@Url.Action("Login", "Auth")" class="btn btn-custom btn-lg">
+                Proceed to Login
+            </a>
+        }
+        else if (ViewBag.ShowButton)
+        {
+            <div class="warning-icon">
+                <i class="fas fa-envelope-circle-check"></i>
+            </div>
+            <h2 class="mb-3">Verify Your Email</h2>
+            <p class="mb-3">@ViewBag.Message</p>
+
+            <div class="email-display">
+                <i class="fas fa-envelope me-2"></i>@ViewBag.UserEmail
+            </div>
+
+            <!-- Add expiry warning -->
+            <div class="alert alert-warning mt-3">
+                <i class="fas fa-clock me-2"></i>
+                <strong>Note:</strong> This verification link expires in 5 minutes.
+            </div>
+
+            <form asp-controller="Auth" asp-action="VerifyEmailPost" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-custom btn-lg mt-3">
+                    <i class="fas fa-check-circle me-2"></i>Verify Email Address
+                </button>
+            </form>
+
+            <p class="text-muted mt-3 small">
+                By clicking this button, you confirm that this is your email address.
+            </p>
+        }
+        else if (ViewBag.ShowResendButton)
+        {
+            <div class="error-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h2 class="mb-3">Verification Failed</h2>
+            <p class="mb-4">@ViewBag.Message</p>
+
+            @if (!string.IsNullOrEmpty(ViewBag.UserEmail))
+            {
+                <div class="email-display mb-4">
+                    <i class="fas fa-envelope me-2"></i>@ViewBag.UserEmail
+                </div>
+
+                <!-- Change this in your VerifyEmail.cshtml -->
+                <form id="resendForm" asp-controller="Auth" asp-action="ResendVerification" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="email" value="@ViewBag.UserEmail" />
+                    <input type="hidden" name="fromPage" value="VerifyEmail" />
+
+                    <div class="position-relative">
+                        <button type="submit" class="btn btn-resend btn-lg" id="resendBtn">
+                            <span id="resendBtnText">
+                                <i class="fas fa-paper-plane me-2"></i>Resend Verification Link
+                            </span>
+                            <div id="resendSpinner" class="spinner-border spinner-border-sm d-none" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+
+                <p class="text-muted mt-3 small">
+                    A new verification link will be sent to your email (valid for 5 minutes).
+                </p>
+            }
+
+            <div class="mt-4 pt-3 border-top">
+                <a href="@Url.Action("Login", "Auth")" class="btn btn-outline-secondary">
+                    Back to Login
+                </a>
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Font Awesome for icons -->
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Handle resend verification form submission
+            const resendForm = document.getElementById('resendForm');
+            if (resendForm) {
+                resendForm.addEventListener('submit', function (e) {
+                    const resendBtn = document.getElementById('resendBtn');
+                    const resendBtnText = document.getElementById('resendBtnText');
+                    const resendSpinner = document.getElementById('resendSpinner');
+
+                    // Show loading state
+                    resendBtn.disabled = true;
+                    resendBtnText.textContent = 'Sending...';
+                    resendSpinner.classList.remove('d-none');
+                });
+            }
+        });
+    </script>
+}
