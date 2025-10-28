@@ -11,11 +11,7 @@
     <!-- Custom Auth CSS -->
     <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
     
-    <!-- Remove or comment out the conflicting _Layout.css -->
-    <!-- <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /> -->
-    
     <style>
-        /* Reset body styles to prevent conflicts */
         body {
             margin: 0 !important;
             padding: 0 !important;
@@ -58,7 +54,6 @@
             margin: 0 !important;
         }
 
-        /* Ensure navbar items align properly */
         .navbar-collapse {
             flex-grow: 0 !important;
         }
@@ -81,13 +76,11 @@
                     PicklePlay
                 </a>
 
-                <!-- Toggle button for mobile -->
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                         aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
-                <!-- Navbar links -->
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
@@ -101,13 +94,11 @@
                         </li>
                     </ul>
 
-                    <!-- User profile -->
                     <div class="d-flex align-items-center">
                         <span class="text-white fw-bold me-2">@(Context.Session.GetString("UserName") ?? "User")</span>
                         <a href="@Url.Action("EditProfile", "Home")" class="me-3">
                             <img src="~/images/profile_image.jpg" alt="Profile" class="profile-img-navbar">
                         </a>
-                        <!-- Logout Form -->
                         <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>

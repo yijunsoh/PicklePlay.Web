@@ -210,3 +210,4 @@ C:\Users\User\PicklePlay.Web\bin\Debug\net9.0\zh-Hant\Microsoft.CodeAnalysis.Wor
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\l1vj3jevog-o7np1pzg5t.gz
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\tlulzm92m7-lr4pkbt2bj.gz
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\5g0aqalpc2-b9sayid5wm.gz
+C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\PicklePlay.Web.sourcelink.json

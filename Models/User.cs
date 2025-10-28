@@ -79,7 +79,8 @@ namespace PicklePlay.Models
 
         [Column("verification_token_expiry")]
         public DateTime? VerificationTokenExpiry { get; set; }
-        
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiry { get; set; }
 
         // Helper method to generate verification token
         public void GenerateEmailVerificationToken()

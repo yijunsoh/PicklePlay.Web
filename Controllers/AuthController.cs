@@ -28,55 +28,55 @@ namespace PicklePlay.Controllers
 
         // POST: /Auth/Login
         [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Login(string email, string password)
-{
-    if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
-    {
-        ModelState.AddModelError("", "Please enter both email and password.");
-        return View();
-    }
-
-    try
-    {
-        var result = await _authService.AuthenticateAsync(email, password);
-
-        if (result.Success && result.User != null) // DOUBLE CHECK - both Success and User
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(string email, string password)
         {
-            var user = result.User;
-            
-            if (!user.EmailVerify)
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                ModelState.AddModelError("", "Please verify your email before logging in.");
+                ModelState.AddModelError("", "Please enter both email and password.");
                 return View();
             }
 
-            if (user.Status != "Active")
+            try
             {
-                ModelState.AddModelError("", "Your account is not active. Please contact support.");
+                var result = await _authService.AuthenticateAsync(email, password);
+
+                if (result.Success && result.User != null) // DOUBLE CHECK - both Success and User
+                {
+                    var user = result.User;
+
+                    if (!user.EmailVerify)
+                    {
+                        ModelState.AddModelError("", "Please verify your email before logging in.");
+                        return View();
+                    }
+
+                    if (user.Status != "Active")
+                    {
+                        ModelState.AddModelError("", "Your account is not active. Please contact support.");
+                        return View();
+                    }
+
+                    // Store user info in session
+                    _httpContextAccessor.HttpContext?.Session?.SetString("UserEmail", user.Email);
+                    _httpContextAccessor.HttpContext?.Session?.SetString("UserName", user.Username);
+                    _httpContextAccessor.HttpContext?.Session?.SetInt32("UserId", user.UserId);
+
+                    return RedirectToAction("Community", "Home");
+                }
+                else
+                {
+                    ModelState.AddModelError("", result.Error ?? "Invalid email or password.");
+                    return View();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Login error: {ex.Message}");
+                ModelState.AddModelError("", "An error occurred during login. Please try again.");
                 return View();
             }
-
-            // Store user info in session
-            _httpContextAccessor.HttpContext?.Session?.SetString("UserEmail", user.Email);
-            _httpContextAccessor.HttpContext?.Session?.SetString("UserName", user.Username);
-            _httpContextAccessor.HttpContext?.Session?.SetInt32("UserId", user.UserId);
-
-            return RedirectToAction("Community", "Home");
         }
-        else
-        {
-            ModelState.AddModelError("", result.Error ?? "Invalid email or password.");
-            return View();
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Login error: {ex.Message}");
-        ModelState.AddModelError("", "An error occurred during login. Please try again.");
-        return View();
-    }
-}
 
         // Add this logout method as well
         [HttpPost]
@@ -367,12 +367,110 @@ public async Task<IActionResult> Login(string email, string password)
                     return RedirectToAction("SignupSuccess");
             }
         }
-
         // GET: /Auth/ForgotPassword
         [HttpGet]
         public IActionResult ForgotPassword()
         {
             return View();
+        }
+        // POST: /Auth/ForgotPassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(string email)
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                ModelState.AddModelError("", "Please enter your email address.");
+                return View();
+            }
+
+            // Build reset link function
+            string BuildResetLink(int userId, string token)
+            {
+                return Url.Action("ResetPassword", "Auth", new { userId = userId, token = token }, Request.Scheme)!;
+            }
+
+            var success = await _authService.GeneratePasswordResetTokenAsync(email, BuildResetLink);
+
+            if (success)
+            {
+                TempData["SuccessMessage"] = "Password reset email has been sent successfully! Please check your inbox.";
+                return RedirectToAction("ForgotPassword");
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Email not found. Please check your email address.";
+                return View();
+            }
+        }
+
+        // GET: /Auth/ResetPassword
+        [HttpGet]
+        public async Task<IActionResult> ResetPassword(int userId, string token)
+        {
+            if (userId <= 0 || string.IsNullOrEmpty(token))
+            {
+                TempData["ErrorMessage"] = "Invalid password reset link.";
+                return RedirectToAction("Login");
+            }
+
+            var user = await _authService.ValidatePasswordResetTokenAsync(userId, token);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "Invalid or expired password reset link.";
+                return RedirectToAction("Login");
+            }
+
+            // Store in TempData for the POST action
+            TempData["ResetUserId"] = userId;
+            TempData["ResetToken"] = token;
+            TempData.Keep("ResetUserId");
+            TempData.Keep("ResetToken");
+
+            var model = new ResetPasswordViewModel
+            {
+                UserId = userId,
+                Token = token
+            };
+
+            return View(model);
+        }
+
+        // POST: /Auth/ResetPassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            // Get from TempData (in case of model binding issues)
+            var userId = TempData.Peek("ResetUserId") as int?;
+            var token = TempData.Peek("ResetToken") as string;
+
+            if (!userId.HasValue || string.IsNullOrEmpty(token))
+            {
+                TempData["ErrorMessage"] = "Invalid password reset request.";
+                return RedirectToAction("Login");
+            }
+
+            var user = await _authService.ValidatePasswordResetTokenAsync(userId.Value, token);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "Invalid or expired password reset link.";
+                return RedirectToAction("Login");
+            }
+
+            var success = await _authService.ResetPasswordAsync(userId.Value, model.NewPassword);
+            if (success)
+            {
+                TempData["SuccessMessage"] = "Your password has been reset successfully! You can now login with your new password.";
+                return RedirectToAction("ResetPassword");
+            }
+
+            return View(model);
         }
 
         // CAPTCHA validation method
@@ -401,6 +499,69 @@ public async Task<IActionResult> Login(string email, string password)
                 Console.WriteLine($"CAPTCHA validation error: {ex.Message}");
                 return false;
             }
+        }
+
+        // POST: /Auth/ResendVerificationFromLogin - Specifically for login page
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResendVerificationFromLogin(string email)
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                TempData["ErrorMessage"] = "Please enter your email address.";
+                TempData["PrefilledEmail"] = email;
+                return RedirectToAction("Login");
+            }
+
+            try
+            {
+                // Check if user exists
+                var user = await _authService.GetUserByEmailAsync(email);
+                if (user == null)
+                {
+                    // Don't reveal that user doesn't exist for security
+                    TempData["SuccessMessage"] = "If your email is registered, a verification link has been sent to your inbox.";
+                    TempData["PrefilledEmail"] = email;
+                    return RedirectToAction("Login");
+                }
+
+                // Check if user is already verified
+                if (user.EmailVerify)
+                {
+                    TempData["SuccessMessage"] = "Your email is already verified. You can login now.";
+                    TempData["PrefilledEmail"] = email;
+                    return RedirectToAction("Login");
+                }
+
+                // Build verification link function
+                string BuildVerificationLink(int userId, string token)
+                {
+                    return Url.Action("VerifyEmail", "Auth", new { userId = userId, token = token }, Request.Scheme)!;
+                }
+
+                // Use your existing service method to resend verification
+                var success = await _authService.ResendVerificationAsync(email, BuildVerificationLink);
+
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "New verification link has been sent to your email! Please check your inbox.";
+                    TempData["PrefilledEmail"] = email;
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to send verification email. Please try again.";
+                    TempData["PrefilledEmail"] = email;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error
+                Console.WriteLine($"ResendVerificationFromLogin error: {ex.Message}");
+                TempData["ErrorMessage"] = "An error occurred while sending the verification email. Please try again.";
+                TempData["PrefilledEmail"] = email;
+            }
+
+            return RedirectToAction("Login");
         }
     }
 }

@@ -1,6 +1,6 @@
 @{
     ViewData["Title"] = "Login - PicklePlay";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = "~/Views/Shared/_LayoutAuth.cshtml";
 }
 
 @section Styles {
@@ -8,6 +8,31 @@
         body {
             background: url("/images/pickleball_background.jpg") no-repeat center center fixed;
             background-size: cover;
+        }
+
+        .resend-section {
+            border-top: 1px solid #dee2e6;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .btn-resend {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn-resend:hover {
+            background-color: #138496;
+            color: white;
+        }
+
+        .btn-resend:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
     </style>
 }
@@ -24,7 +49,25 @@
             <!-- Login Section -->
             <div class="form-section">
                 <h3 class="text-center mb-4">Login</h3>
-                
+
+                <!-- Success Message -->
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
+                <!-- Error Message -->
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
                 <!-- Display error messages -->
                 @if (ViewData.ModelState.ContainsKey(""))
                 {
@@ -32,40 +75,56 @@
                         @Html.ValidationSummary(true, "")
                     </div>
                 }
-                
+
                 <!-- ASP.NET Form with proper tag helpers -->
                 <form asp-controller="Auth" asp-action="Login" method="post">
-                    @Html.AntiForgeryToken() <!-- ADD THIS LINE -->
-                    
+                    @Html.AntiForgeryToken()
+
                     <div class="mb-3">
                         <label class="form-label">Email</label>
-                        <input type="email" class="form-control" placeholder="Enter email" name="email" required>
+                        <input type="email" class="form-control" id="loginEmail" placeholder="Enter email" name="email"
+                            required value="@TempData["PrefilledEmail"]">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" class="form-control" placeholder="Enter password" name="password" required>
+                        <input type="password" class="form-control" placeholder="Enter password" name="password"
+                            required>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="remember">
                             <label class="form-check-label" for="remember">Remember me</label>
                         </div>
-                        <a href="@Url.Action("ForgotPassword", "Auth")" class="text-primary text-decoration-none">Forgot Password?</a>
+                        <a href="@Url.Action("ForgotPassword", "Auth")" class="text-primary text-decoration-none">Forgot
+                            Password?</a>
                     </div>
                     <div class="d-grid mb-3">
                         <button type="submit" class="btn btn-custom">Login</button>
                     </div>
                     <p class="text-center">Don't have an account?
-                        <a href="@Url.Action("Signup", "Auth")" class="fw-bold text-decoration-none text-primary">Sign Up</a>
+                        <a href="@Url.Action("Signup", "Auth")" class="fw-bold text-decoration-none text-primary">Sign
+                            Up</a>
                     </p>
-                    
-                    <!-- Resend Verification -->
-                    <div class="text-center mt-3">
-                        <p class="text-center mb-1">Didn't receive the verification email?</p>
-                        <button type="button" id="resendBtn" class="btn btn-outline-secondary btn-sm">Resend Verification Email</button>
-                        <small id="resendMsg" class="text-muted d-block mt-2"></small>
-                    </div>
                 </form>
+
+                <!-- Resend Verification Section -->
+                <!-- Resend Verification Section -->
+                <div class="resend-section">
+                    <h6 class="text-center mb-3">Didn't receive verification email?</h6>
+                    <form id="resendForm" asp-controller="Auth" asp-action="ResendVerification" method="post"
+                        class="d-flex gap-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="fromPage" value="Login" />
+                        <input type="hidden" id="resendEmail" name="email" value="" />
+                        <button type="submit" class="btn btn-resend" id="resendBtn" style="width: 100%;">
+                            <span id="resendBtnText">Resend</span>
+                            <div id="resendSpinner" class="spinner-border spinner-border-sm d-none" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </button>
+                    </form>
+                    <small id="resendMsg" class="text-muted d-block mt-2 text-center"></small>
+                </div>
             </div>
         </div>
     </div>
@@ -73,15 +132,77 @@
 
 @section Scripts {
     <script>
-        document.getElementById("resendBtn").addEventListener("click", function () {
-            this.disabled = true;
-            document.getElementById("resendMsg").innerText = "Resending email...";
+        document.addEventListener('DOMContentLoaded', function () {
+            const resendForm = document.getElementById('resendForm');
+            const resendBtn = document.getElementById('resendBtn');
+            const resendBtnText = document.getElementById('resendBtnText');
+            const resendSpinner = document.getElementById('resendSpinner');
+            const resendMsg = document.getElementById('resendMsg');
+            const loginEmail = document.getElementById('loginEmail');
+            const resendEmail = document.getElementById('resendEmail');
 
-            // Simulate backend call - replace with actual API call
-            setTimeout(() => {
-                document.getElementById("resendMsg").innerText = "✅ Verification email has been resent!";
-                this.disabled = false;
-            }, 2000);
+            // Sync email from login field to resend field
+            if (loginEmail && resendEmail) {
+                loginEmail.addEventListener('input', function () {
+                    resendEmail.value = loginEmail.value;
+                });
+
+                resendEmail.addEventListener('input', function () {
+                    loginEmail.value = resendEmail.value;
+                });
+            }
+
+            // Handle resend form submission
+            if (resendForm) {
+                resendForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    const email = resendEmail.value.trim();
+                    if (!email) {
+                        resendMsg.textContent = 'Please enter your email address';
+                        resendMsg.className = 'text-danger d-block mt-2 text-center';
+                        return;
+                    }
+
+                    // Show loading state
+                    resendBtn.disabled = true;
+                    resendBtnText.textContent = 'Sending...';
+                    resendSpinner.classList.remove('d-none');
+                    resendMsg.textContent = '';
+                    resendMsg.className = 'text-muted d-block mt-2 text-center';
+
+                    // Submit the form via AJAX or regular form submission
+                    // Using regular form submission for simplicity
+                    this.submit();
+                });
+            }
+
+            // Auto-fill resend email from login email if available
+            if (loginEmail.value && !resendEmail.value) {
+                resendEmail.value = loginEmail.value;
+            }
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const resendForm = document.getElementById('resendForm');
+            const loginEmail = document.getElementById('loginEmail');
+            const resendEmail = document.getElementById('resendEmail');
+
+            resendForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                // Get email from login field
+                const email = loginEmail.value.trim();
+                if (!email) {
+                    alert('Please enter your email address first');
+                    return;
+                }
+
+                // Set the hidden field value
+                resendEmail.value = email;
+
+                // Submit the form
+                this.submit();
+            });
         });
     </script>
 }

@@ -147,24 +147,24 @@ public class AuthService : IAuthService
         return await _db.Users.FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant().Trim());
     }
     public async Task<bool> ResendVerificationAsync(string emailRaw, Func<int, string, string> buildVerificationLink)
-{
-    var email = emailRaw.Trim().ToLowerInvariant();
-    var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
-    if (user == null) return false;
-
-    // Check if email is already verified - if yes, return false to indicate no email was sent
-    if (user.EmailVerify) 
     {
-        // Log this for debugging (optional)
-        _logger.LogInformation("Resend verification attempted for already verified email: {Email}", email);
-        return false; // Changed from true to false
-    }
+        var email = emailRaw.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null) return false;
 
-    user.GenerateEmailVerificationToken();
-    await _db.SaveChangesAsync();
+        // Check if email is already verified - if yes, return false to indicate no email was sent
+        if (user.EmailVerify)
+        {
+            // Log this for debugging (optional)
+            _logger.LogInformation("Resend verification attempted for already verified email: {Email}", email);
+            return false; // Changed from true to false
+        }
 
-    var link = buildVerificationLink(user.UserId, user.EmailVerificationToken!);
-    var html = $@"
+        user.GenerateEmailVerificationToken();
+        await _db.SaveChangesAsync();
+
+        var link = buildVerificationLink(user.UserId, user.EmailVerificationToken!);
+        var html = $@"
     <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
         <h2 style='color: #A1D336; text-align: center;'>New Verification Link</h2>
         <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
@@ -214,9 +214,9 @@ public class AuthService : IAuthService
         </p>
     </div>";
 
-    await _email.SendEmailAsync(user.Email, "Your New PicklePlay Verification Link", html);
-    return true;
-}
+        await _email.SendEmailAsync(user.Email, "Your New PicklePlay Verification Link", html);
+        return true;
+    }
 
     public async Task<bool> ValidateCaptchaAsync(string captchaToken)
     {
@@ -265,82 +265,181 @@ public class AuthService : IAuthService
     }
 
     public async Task<AuthenticationResult> AuthenticateAsync(string email, string password)
-{
-    try
+    {
+        try
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+            if (user == null)
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Invalid email or password."
+                    // User is null by default - which is correct for failed auth
+                };
+            }
+
+            bool isPasswordValid = VerifyPassword(password, user.Password);
+
+            if (!isPasswordValid)
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Invalid email or password."
+                    // User is null - we don't return user info for failed attempts
+                };
+            }
+
+            return new AuthenticationResult
+            {
+                Success = true,
+                User = user // Only set User when authentication is successful
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Authentication error for email: {Email}", email);
+            return new AuthenticationResult
+            {
+                Success = false,
+                Error = "An error occurred during authentication."
+                // User remains null for errors
+            };
+        }
+    }
+
+    // Add this password verification method to your AuthService class
+    private bool VerifyPassword(string plainPassword, string storedHash)
+    {
+        try
+        {
+            // Decode the stored hash
+            var payload = Convert.FromBase64String(storedHash);
+            if (payload.Length < 1) return false;
+
+            // Extract salt and hash from payload
+            var version = payload[0];
+            if (version != 1) return false; // Only support version 1 for now
+
+            var salt = new byte[16];
+            var storedHashBytes = new byte[32];
+
+            Buffer.BlockCopy(payload, 1, salt, 0, salt.Length);
+            Buffer.BlockCopy(payload, 1 + salt.Length, storedHashBytes, 0, storedHashBytes.Length);
+
+            // Compute hash of the provided password
+            using var pbkdf2 = new Rfc2898DeriveBytes(plainPassword, salt, 100_000, HashAlgorithmName.SHA256);
+            var computedHash = pbkdf2.GetBytes(32);
+
+            // Compare hashes
+            return computedHash.SequenceEqual(storedHashBytes);
+        }
+        catch
+        {
+            return false;
+        }
+
+    }
+    public async Task<bool> GeneratePasswordResetTokenAsync(string email, Func<int, string, string> buildResetLink)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
-        if (user == null)
-        {
-            return new AuthenticationResult
-            {
-                Success = false,
-                Error = "Invalid email or password."
-                // User is null by default - which is correct for failed auth
-            };
-        }
+        if (user == null) return false; // Don't reveal if email exists
 
-        bool isPasswordValid = VerifyPassword(password, user.Password);
+        // Generate reset token
+        user.PasswordResetToken = GenerateSecureToken();
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // 1 hour expiry
+        await _db.SaveChangesAsync();
 
-        if (!isPasswordValid)
-        {
-            return new AuthenticationResult
-            {
-                Success = false,
-                Error = "Invalid email or password."
-                // User is null - we don't return user info for failed attempts
-            };
-        }
+        var resetLink = buildResetLink(user.UserId, user.PasswordResetToken);
 
-        return new AuthenticationResult
-        {
-            Success = true,
-            User = user // Only set User when authentication is successful
-        };
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Authentication error for email: {Email}", email);
-        return new AuthenticationResult
-        {
-            Success = false,
-            Error = "An error occurred during authentication."
-            // User remains null for errors
-        };
-    }
-}
-
-// Add this password verification method to your AuthService class
-private bool VerifyPassword(string plainPassword, string storedHash)
-{
-    try
-    {
-        // Decode the stored hash
-        var payload = Convert.FromBase64String(storedHash);
-        if (payload.Length < 1) return false;
-
-        // Extract salt and hash from payload
-        var version = payload[0];
-        if (version != 1) return false; // Only support version 1 for now
-
-        var salt = new byte[16];
-        var storedHashBytes = new byte[32];
+        // Send reset email
+        var html = $@"
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+        <h2 style='color: #A1D336; text-align: center;'>Reset Your Password</h2>
+        <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
+        <p>We received a request to reset your PicklePlay password. Click the button below to create a new password:</p>
         
-        Buffer.BlockCopy(payload, 1, salt, 0, salt.Length);
-        Buffer.BlockCopy(payload, 1 + salt.Length, storedHashBytes, 0, storedHashBytes.Length);
+        <div style='text-align: center; margin: 30px 0;'>
+            <a href='{resetLink}' style='
+                background-color: #A1D336; 
+                color: white; 
+                padding: 15px 30px; 
+                text-decoration: none; 
+                border-radius: 25px; 
+                font-weight: bold;
+                font-size: 16px;
+                display: inline-block;
+                border: none;
+                cursor: pointer;'>
+                Reset Password
+            </a>
+        </div>
+        
+        <p>Or copy and paste this link in your browser:</p>
+        <p style='
+            background-color: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            word-break: break-all; 
+            font-family: monospace;
+            border-left: 4px solid #A1D336;'>
+            {resetLink}
+        </p>
+        
+        <div style='
+            background-color: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin: 20px 0;'>
+            <strong>⚠️ Important:</strong> This link will expire in 1 hour.
+        </div>
+        
+        <p>If you didn't request a password reset, please ignore this email.</p>
+        
+        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+        <p style='color: #666; font-size: 12px; text-align: center;'>
+            This is an automated message from PicklePlay. Please do not reply to this email.
+        </p>
+    </div>";
 
-        // Compute hash of the provided password
-        using var pbkdf2 = new Rfc2898DeriveBytes(plainPassword, salt, 100_000, HashAlgorithmName.SHA256);
-        var computedHash = pbkdf2.GetBytes(32);
-
-        // Compare hashes
-        return computedHash.SequenceEqual(storedHashBytes);
+        await _email.SendEmailAsync(user.Email, "Reset Your PicklePlay Password", html);
+        return true;
     }
-    catch
+
+    public async Task<User?> ValidatePasswordResetTokenAsync(int userId, string token)
     {
-        return false;
+        return await _db.Users.FirstOrDefaultAsync(u =>
+            u.UserId == userId &&
+            u.PasswordResetToken == token &&
+            u.PasswordResetTokenExpiry > DateTime.UtcNow);
     }
-}
+
+    public async Task<bool> ResetPasswordAsync(int userId, string newPassword)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user == null) return false;
+
+        // Hash new password
+        user.Password = HashPassword(newPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiry = null;
+
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    private string GenerateSecureToken()
+    {
+        var randomBytes = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes);
+    }
 }

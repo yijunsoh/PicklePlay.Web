@@ -43,9 +43,11 @@ public class HomeController : Controller
         return View();
     }
     public IActionResult Index()
+    
     {
-        return View();
+        return RedirectToAction("Login", "Auth");  // ADD this line
     }
+    
 
     public IActionResult Privacy()
     {
