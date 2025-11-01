@@ -39,19 +39,33 @@ public class WalletController : Controller
     }
 
     // GET: /Wallet/TopUp
-    public IActionResult TopUp()
+    public async Task<IActionResult> TopUp()
     {
         if (HttpContext.Session.GetString("UserEmail") == null)
         {
             return RedirectToAction("Login", "Auth");
         }
 
+        var userId = GetCurrentUserId();
+        decimal currentBalance = 0.00m;
+
+        if (userId.HasValue)
+        {
+            var wallet = await _context.Wallets
+                .FirstOrDefaultAsync(w => w.UserId == userId.Value);
+
+            if (wallet != null)
+            {
+                currentBalance = wallet.WalletBalance;
+            }
+        }
+
         ViewData["Title"] = "Top Up Wallet";
         ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+        ViewData["CurrentBalance"] = currentBalance;
 
         return View();
     }
-
     // GET: /Wallet/Withdraw
     public IActionResult Withdraw()
     {
@@ -281,54 +295,54 @@ public class WalletController : Controller
     }
 
     // API: Get Transaction History
-[HttpGet]
-[Route("/api/wallet/transactions")]
-public async Task<IActionResult> GetTransactions()
-{
-    try
+    [HttpGet]
+    [Route("/api/wallet/transactions")]
+    public async Task<IActionResult> GetTransactions()
     {
-        var userId = GetCurrentUserId();
-        if (userId == null)
+        try
         {
-            return Unauthorized(new { success = false, message = "User not logged in" });
-        }
-
-        var wallet = await _context.Wallets
-            .FirstOrDefaultAsync(w => w.UserId == userId.Value);
-
-        if (wallet == null)
-        {
-            return Ok(new { success = true, transactions = new List<object>() });
-        }
-
-        var transactions = await _context.Transactions
-            .Where(t => t.WalletId == wallet.WalletId)
-            .OrderByDescending(t => t.CreatedAt)
-            .Take(10)
-            .Select(t => new
+            var userId = GetCurrentUserId();
+            if (userId == null)
             {
-                id = t.TransactionId,
-                type = t.TransactionType,
-                amount = t.Amount,
-                method = t.PaymentMethod,
-                status = t.PaymentStatus,
-                date = t.CreatedAt,
-                description = $"{t.TransactionType} - {t.PaymentMethod}",
-                // Add these for the frontend display
-                isTopUp = t.TransactionType == "TopUp",
-                formattedDate = t.CreatedAt.ToString("MMM dd, yyyy"),
-                formattedTime = t.CreatedAt.ToString("hh:mm tt")
-            })
-            .ToListAsync();
+                return Unauthorized(new { success = false, message = "User not logged in" });
+            }
 
-        return Ok(new { success = true, transactions });
+            var wallet = await _context.Wallets
+                .FirstOrDefaultAsync(w => w.UserId == userId.Value);
+
+            if (wallet == null)
+            {
+                return Ok(new { success = true, transactions = new List<object>() });
+            }
+
+            var transactions = await _context.Transactions
+                .Where(t => t.WalletId == wallet.WalletId)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(10)
+                .Select(t => new
+                {
+                    id = t.TransactionId,
+                    type = t.TransactionType,
+                    amount = t.Amount,
+                    method = t.PaymentMethod,
+                    status = t.PaymentStatus,
+                    date = t.CreatedAt,
+                    description = $"{t.TransactionType} - {t.PaymentMethod}",
+                    // Add these for the frontend display
+                    isTopUp = t.TransactionType == "TopUp",
+                    formattedDate = t.CreatedAt.ToString("MMM dd, yyyy"),
+                    formattedTime = t.CreatedAt.ToString("hh:mm tt")
+                })
+                .ToListAsync();
+
+            return Ok(new { success = true, transactions });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting transactions");
+            return StatusCode(500, new { success = false, message = "Internal server error" });
+        }
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error getting transactions");
-        return StatusCode(500, new { success = false, message = "Internal server error" });
-    }
-}
 
     private int? GetCurrentUserId()
     {

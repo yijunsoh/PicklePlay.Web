@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PicklePlay.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1d59bbf1ac08ef16027f5a097202cb0497d73168")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+59bb38277d2fbd61a8b23dae014a7fd4f147facf")]
 [assembly: System.Reflection.AssemblyProductAttribute("PicklePlay.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PicklePlay.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
