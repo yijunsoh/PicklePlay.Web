@@ -1,0 +1,93 @@
+@{
+    ViewData["Title"] = "User Transactions";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="p-4">
+    <h2>User Transactions & Activity Logs</h2>
+    <div class="table-responsive bg-white p-3 rounded shadow-sm">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date/Time</th>
+                    <th>User</th>
+                    <th>Activity Type</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>2025-08-20 14:22</td>
+                    <td>john_doe</td>
+                    <td>Wallet Transaction</td>
+                    <td>Top-up RM50 via PayPal</td>
+                    <td><span class="badge bg-success">Successful</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-21 09:13</td>
+                    <td>alice</td>
+                    <td>Community Activity</td>
+                    <td>Joined "Pickleball Fans MY"</td>
+                    <td><span class="badge bg-success">Completed</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-22 17:05</td>
+                    <td>mike88</td>
+                    <td>Login</td>
+                    <td>Logged in from 192.168.1.2</td>
+                    <td><span class="badge bg-success">Successful</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-23 11:30</td>
+                    <td>sarah_k</td>
+                    <td>Game Booking</td>
+                    <td>Booked court at Sports Complex</td>
+                    <td><span class="badge bg-success">Confirmed</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-24 15:45</td>
+                    <td>david_tan</td>
+                    <td>Payment</td>
+                    <td>Paid RM25 for tournament fee</td>
+                    <td><span class="badge bg-success">Processed</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-25 10:20</td>
+                    <td>emily_wong</td>
+                    <td>Community Activity</td>
+                    <td>Created new community "Weekend Warriors"</td>
+                    <td><span class="badge bg-success">Approved</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-26 16:10</td>
+                    <td>peter23</td>
+                    <td>Wallet Transaction</td>
+                    <td>Withdrew RM100 to bank account</td>
+                    <td><span class="badge bg-warning">Pending</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-27 08:55</td>
+                    <td>linda_lee</td>
+                    <td>Game Booking</td>
+                    <td>Cancelled court booking</td>
+                    <td><span class="badge bg-info">Refunded</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-28 13:40</td>
+                    <td>mark_t</td>
+                    <td>Login</td>
+                    <td>Failed login attempt</td>
+                    <td><span class="badge bg-danger">Failed</span></td>
+                </tr>
+                <tr>
+                    <td>2025-08-29 19:25</td>
+                    <td>amy99</td>
+                    <td>Community Activity</td>
+                    <td>Posted in "Pickleball Tips & Tricks"</td>
+                    <td><span class="badge bg-success">Completed</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

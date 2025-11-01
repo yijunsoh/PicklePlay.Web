@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "OzBaCZAUp/MCWYuTlXYy0SmF2cSxDSF4dGlzYBUiBTw=",
+  "Hash": "+U4BFVWQ9BcKtPowEfDfVBtNbZhHJeDKEDJYB+IsHNc=",
   "Source": "PicklePlay.Web",
   "BasePath": "_content/PicklePlay.Web",
   "Mode": "Default",
@@ -1569,6 +1569,90 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\images\\profile_image.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029062436.jpg",
+      "SourceId": "PicklePlay.Web",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\",
+      "BasePath": "_content/PicklePlay.Web",
+      "RelativePath": "images/profiles/profile_19_20251029062436#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "k5826lmwif",
+      "Integrity": "ONDjrzoNPRnxLMy6kAtgu4GvfIkgAHhlH+qfYPCjhSw=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\profiles\\profile_19_20251029062436.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029064454.png",
+      "SourceId": "PicklePlay.Web",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\",
+      "BasePath": "_content/PicklePlay.Web",
+      "RelativePath": "images/profiles/profile_19_20251029064454#[.{fingerprint}]?.png",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "h7knwd5ba2",
+      "Integrity": "87UGHl1jlT+Mdl5e8zgFWwM0kjCAsIk3/CuaEII0WHE=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\profiles\\profile_19_20251029064454.png"
+    },
+    {
+      "Identity": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_23_20251029114615.jpg",
+      "SourceId": "PicklePlay.Web",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\",
+      "BasePath": "_content/PicklePlay.Web",
+      "RelativePath": "images/profiles/profile_23_20251029114615#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "i450fr34ta",
+      "Integrity": "8gSrLTe75I1PlFUAakIXOKS1YMM9s6p9IpOtWa7eF1Q=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\profiles\\profile_23_20251029114615.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_24_20251030072443.png",
+      "SourceId": "PicklePlay.Web",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\",
+      "BasePath": "_content/PicklePlay.Web",
+      "RelativePath": "images/profiles/profile_24_20251030072443#[.{fingerprint}]?.png",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "vbheykh3yc",
+      "Integrity": "xa4cRjBFZ7LJoSVlZasEdKRGWkyEbzP1tNBIoCng2y8=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\images\\profiles\\profile_24_20251030072443.png"
     },
     {
       "Identity": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\js\\site.js",
@@ -4534,6 +4618,334 @@
         {
           "Name": "integrity",
           "Value": "sha256-xxmF4gDBUu3I5EVETS22aal1XRcb/B0ZTK7UpnrDM1o="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_19_20251029062436.jpg",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029062436.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "165848"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"ONDjrzoNPRnxLMy6kAtgu4GvfIkgAHhlH+qfYPCjhSw=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 28 Oct 2025 22:24:36 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-ONDjrzoNPRnxLMy6kAtgu4GvfIkgAHhlH+qfYPCjhSw="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_19_20251029062436.k5826lmwif.jpg",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029062436.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "165848"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"ONDjrzoNPRnxLMy6kAtgu4GvfIkgAHhlH+qfYPCjhSw=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 28 Oct 2025 22:24:36 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "k5826lmwif"
+        },
+        {
+          "Name": "label",
+          "Value": "images/profiles/profile_19_20251029062436.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-ONDjrzoNPRnxLMy6kAtgu4GvfIkgAHhlH+qfYPCjhSw="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_19_20251029064454.h7knwd5ba2.png",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029064454.png",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "42274"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/png"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"87UGHl1jlT+Mdl5e8zgFWwM0kjCAsIk3/CuaEII0WHE=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 28 Oct 2025 22:44:54 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "h7knwd5ba2"
+        },
+        {
+          "Name": "label",
+          "Value": "images/profiles/profile_19_20251029064454.png"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-87UGHl1jlT+Mdl5e8zgFWwM0kjCAsIk3/CuaEII0WHE="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_19_20251029064454.png",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029064454.png",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "42274"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/png"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"87UGHl1jlT+Mdl5e8zgFWwM0kjCAsIk3/CuaEII0WHE=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Tue, 28 Oct 2025 22:44:54 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-87UGHl1jlT+Mdl5e8zgFWwM0kjCAsIk3/CuaEII0WHE="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_23_20251029114615.i450fr34ta.jpg",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_23_20251029114615.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "172292"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"8gSrLTe75I1PlFUAakIXOKS1YMM9s6p9IpOtWa7eF1Q=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 29 Oct 2025 03:46:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "i450fr34ta"
+        },
+        {
+          "Name": "label",
+          "Value": "images/profiles/profile_23_20251029114615.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-8gSrLTe75I1PlFUAakIXOKS1YMM9s6p9IpOtWa7eF1Q="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_23_20251029114615.jpg",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_23_20251029114615.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "172292"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"8gSrLTe75I1PlFUAakIXOKS1YMM9s6p9IpOtWa7eF1Q=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 29 Oct 2025 03:46:15 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-8gSrLTe75I1PlFUAakIXOKS1YMM9s6p9IpOtWa7eF1Q="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_24_20251030072443.png",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_24_20251030072443.png",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "3497095"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/png"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"xa4cRjBFZ7LJoSVlZasEdKRGWkyEbzP1tNBIoCng2y8=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 29 Oct 2025 23:24:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-xa4cRjBFZ7LJoSVlZasEdKRGWkyEbzP1tNBIoCng2y8="
+        }
+      ]
+    },
+    {
+      "Route": "images/profiles/profile_24_20251030072443.vbheykh3yc.png",
+      "AssetFile": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_24_20251030072443.png",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "3497095"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/png"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"xa4cRjBFZ7LJoSVlZasEdKRGWkyEbzP1tNBIoCng2y8=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 29 Oct 2025 23:24:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "vbheykh3yc"
+        },
+        {
+          "Name": "label",
+          "Value": "images/profiles/profile_24_20251030072443.png"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-xa4cRjBFZ7LJoSVlZasEdKRGWkyEbzP1tNBIoCng2y8="
         }
       ]
     },

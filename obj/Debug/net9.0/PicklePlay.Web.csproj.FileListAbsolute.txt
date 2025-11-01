@@ -211,3 +211,5 @@ C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\l1vj3jevog-o7np1pzg5t.g
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\tlulzm92m7-lr4pkbt2bj.gz
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\compressed\5g0aqalpc2-b9sayid5wm.gz
 C:\Users\User\PicklePlay.Web\obj\Debug\net9.0\PicklePlay.Web.sourcelink.json
+C:\Users\User\PicklePlay.Web\bin\Debug\net9.0\Newtonsoft.Json.dll
+C:\Users\User\PicklePlay.Web\bin\Debug\net9.0\PayPal.dll

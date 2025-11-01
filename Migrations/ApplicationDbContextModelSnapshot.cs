@@ -22,6 +22,164 @@ namespace PicklePlay.Web.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("PicklePlay.Models.Escrow", b =>
+                {
+                    b.Property<int>("EscrowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("escrow_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("EscrowId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("int")
+                        .HasColumnName("schedule_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("EscrowId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Escrow");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.EscrowDispute", b =>
+                {
+                    b.Property<int>("DisputeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("dispute_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("DisputeId"));
+
+                    b.Property<string>("AdminDecision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("admin_decision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DecisionDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("decision_date");
+
+                    b.Property<string>("DisputeReason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("dispute_reason");
+
+                    b.Property<int>("EscrowId")
+                        .HasColumnType("int")
+                        .HasColumnName("escrow_id");
+
+                    b.Property<int>("RaisedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("raisedByUserId");
+
+                    b.Property<string>("RefundProcess")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("refund_process");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("DisputeId");
+
+                    b.HasIndex("EscrowId");
+
+                    b.HasIndex("RaisedByUserId");
+
+                    b.ToTable("Escrow_Dispute");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Transaction", b =>
+                {
+                    b.Property<int>("TransactionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("transaction_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TransactionId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("CardLastFour")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("card_last_four");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("EscrowId")
+                        .HasColumnType("int")
+                        .HasColumnName("escrow_id");
+
+                    b.Property<DateTime?>("PaymentCompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("payment_completed_at");
+
+                    b.Property<string>("PaymentGatewayId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("payment_gateway_id");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentResponse")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_response");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("payment_status");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("transaction_type");
+
+                    b.Property<int>("WalletId")
+                        .HasColumnType("int")
+                        .HasColumnName("wallet_id");
+
+                    b.HasKey("TransactionId");
+
+                    b.HasIndex("EscrowId");
+
+                    b.HasIndex("WalletId");
+
+                    b.ToTable("Transaction");
+                });
+
             modelBuilder.Entity("PicklePlay.Models.User", b =>
                 {
                     b.Property<int>("UserId")
@@ -64,6 +222,11 @@ namespace PicklePlay.Web.Migrations
                     b.Property<bool>("EmailVerify")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("emailVerify");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("gender");
 
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("datetime(6)")
@@ -119,6 +282,112 @@ namespace PicklePlay.Web.Migrations
                         .IsUnique();
 
                     b.ToTable("User");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Wallet", b =>
+                {
+                    b.Property<int>("WalletId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("wallet_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("WalletId"));
+
+                    b.Property<decimal>("EscrowBalance")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("escrow_balance");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_updated");
+
+                    b.Property<decimal>("TotalSpent")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("total_spent");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.Property<decimal>("WalletBalance")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("wallet_balance");
+
+                    b.HasKey("WalletId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Wallet");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Escrow", b =>
+                {
+                    b.HasOne("PicklePlay.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.EscrowDispute", b =>
+                {
+                    b.HasOne("PicklePlay.Models.Escrow", "Escrow")
+                        .WithMany("EscrowDisputes")
+                        .HasForeignKey("EscrowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PicklePlay.Models.User", "RaisedByUser")
+                        .WithMany()
+                        .HasForeignKey("RaisedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Escrow");
+
+                    b.Navigation("RaisedByUser");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Transaction", b =>
+                {
+                    b.HasOne("PicklePlay.Models.Escrow", "Escrow")
+                        .WithMany("Transactions")
+                        .HasForeignKey("EscrowId");
+
+                    b.HasOne("PicklePlay.Models.Wallet", "Wallet")
+                        .WithMany("Transactions")
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Escrow");
+
+                    b.Navigation("Wallet");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Wallet", b =>
+                {
+                    b.HasOne("PicklePlay.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Escrow", b =>
+                {
+                    b.Navigation("EscrowDisputes");
+
+                    b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.Wallet", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 #pragma warning restore 612, 618
         }

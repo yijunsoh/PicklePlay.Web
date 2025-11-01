@@ -1,0 +1,691 @@
+@page
+@{
+    @* ViewData["Title"] = "Wallet Management"; *@
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2E8B57;
+            --secondary: #FF6B35;
+            --accent: #1E5B32;
+            --light: #F8F9FA;
+            --dark: #343A40;
+            --court: #E8F5E9;
+        }
+        
+        .wallet-page {
+            background: #E8F5E9;
+            min-height: calc(100vh - 80px);
+        }
+
+        .side-box {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            border: 1px solid rgba(46, 139, 87, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .side-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .wallet-balance {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #2E8B57;
+        }
+
+        .quick-amount-btn {
+            margin: 5px;
+            transition: all 0.2s;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+
+        .quick-amount-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .action-card {
+            height: 100%;
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .action-card:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .action-card.top-up {
+            background: #2E8B57;
+            color: white;
+        }
+
+        .action-card.withdraw {
+            background: #FF6B35;
+            color: white;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background-color: #FFF3CD;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #D1ECF1;
+            color: #0C5460;
+        }
+
+        .wallet-summary {
+            background: rgba(46, 139, 87, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 5px solid #2E8B57;
+        }
+
+        .stats-card {
+            text-align: center;
+            padding: 20px 15px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .stats-card i {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #2E8B57;
+        }
+
+        .stats-card h4 {
+            font-weight: 700;
+            color: #343A40;
+            margin-bottom: 5px;
+            font-size: 1.4rem;
+        }
+
+        .stats-card p {
+            color: #6c757d;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .page-header {
+            background: #2E8B57;
+            color: white;
+            padding: 30px 0;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            color: #2E8B57;
+            font-weight: 700;
+            border-bottom: 2px solid #2E8B57;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: inline-block;
+            font-size: 1.4rem;
+        }
+
+        .btn-custom {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 28px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-custom:hover {
+            background: #1E5B32;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn-outline-custom {
+            border: 2px solid #2E8B57;
+            color: #2E8B57;
+            border-radius: 50px;
+            padding: 10px 24px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-outline-custom:hover {
+            background: #2E8B57;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .transaction-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1.1rem;
+        }
+
+        .transaction-icon.top-up {
+            background: rgba(46, 139, 87, 0.15);
+            color: #2E8B57;
+        }
+
+        .transaction-icon.withdraw {
+            background: rgba(255, 107, 53, 0.15);
+            color: #FF6B35;
+        }
+
+        .transaction-icon.escrow {
+            background: rgba(13, 110, 253, 0.15);
+            color: #0d6efd;
+        }
+
+        .transaction-icon.released {
+            background: rgba(111, 66, 193, 0.15);
+            color: #6f42c1;
+        }
+
+        .recent-activity {
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .activity-item {
+            padding: 16px 0;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s;
+        }
+
+        .activity-item:hover {
+            background: rgba(52, 152, 219, 0.05);
+            border-radius: 10px;
+            padding: 16px 12px;
+            margin: 0 -12px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .pagination .page-link {
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            margin: 0 4px;
+            font-weight: 600;
+            padding: 8px 16px;
+        }
+        .page-link {
+            color: #2E8B57;
+        }
+
+        .pagination .page-item.active .page-link {
+            background: #2E8B57;
+            border-color: #2E8B57;
+            box-shadow: 0 3px 10px rgba(46, 139, 87, 0.3);
+        }
+
+        .recent-activity::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .recent-activity::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .recent-activity::-webkit-scrollbar-thumb {
+            background: #2E8B57;
+            border-radius: 10px;
+        }
+
+        .recent-activity::-webkit-scrollbar-thumb:hover {
+            background: #1E5B32;
+        }
+
+        .court-pattern {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .court-pattern::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(90deg, transparent 49%, rgba(255,255,255,0.1) 49%, rgba(255,255,255,0.1) 51%, transparent 51%),
+                linear-gradient(0deg, transparent 49%, rgba(255,255,255,0.1) 49%, rgba(255,255,255,0.1) 51%, transparent 51%);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .court-pattern > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .table-light {
+            background: #F8F9FA;
+            border-bottom: 3px solid #2E8B57;
+        }
+
+        .table-hover tbody tr:hover {
+            background: rgba(46, 139, 87, 0.05);
+        }
+
+        .text-success {
+            color: #28a745 !important;
+        }
+
+        .text-danger {
+            color: #dc3545 !important;
+        }
+
+        .badge.bg-success {
+            background: #28a745 !important;
+        }
+
+        .badge.bg-primary {
+            background: #3498db !important;
+        }
+
+        .badge.bg-danger {
+            background: #dc3545 !important;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Wallet Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('walletChart').getContext('2d');
+            const walletChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Available Balance', 'Escrow', 'Spent'],
+                    datasets: [{
+                        data: [250, 120, 80],
+                        backgroundColor: [
+                            'rgba(46, 139, 87, 0.8)',
+                            'rgba(13, 110, 253, 0.8)',
+                            'rgba(220, 53, 69, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(46, 139, 87, 1)',
+                            'rgba(13, 110, 253, 1)',
+                            'rgba(220, 53, 69, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: RM ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Table filtering and sorting
+            const searchInput = document.getElementById('searchInput');
+            const filterType = document.getElementById('filterType');
+            const table = document.getElementById('transactionTable').getElementsByTagName('tbody')[0];
+            let sortDirection = 'desc';
+
+            function filterTransactions() {
+                const search = searchInput.value.toLowerCase();
+                const typeFilter = filterType.value;
+
+                Array.from(table.rows).forEach(row => {
+                    const date = row.cells[0].textContent.toLowerCase();
+                    const type = row.cells[1].textContent.toLowerCase();
+                    const description = row.cells[2].textContent.toLowerCase();
+
+                    const matchesSearch = date.includes(search) || type.includes(search) || description.includes(search);
+                    const matchesType = (typeFilter === 'all') || (row.cells[1].textContent === typeFilter);
+
+                    row.style.display = (matchesSearch && matchesType) ? '' : 'none';
+                });
+
+                sortTableByDate();
+            }
+
+            function sortTableByDate() {
+                const rows = Array.from(table.rows)
+                    .filter(row => row.style.display !== 'none');
+
+                rows.sort((a, b) => {
+                    const dateA = new Date(a.cells[0].textContent);
+                    const dateB = new Date(b.cells[0].textContent);
+                    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+                });
+
+                rows.forEach(row => table.appendChild(row));
+            }
+
+            document.querySelector('th').addEventListener('click', function() {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                sortTableByDate();
+                
+                const icon = this.querySelector('i');
+                icon.className = sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            });
+
+            searchInput.addEventListener('input', filterTransactions);
+            filterType.addEventListener('change', filterTransactions);
+
+            sortTableByDate();
+
+            // Tooltip initialization
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+}
+
+<div class="wallet-page court-pattern">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-wallet me-3"></i>My Wallet</h1>
+                    <p class="lead mb-0">Manage your funds and track your transactions</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/Home/EditProfile" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-lg-8">
+                <!-- Financial Overview -->
+                <div class="side-box">
+                    <h3 class="section-title"><i class="fas fa-chart-line me-2"></i>Financial Overview</h3>
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="stats-card">
+                                <i class="fas fa-wallet"></i>
+                                <h4>RM 250.00</h4>
+                                <p>Available Balance</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="stats-card">
+                                <i class="fas fa-lock"></i>
+                                <h4>RM 120.00</h4>
+                                <p>In Escrow</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="stats-card">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <h4>RM 80.00</h4>
+                                <p>Total Spent</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="mb-3"><i class="fas fa-bolt me-2"></i>Actions</h5>
+                            <div class="d-flex flex-wrap">
+                                <a href="/Wallet/TopUp" class="btn btn-outline-custom me-3 mb-2">
+                                    <i class="fas fa-plus-circle me-2"></i>Top Up
+                                </a>
+                                <a href="/Wallet/Withdraw" class="btn btn-outline-custom me-3 mb-2">
+                                    <i class="fas fa-money-bill-wave me-2"></i>Withdraw
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Transactions -->
+                <div class="side-box">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="section-title mb-0"><i class="fas fa-receipt me-2"></i>Payment Transactions</h3>
+                        <div>
+                            <button class="btn btn-sm btn-outline-custom">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" id="searchInput" class="form-control" placeholder="Search by date or type">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <select id="filterType" class="form-select">
+                                <option value="all" selected>All Types</option>
+                                <option value="Escrow">Escrow</option>
+                                <option value="Released">Released</option>
+                                <option value="Top Up">Top Up</option>
+                                <option value="Withdrawal">Withdrawal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover transaction-table" id="transactionTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date <i class="fas fa-sort tooltip-icon" title="Click to sort"></i></th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Amount (RM)</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2025-08-05</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="transaction-icon top-up">
+                                                <i class="fas fa-arrow-down"></i>
+                                            </div>
+                                            <span>Top Up</span>
+                                        </div>
+                                    </td>
+                                    <td>Wallet top up via PayPal</td>
+                                    <td class="fw-bold text-success">+ RM 100.00</td>
+                                    <td><span class="status-badge status-completed">Completed</span></td>
+                                    <td><button class="btn btn-sm btn-outline-custom"><i class="fas fa-eye"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>2025-08-03</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="transaction-icon released">
+                                                <i class="fas fa-unlock"></i>
+                                            </div>
+                                            <span>Released</span>
+                                        </div>
+                                    </td>
+                                    <td>Escrow release #ER001</td>
+                                    <td class="fw-bold text-success">+ RM 30.00</td>
+                                    <td><span class="status-badge status-completed">Completed</span></td>
+                                    <td><button class="btn btn-sm btn-outline-custom"><i class="fas fa-eye"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>2025-08-01</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="transaction-icon escrow">
+                                                <i class="fas fa-lock"></i>
+                                            </div>
+                                            <span>Escrow</span>
+                                        </div>
+                                    </td>
+                                    <td>Game booking #GB001</td>
+                                    <td class="fw-bold text-danger">- RM 50.00</td>
+                                    <td><span class="status-badge status-pending">Pending</span></td>
+                                    <td><button class="btn btn-sm btn-outline-custom"><i class="fas fa-eye"></i></button></td>
+                                </tr>
+                                <tr>
+                                    <td>2025-07-28</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="transaction-icon withdraw">
+                                                <i class="fas fa-arrow-up"></i>
+                                            </div>
+                                            <span>Withdrawal</span>
+                                        </div>
+                                    </td>
+                                    <td>Withdrawal to bank account</td>
+                                    <td class="fw-bold text-danger">- RM 50.00</td>
+                                    <td><span class="status-badge status-completed">Completed</span></td>
+                                    <td><button class="btn btn-sm btn-outline-custom"><i class="fas fa-eye"></i></button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Transaction pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-lg-4">
+                <!-- Wallet Distribution -->
+                <div class="side-box text-center">
+                    <h3 class="section-title"><i class="fas fa-chart-pie me-2"></i>Wallet Distribution</h3>
+                    <canvas id="walletChart" style="max-height:250px;"></canvas>
+                    <div class="mt-3">
+                        <span class="badge bg-success me-2 p-2">Balance</span>
+                        <span class="badge bg-primary me-2 p-2">Escrow</span>
+                        <span class="badge bg-danger p-2">Spent</span>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="side-box">
+                    <h3 class="section-title"><i class="fas fa-history me-2"></i>Recent Activity</h3>
+                    <div class="recent-activity">
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <i class="fas fa-arrow-down text-success me-2"></i>
+                                    <span>Top Up</span>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-success">+ RM 100.00</div>
+                                    <small class="text-muted">2 hours ago</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <i class="fas fa-lock text-primary me-2"></i>
+                                    <span>Escrow Hold</span>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-danger">- RM 50.00</div>
+                                    <small class="text-muted">1 day ago</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <i class="fas fa-unlock text-info me-2"></i>
+                                    <span>Escrow Release</span>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-success">+ RM 30.00</div>
+                                    <small class="text-muted">3 days ago</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <i class="fas fa-arrow-up text-warning me-2"></i>
+                                    <span>Withdrawal</span>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-danger">- RM 50.00</div>
+                                    <small class="text-muted">1 week ago</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

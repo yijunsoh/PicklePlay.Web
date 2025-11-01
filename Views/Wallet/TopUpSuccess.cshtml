@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Top Up Success";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="text-success mb-3">
+                        <i class="fas fa-check-circle fa-3x"></i>
+                    </div>
+                    <h2 class="card-title">Top-Up Successful!</h2>
+                    <p class="card-text">Your wallet has been topped up successfully.</p>
+                    
+                    @if (ViewData["Amount"] != null)
+                    {
+                        <div class="alert alert-success">
+                            <strong>Amount:</strong> RM @ViewData["Amount"]
+                        </div>
+                    }
+                    
+                    @if (ViewData["NewBalance"] != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>New Balance:</strong> RM @ViewData["NewBalance"]
+                        </div>
+                    }
+
+                    @if (ViewData["TransactionId"] != null)
+                    {
+                        <div class="alert alert-secondary">
+                            <strong>Transaction ID:</strong> @ViewData["TransactionId"]
+                        </div>
+                    }
+                    
+                    <div class="mt-4">
+                        <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-primary">Back to Wallet</a>
+                        <a href="@Url.Action("TopUp", "Wallet")" class="btn btn-outline-secondary">Top Up Again</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

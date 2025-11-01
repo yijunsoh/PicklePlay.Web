@@ -1,0 +1,95 @@
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<h2>Admin Dashboard</h2>
+<p class="text-muted">Quick overview of the system.</p>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h5>Total Users</h5>
+                <h3 class="text-primary">1,245</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h5>Active Communities</h5>
+                <h3 class="text-success">85</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h5>Pending Reports</h5>
+                <h3 class="text-danger">32</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h5>Transactions</h5>
+                <h3 class="text-warning">$5,230</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart + Recent Reports -->
+<div class="row g-3">
+    <!-- Chart -->
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>User Growth</h5>
+                <canvas id="userChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Recent Reports -->
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>Recent Reports</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">User <b>john_doe</b> reported for spamming</li>
+                    <li class="list-group-item">Community <b>Pickle Champs</b> inactive for 30 days</li>
+                    <li class="list-group-item">User <b>sarah_k</b> suspended once</li>
+                    <li class="list-group-item">Transaction <b>#TX1023</b> approved</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Chart.js Example
+        const ctx = document.getElementById('userChart');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'New Users',
+                    data: [50, 120, 180, 90, 200, 300],
+                    borderColor: '#A1D336',
+                    backgroundColor: 'rgba(161, 211, 54, 0.3)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+}

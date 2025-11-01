@@ -41,6 +41,22 @@
       "PackagePath": "staticwebassets\\images\\profile_image.jpg"
     },
     {
+      "Id": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029062436.jpg",
+      "PackagePath": "staticwebassets\\images\\profiles\\profile_19_20251029062436.jpg"
+    },
+    {
+      "Id": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_19_20251029064454.png",
+      "PackagePath": "staticwebassets\\images\\profiles\\profile_19_20251029064454.png"
+    },
+    {
+      "Id": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_23_20251029114615.jpg",
+      "PackagePath": "staticwebassets\\images\\profiles\\profile_23_20251029114615.jpg"
+    },
+    {
+      "Id": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\images\\profiles\\profile_24_20251030072443.png",
+      "PackagePath": "staticwebassets\\images\\profiles\\profile_24_20251030072443.png"
+    },
+    {
       "Id": "C:\\Users\\User\\PicklePlay.Web\\wwwroot\\js\\site.js",
       "PackagePath": "staticwebassets\\js\\site.js"
     },

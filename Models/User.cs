@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PicklePlay.Models
 {
-    // Ensures Email is unique at the DB level
     [Table("User")]
     [Index(nameof(Email), IsUnique = true)]
     public class User
@@ -32,45 +31,44 @@ namespace PicklePlay.Models
         [Column("phoneNo")]
         public string? PhoneNo { get; set; }
 
-        // Store a hash here (even though column name is "password" per data dictionary)
+        // ADD GENDER FIELD
+        [MaxLength(10)]
+        [Column("gender")]
+        public string? Gender { get; set; }
+
         [Required]
         [MaxLength(255)]
         [Column("password")]
         public string Password { get; set; } = null!;
 
-        // DATE in MySQL (no time); nullable if you allow users to skip it
         [Column("dateOfBirth", TypeName = "date")]
         public DateTime? DateOfBirth { get; set; }
 
-        // Kept because it’s in your dictionary (can also be computed in code if you prefer)
         [Column("age")]
         public int? Age { get; set; }
 
         [Column("bio", TypeName = "text")]
         public string? Bio { get; set; }
 
-        // e.g., "Active", "Suspended", "Banned"
         [Required]
         [MaxLength(20)]
         [Column("status")]
         public string Status { get; set; } = "Active";
 
-        // Default to UTC; you can also set default at DB level in OnModelCreating if preferred
         [Column("created_date")]
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
         [Column("last_login")]
         public DateTime? LastLogin { get; set; }
 
-        // 1/0 in MySQL maps to bool in EF Core
         [Column("emailVerify")]
         public bool EmailVerify { get; set; } = false;
 
-        // e.g., "Player", "Admin"
         [Required]
         [MaxLength(30)]
         [Column("role")]
         public string Role { get; set; } = "Player";
+
         [Column("email_verification_token")]
         public string? EmailVerificationToken { get; set; }
 
@@ -79,17 +77,24 @@ namespace PicklePlay.Models
 
         [Column("verification_token_expiry")]
         public DateTime? VerificationTokenExpiry { get; set; }
+
         public string? PasswordResetToken { get; set; }
         public DateTime? PasswordResetTokenExpiry { get; set; }
 
-        // Helper method to generate verification token
         public void GenerateEmailVerificationToken()
         {
             EmailVerificationToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
                 .Replace("=", "")
                 .Replace("+", "")
                 .Replace("/", "");
-            VerificationTokenExpiry = DateTime.UtcNow.AddMinutes(1); // Token valid for 24 hours
+            VerificationTokenExpiry = DateTime.UtcNow.AddMinutes(1); // Fixed to 1 minutes
+        }
+        public void GeneratePasswordResetToken()
+        {
+            PasswordResetToken = Guid.NewGuid().ToString();
+
+            // Set expiry time to 1 minute
+            PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1);
         }
     }
 }

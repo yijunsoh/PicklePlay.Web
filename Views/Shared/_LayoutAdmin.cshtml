@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .sidebar {
+            width: 270px;
+            background-color: #343a40;
+            color: white;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .sidebar .nav-link {
+            color: white;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: 0.3s;
+            padding: 12px 15px;
+            margin: 2px 0;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: #495057;
+            border-left: 3px solid white;
+            color: white;
+        }
+
+        .sidebar .nav-link.active {
+            background-color: #495057;
+            border-left: 3px solid #A1D336;
+        }
+
+        .sidebar .collapse .nav-link {
+            padding-left: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .sidebar h4 {
+            color: #A1D336;
+            padding: 10px 15px;
+            border-bottom: 1px solid #495057;
+            margin-bottom: 20px;
+        }
+
+        .top-navbar {
+            width: 100%;
+            background-color: #A1D336;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar .navbar-brand {
+            font-weight: bold;
+            font-size: 1.3rem;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .top-navbar .navbar-brand:hover {
+            color: white;
+        }
+
+        .top-navbar .navbar-brand img {
+            border-radius: 5px;
+        }
+
+        /* Dropdown styling - UPDATED */
+        .admin-dropdown .btn {
+            color: white;
+            border-color: white;
+            background: transparent;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+        }
+
+        .admin-dropdown .btn:hover {
+            background-color: white !important;
+            color: #A1D336 !important;
+            border-color: white !important;
+        }
+
+        .admin-dropdown .dropdown-menu {
+            min-width: 200px;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 8px 0;
+        }
+
+        .admin-dropdown .dropdown-item {
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .admin-dropdown .dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+
+        .admin-dropdown .dropdown-item.text-danger:hover {
+            background-color: #dc3545;
+            color: white !important;
+        }
+
+        .admin-dropdown .dropdown-divider {
+            margin: 6px 0;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .content-area {
+            flex-grow: 1;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+
+        /* Collapse animation improvements */
+        .collapse {
+            transition: all 0.3s ease;
+        }
+
+        .nav-item > .nav-link[aria-expanded="true"] {
+            background-color: #495057;
+            border-left: 3px solid #A1D336;
+        }
+
+        /* Responsive design */
+        @@media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .main-content {
+                width: 100%;
+            }
+        }
+
+        /* Custom scrollbar for sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #343a40;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #A1D336;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #8bb82b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar d-flex flex-column p-3">
+        <h4 class="mb-4">Admin Panel</h4>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="@Url.Action("AdminDashboard", "Admin")" class="nav-link">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+            </li>
+
+            <!-- User Management -->
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#UserMenu" aria-expanded="false"
+                   aria-controls="UserMenu">
+                    <i class="fas fa-users me-2"></i>User Management <i class="fas fa-chevron-down float-end mt-1"></i>
+                </a>
+                <div class="collapse" id="UserMenu">
+                    <ul class="nav flex-column ms-3">
+                        <li>
+                            <a href="@Url.Action("SuspendList", "Admin")" class="nav-link">
+                                <i class="fas fa-user-slash me-2"></i>Suspend / Ban Users
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("TransactionLog", "Admin")" class="nav-link">
+                                <i class="fas fa-exchange-alt me-2"></i>User Transactions
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Community Management -->
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#CommunityMenu" aria-expanded="false"
+                   aria-controls="CommunityMenu">
+                    <i class="fas fa-layer-group me-2"></i>Community Management <i class="fas fa-chevron-down float-end mt-1"></i>
+                </a>
+                <div class="collapse" id="CommunityMenu">
+                    <ul class="nav flex-column ms-3">
+                        <li>
+                            <a href="@Url.Action("CommunityRequests", "Admin")" class="nav-link">
+                                <i class="fas fa-clipboard-list me-2"></i>Community Requests
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("InactiveCommunities", "Admin")" class="nav-link">
+                                <i class="fas fa-bed me-2"></i>Inactive Communities
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Escrow Management -->
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#EscrowMenu" aria-expanded="false"
+                   aria-controls="EscrowMenu">
+                    <i class="fas fa-hand-holding-usd me-2"></i>Escrow Management <i class="fas fa-chevron-down float-end mt-1"></i>
+                </a>
+                <div class="collapse" id="EscrowMenu">
+                    <ul class="nav flex-column ms-3">
+                        <li>
+                            <a href="@Url.Action("EscrowDashboard", "Admin")" class="nav-link">
+                                <i class="fas fa-tachometer-alt me-2"></i>Escrow Dashboard
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("Refund", "Admin")" class="nav-link">
+                                <i class="fas fa-undo-alt me-2"></i>Refund Management
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-chart-bar me-2"></i>Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-cog me-2"></i>Settings
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <a href="@Url.Action("AdminDashboard", "Admin")" class="navbar-brand">
+                <img src="~/images/logoV3.png" alt="Logo" width="40" height="40" class="me-2">
+                <span class="fw-bold">PicklePlay</span>
+            </a>
+            <div class="admin-dropdown">
+                <div class="dropdown">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-shield me-2"></i>Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="@Url.Action("Community", "Home")">
+                                <i class="fas fa-users me-2"></i>Go to Community
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-cog me-2"></i>Settings
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="content-area">
+            @RenderBody()
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Additional Scripts for Interactive Features -->
+    <script>
+        // Enhanced sidebar functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-collapse other menus when one is opened
+            const collapseElements = document.querySelectorAll('.collapse');
+            collapseElements.forEach(collapse => {
+                collapse.addEventListener('show.bs.collapse', function() {
+                    collapseElements.forEach(otherCollapse => {
+                        if (otherCollapse !== collapse && otherCollapse.classList.contains('show')) {
+                            bootstrap.Collapse.getInstance(otherCollapse).hide();
+                        }
+                    });
+                });
+            });
+
+            // Add active class to current page link
+            const currentUrl = window.location.href;
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            
+            navLinks.forEach(link => {
+                if (link.href === currentUrl) {
+                    link.classList.add('active');
+                    
+                    // Expand parent collapse if this is a child link
+                    const parentCollapse = link.closest('.collapse');
+                    if (parentCollapse) {
+                        new bootstrap.Collapse(parentCollapse, { toggle: false }).show();
+                        
+                        // Also activate the parent toggle link
+                        const parentToggle = document.querySelector(`[href="#${parentCollapse.id}"]`);
+                        if (parentToggle) {
+                            parentToggle.classList.add('active');
+                        }
+                    }
+                }
+            });
+
+            // Smooth transitions
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.style.transition = 'all 0.3s ease';
+            }
+        });
+
+        // Handle responsive behavior
+        function handleResize() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (window.innerWidth <= 768) {
+                document.body.style.flexDirection = 'column';
+                if (sidebar) sidebar.style.width = '100%';
+                if (mainContent) mainContent.style.width = '100%';
+            } else {
+                document.body.style.flexDirection = 'row';
+                if (sidebar) sidebar.style.width = '270px';
+                if (mainContent) mainContent.style.width = 'calc(100% - 270px)';
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('load', handleResize);
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

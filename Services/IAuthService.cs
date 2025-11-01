@@ -39,4 +39,7 @@ public interface IAuthService
     Task<bool> GeneratePasswordResetTokenAsync(string email, Func<int, string, string> buildResetLink);
     Task<User?> ValidatePasswordResetTokenAsync(int userId, string token);
     Task<bool> ResetPasswordAsync(int userId, string newPassword);
+
+    Task<bool> UpdateUserProfileAsync(int userId, string fullName, string email, string? phoneNumber,
+        string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath);
 }

@@ -351,63 +351,63 @@ public class AuthService : IAuthService
 
         if (user == null) return false; // Don't reveal if email exists
 
-        // Generate reset token
+        // Generate reset token with 1 minute expiry
         user.PasswordResetToken = GenerateSecureToken();
-        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // 1 hour expiry
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1); // Changed to 1 minute
         await _db.SaveChangesAsync();
 
         var resetLink = buildResetLink(user.UserId, user.PasswordResetToken);
 
         // Send reset email
         var html = $@"
-    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-        <h2 style='color: #A1D336; text-align: center;'>Reset Your Password</h2>
-        <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
-        <p>We received a request to reset your PicklePlay password. Click the button below to create a new password:</p>
-        
-        <div style='text-align: center; margin: 30px 0;'>
-            <a href='{resetLink}' style='
-                background-color: #A1D336; 
-                color: white; 
-                padding: 15px 30px; 
-                text-decoration: none; 
-                border-radius: 25px; 
-                font-weight: bold;
-                font-size: 16px;
-                display: inline-block;
-                border: none;
-                cursor: pointer;'>
-                Reset Password
-            </a>
-        </div>
-        
-        <p>Or copy and paste this link in your browser:</p>
-        <p style='
-            background-color: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 5px; 
-            word-break: break-all; 
-            font-family: monospace;
-            border-left: 4px solid #A1D336;'>
-            {resetLink}
-        </p>
-        
-        <div style='
-            background-color: #fff3cd; 
-            border: 1px solid #ffeaa7; 
-            border-radius: 5px; 
-            padding: 15px; 
-            margin: 20px 0;'>
-            <strong>⚠️ Important:</strong> This link will expire in 1 hour.
-        </div>
-        
-        <p>If you didn't request a password reset, please ignore this email.</p>
-        
-        <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
-        <p style='color: #666; font-size: 12px; text-align: center;'>
-            This is an automated message from PicklePlay. Please do not reply to this email.
-        </p>
-    </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+    <h2 style='color: #A1D336; text-align: center;'>Reset Your Password</h2>
+    <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
+    <p>We received a request to reset your PicklePlay password. Click the button below to create a new password:</p>
+    
+    <div style='text-align: center; margin: 30px 0;'>
+        <a href='{resetLink}' style='
+            background-color: #A1D336; 
+            color: white; 
+            padding: 15px 30px; 
+            text-decoration: none; 
+            border-radius: 25px; 
+            font-weight: bold;
+            font-size: 16px;
+            display: inline-block;
+            border: none;
+            cursor: pointer;'>
+            Reset Password
+        </a>
+    </div>
+    
+    <p>Or copy and paste this link in your browser:</p>
+    <p style='
+        background-color: #f8f9fa; 
+        padding: 15px; 
+        border-radius: 5px; 
+        word-break: break-all; 
+        font-family: monospace;
+        border-left: 4px solid #A1D336;'>
+        {resetLink}
+    </p>
+    
+    <div style='
+        background-color: #fff3cd; 
+        border: 1px solid #ffeaa7; 
+        border-radius: 5px; 
+        padding: 15px; 
+        margin: 20px 0;'>
+        <strong>⚠️ Important:</strong> This link will expire in 1 minute for security reasons.
+    </div>
+    
+    <p>If you didn't request a password reset, please ignore this email.</p>
+    
+    <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+    <p style='color: #666; font-size: 12px; text-align: center;'>
+        This is an automated message from PicklePlay. Please do not reply to this email.
+    </p>
+</div>";
 
         await _email.SendEmailAsync(user.Email, "Reset Your PicklePlay Password", html);
         return true;
@@ -418,6 +418,7 @@ public class AuthService : IAuthService
         return await _db.Users.FirstOrDefaultAsync(u =>
             u.UserId == userId &&
             u.PasswordResetToken == token &&
+            u.PasswordResetTokenExpiry.HasValue &&
             u.PasswordResetTokenExpiry > DateTime.UtcNow);
     }
 
@@ -428,6 +429,8 @@ public class AuthService : IAuthService
 
         // Hash new password
         user.Password = HashPassword(newPassword);
+
+        // Clear the reset token after successful password reset
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
 
@@ -441,5 +444,55 @@ public class AuthService : IAuthService
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
+    }
+
+    public async Task<bool> UpdateUserProfileAsync(int userId, string fullName, string email, string? phoneNumber,
+    string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath)
+    {
+        try
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            // Update user properties - handle null values properly
+            user.Username = !string.IsNullOrEmpty(fullName) ? fullName : user.Username;
+            user.Email = !string.IsNullOrEmpty(email) ? email : user.Email;
+            user.PhoneNo = phoneNumber; // Direct assignment - can be null
+            user.Gender = gender; // Direct assignment - can be null
+            user.DateOfBirth = dateOfBirth; // Direct assignment - can be null
+            user.Bio = bio; // Direct assignment - can be null
+
+            // Only update profile picture if a new one was provided (not null or empty)
+            if (!string.IsNullOrEmpty(profileImagePath))
+            {
+                user.ProfilePicture = profileImagePath;
+            }
+            // If profileImagePath is null, keep the existing profile picture unchanged
+
+            // Calculate age from date of birth if provided
+            if (dateOfBirth.HasValue)
+            {
+                var today = DateTime.Today;
+                var age = today.Year - dateOfBirth.Value.Year;
+                if (dateOfBirth.Value.Date > today.AddYears(-age)) age--;
+                user.Age = age;
+            }
+            else
+            {
+                // If date of birth is null, set age to null as well
+                user.Age = null;
+            }
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user profile for user ID: {UserId}", userId);
+            return false;
+        }
+
+
+
     }
 }

@@ -1,0 +1,147 @@
+@{
+    ViewData["Title"] = "Community Requests";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="p-4">
+    <h3>Community Requests</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Community Name</th>
+                <th>Requested By</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Pickle Lovers</td>
+                <td>Alice</td>
+                <td>2025-08-01</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Pickle Lovers','Alice','A group for all pickleball enthusiasts who love to share tips and organize games.')">View</button>
+                    <button class="btn btn-success btn-sm">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Pickle Lovers')">Reject</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Squash Squad</td>
+                <td>Bob</td>
+                <td>2025-08-02</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Squash Squad','Bob','Community for squash players to find matches, tournaments, and practice partners.')">View</button>
+                    <button class="btn btn-success btn-sm">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Squash Squad')">Reject</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Smash Bros</td>
+                <td>Charlie</td>
+                <td>2025-08-03</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Smash Bros','Charlie','Fans of competitive pickleball and other racket sports who enjoy fast-paced games.')">View</button>
+                    <button class="btn btn-success btn-sm">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Smash Bros')">Reject</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Pickle Champs</td>
+                <td>Diana</td>
+                <td>2025-08-04</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Pickle Champs','Diana','A group dedicated to training and mentoring new pickleball players to become champions.')">View</button>
+                    <button class="btn btn-success btn-sm">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Pickle Champs')">Reject</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Weekend Warriors</td>
+                <td>Eric</td>
+                <td>2025-08-05</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Weekend Warriors','Eric','For casual players who meet every weekend for fun matches and social gatherings.')">View</button>
+                    <button class="btn btn-success btn-sm">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Weekend Warriors')">Reject</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Reject Reason Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="rejectModalLabel">Reject Community Request</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Community:</strong> <span id="rejectCommunityName"></span></p>
+                <label for="rejectReason" class="form-label">Reason for rejection:</label>
+                <textarea id="rejectReason" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="submitRejection()">Submit Rejection</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Community Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="viewModalLabel">Community Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Community Name:</strong> <span id="communityName"></span></p>
+                <p><strong>Requested By:</strong> <span id="requestedBy"></span></p>
+                <p><strong>Description:</strong></p>
+                <p id="communityDesc" class="border p-2 rounded bg-light"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function viewCommunity(name, requester, desc) {
+            document.getElementById("communityName").innerText = name;
+            document.getElementById("requestedBy").innerText = requester;
+            document.getElementById("communityDesc").innerText = desc;
+            
+            let modal = new bootstrap.Modal(document.getElementById('viewModal'));
+            modal.show();
+        }
+
+        function openRejectModal(communityName) {
+            document.getElementById("rejectCommunityName").innerText = communityName;
+            document.getElementById("rejectReason").value = "";
+            let modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+            modal.show();
+        }
+
+        function submitRejection() {
+            let community = document.getElementById("rejectCommunityName").innerText;
+            let reason = document.getElementById("rejectReason").value;
+
+            if (reason.trim() === "") {
+                alert("Please provide a reason for rejection.");
+                return;
+            }
+
+            alert("Community '" + community + "' rejected with reason: " + reason);
+            let modalEl = document.getElementById('rejectModal');
+            let modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+        }
+    </script>
+}

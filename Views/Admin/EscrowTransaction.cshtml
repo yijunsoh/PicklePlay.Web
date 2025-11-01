@@ -1,0 +1,180 @@
+@{
+    ViewData["Title"] = "Escrow Transactions";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="p-4">
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search by Game, Host">
+        </div>
+        <div class="col-md-3">
+            <select id="statusFilter" class="form-select">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Held">Held</option>
+                <option value="Released">Released</option>
+                <option value="Refunded">Refunded</option>
+                <option value="Disputed">Disputed</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-outline-primary" id="sortToggle">Sort: Latest First</button>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-bordered table-striped" id="escrowTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Game Title</th>
+                        <th>Host</th>
+                        <th>Player No</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Game End Date & Time</th>
+                        <th>Auto Release</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#T1001</td>
+                        <td>Pickle ball Singles</td>
+                        <td>Emily Wong</td>
+                        <td>2</td>
+                        <td>RM 20</td>
+                        <td><span class="badge bg-info">Refunded</span></td>
+                        <td>2025-08-25 19:00</td>
+                        <td>2025-08-26 19:00</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary manual-refund">Manual Refund</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#T1002</td>
+                        <td>Pickleball Match</td>
+                        <td>John Doe</td>
+                        <td>4</td>
+                        <td>RM 50</td>
+                        <td><span class="badge bg-warning">Held</span></td>
+                        <td>2025-08-20 15:00</td>
+                        <td>2025-08-21 15:00</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-success held-release">Release</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>#T1003</td>
+                        <td>Pickle Ball Doubles</td>
+                        <td>Sarah Lee</td>
+                        <td>2</td>
+                        <td>RM 30</td>
+                        <td><span class="badge bg-success">Released</span></td>
+                        <td>2025-08-21 18:30</td>
+                        <td>2025-08-22 18:30</td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Dispute Modal -->
+<div class="modal fade" id="disputeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Dispute Review</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Transaction ID:</strong> <span id="modalTxId"></span></p>
+                <p><strong>Game:</strong> <span id="modalGame"></span></p>
+                <p><strong>Host:</strong> <span id="modalMember"></span></p>
+                <p><strong>Reason:</strong></p>
+                <p class="border p-2 bg-light" id="modalReason"></p>
+                <hr>
+                <div class="mb-3">
+                    <label for="adminReply" class="form-label">Admin Explanation</label>
+                    <textarea class="form-control" id="adminReply" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-success" id="releaseBtn">Release Payment</button>
+                <button class="btn btn-danger" id="rejectBtn">Reject Release</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Dispute Modal Populate
+        const disputeModal = document.getElementById('disputeModal');
+        disputeModal.addEventListener('show.bs.modal', event => {
+            const btn = event.relatedTarget;
+            document.getElementById('modalTxId').textContent = btn.getAttribute('data-id');
+            document.getElementById('modalGame').textContent = btn.getAttribute('data-game');
+            document.getElementById('modalMember').textContent = btn.getAttribute('data-member');
+            document.getElementById('modalReason').textContent = btn.getAttribute('data-reason');
+        });
+
+        // Manual Refund
+        document.querySelectorAll('.manual-refund').forEach(btn => {
+            btn.addEventListener('click', () => alert("🔄 Manual Refund processed successfully."));
+        });
+
+        // Held Release Attempt
+        document.querySelectorAll('.held-release').forEach(btn => {
+            btn.addEventListener('click', () => alert("⚠️ Cannot release yet. 24h not reached."));
+        });
+
+        // Search + Filter
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const table = document.getElementById('escrowTable').getElementsByTagName('tbody')[0];
+        
+        function filterTable() {
+            const search = searchInput.value.toLowerCase();
+            const status = statusFilter.value;
+            Array.from(table.rows).forEach(row => {
+                const game = row.cells[1].textContent.toLowerCase();
+                const host = row.cells[2].textContent.toLowerCase();
+                const rowStatus = row.cells[5].innerText;
+                const matchSearch = game.includes(search) || host.includes(search);
+                const matchStatus = status === "" || rowStatus.includes(status);
+                row.style.display = (matchSearch && matchStatus) ? "" : "none";
+            });
+        }
+        
+        searchInput.addEventListener('keyup', filterTable);
+        statusFilter.addEventListener('change', filterTable);
+
+        // Sorting Toggle
+        let sortDesc = true;
+        document.getElementById('sortToggle').addEventListener('click', () => {
+            sortDesc = !sortDesc;
+            sortTableByDate();
+            document.getElementById('sortToggle').textContent = "Sort: " + (sortDesc ? "Latest First" : "Oldest First");
+        });
+
+        function sortTableByDate() {
+            let rows = Array.from(table.rows);
+            rows.sort((a, b) => {
+                let dateA = new Date(a.cells[6].innerText);
+                let dateB = new Date(b.cells[6].innerText);
+                return sortDesc ? dateB - dateA : dateA - dateB;
+            });
+            rows.forEach(r => table.appendChild(r));
+        }
+        
+        sortTableByDate();
+    </script>
+}

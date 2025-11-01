@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using PicklePlay.Data;
+using PicklePlay.Models;
 using PicklePlay.ViewModels;
 using System.Text.Json;
 
@@ -10,13 +12,17 @@ namespace PicklePlay.Controllers
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ApplicationDbContext _context;
 
-        public AuthController(IAuthService authService, IConfiguration configuration, HttpClient httpClient, IHttpContextAccessor httpContextAccessor)
+        public AuthController(IAuthService authService, IConfiguration configuration, HttpClient httpClient, IHttpContextAccessor httpContextAccessor, ApplicationDbContext context)
         {
             _authService = authService;
             _configuration = configuration;
             _httpClient = httpClient;
             _httpContextAccessor = httpContextAccessor;
+            _context = context;
+            
+            
         }
 
         // GET: /Auth/Login
@@ -61,8 +67,16 @@ namespace PicklePlay.Controllers
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserEmail", user.Email);
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserName", user.Username);
                     _httpContextAccessor.HttpContext?.Session?.SetInt32("UserId", user.UserId);
+                    _httpContextAccessor.HttpContext?.Session?.SetString("UserRole", user.Role);
 
-                    return RedirectToAction("Community", "Home");
+                    if (user.Role == "Admin")
+                    {
+                        return RedirectToAction("AdminDashboard", "Admin");
+                    }
+                    else
+                    {
+                        return RedirectToAction("Community", "Home");
+                    }
                 }
                 else
                 {
@@ -76,6 +90,8 @@ namespace PicklePlay.Controllers
                 ModelState.AddModelError("", "An error occurred during login. Please try again.");
                 return View();
             }
+
+
         }
 
         // Add this logout method as well
@@ -135,6 +151,22 @@ namespace PicklePlay.Controllers
 
             if (result.Success)
             {
+                // Get the newly created user to create their wallet
+                var newUser = await _authService.GetUserByEmailAsync(model.Email);
+                if (newUser != null)
+                {
+                    var newWallet = new Wallet
+                    {
+                        UserId = newUser.UserId,
+                        WalletBalance = 0,
+                        EscrowBalance = 0,
+                        TotalSpent = 0,
+                        LastUpdated = DateTime.UtcNow
+                    };
+
+                    _context.Wallets.Add(newWallet);
+                    await _context.SaveChangesAsync();
+                }
                 // Store email for display on success page
                 TempData["UserEmail"] = model.Email;
                 TempData["SuccessMessage"] = "Registration successful! Please check your email to verify your account.";
@@ -467,7 +499,9 @@ namespace PicklePlay.Controllers
             if (success)
             {
                 TempData["SuccessMessage"] = "Your password has been reset successfully! You can now login with your new password.";
-                return RedirectToAction("ResetPassword");
+
+                // FIX: Redirect to Login action instead of ResetPassword
+                return RedirectToAction("Login");
             }
 
             return View(model);
@@ -563,5 +597,6 @@ namespace PicklePlay.Controllers
 
             return RedirectToAction("Login");
         }
+
     }
 }

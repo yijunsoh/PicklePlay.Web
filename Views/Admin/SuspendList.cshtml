@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Suspend / Ban Users";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="p-4">
+    <h2>Suspend / Ban Users</h2>
+    <div class="table-responsive bg-white p-3 rounded shadow-sm">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Report ID</th>
+                    <th>Reported User</th>
+                    <th>Reported By</th>
+                    <th>Reason</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>RPT001</td>
+                    <td>john_doe</td>
+                    <td>alice</td>
+                    <td>Harassment in chat</td>
+                    <td>2025-08-20</td>
+                    <td><span class="badge bg-warning">Suspended Once</span></td>
+                    <td>
+                        <button class="btn btn-info btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#viewModal" data-reason="Harassment in chat. Used offensive language multiple times.">View</button>
+                        <button class="btn btn-danger btn-sm action-btn">Ban</button>
+                        <button class="btn btn-secondary btn-sm action-btn">Reject</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>RPT002</td>
+                    <td>mike88</td>
+                    <td>tommy</td>
+                    <td>Spamming links</td>
+                    <td>2025-08-21</td>
+                    <td><span class="badge bg-success">Pending</span></td>
+                    <td>
+                        <button class="btn btn-info btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#viewModal" data-reason="User repeatedly posted spam links to external websites.">View</button>
+                        <button class="btn btn-warning btn-sm action-btn">Suspend</button>
+                        <button class="btn btn-secondary btn-sm action-btn">Reject</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Report Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="reportReason">Reason details will appear here...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Show reason in modal dynamically
+        const viewModal = document.getElementById('viewModal');
+        viewModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const reason = button.getAttribute('data-reason');
+            document.getElementById('reportReason').innerText = reason;
+        });
+    </script>
+}

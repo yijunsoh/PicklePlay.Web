@@ -1,0 +1,71 @@
+@{
+    ViewData["Title"] = "Inactive Communities";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="p-4">
+    <h3>Inactive Communities (> 6 months)</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Community ID</th>
+                <th>Community Name</th>
+                <th>Last Active</th>
+                <th>Members</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>C101</td>
+                <td>Pickleball Lovers</td>
+                <td>2024-01-12</td>
+                <td>120</td>
+                <td>
+                    <button class="btn btn-info btn-sm">View Community</button>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+            <tr>
+                <td>C102</td>
+                <td>Weekend Players</td>
+                <td>2023-12-20</td>
+                <td>75</td>
+                <td>
+                    <button class="btn btn-info btn-sm">View Community</button>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+            <tr>
+                <td>C103</td>
+                <td>Pickle Champs</td>
+                <td>2023-11-15</td>
+                <td>200</td>
+                <td>
+                    <button class="btn btn-info btn-sm">View Community</button>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+            <tr>
+                <td>C104</td>
+                <td>Casual Picklers</td>
+                <td>2023-10-30</td>
+                <td>58</td>
+                <td>
+                    <button class="btn btn-info btn-sm">View Community</button>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+            <tr>
+                <td>C105</td>
+                <td>Selangor Pickleball</td>
+                <td>2023-09-25</td>
+                <td>142</td>
+                <td>
+                    <button class="btn btn-info btn-sm">View Community</button>
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>

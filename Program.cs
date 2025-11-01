@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
+using PicklePlay.Services;
+using PicklePlay.Models; // Add this
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,9 +34,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Configure EmailSettings from appsettings.json
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
+// Configure PayPal from appsettings.json - ADD THIS
+builder.Services.Configure<PayPalConfig>(builder.Configuration.GetSection("PayPal"));
+
 // Custom Services
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// ADD PAYMENT SERVICES - THESE ARE MISSING
+builder.Services.AddScoped<IPaymentService, MockPaymentService>();
+builder.Services.AddScoped<IPayPalService, PayPalService>();
+
 // Add HttpClient for CAPTCHA validation
 builder.Services.AddHttpClient();
 
@@ -51,10 +61,11 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseAuthorization();
 
-// Add Session middleware - IMPORTANT: This must come after UseRouting and before MapControllerRoute
-app.UseSession();
+// CORRECT ORDER: Session -> Authentication -> Authorization
+app.UseSession(); // Session FIRST
+app.UseAuthentication(); 
+app.UseAuthorization();
 
 // Default route
 app.MapControllerRoute(

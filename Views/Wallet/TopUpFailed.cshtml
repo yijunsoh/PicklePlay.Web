@@ -1,0 +1,31 @@
+@{
+    ViewData["Title"] = "Top Up Failed";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="text-danger mb-3">
+                        <i class="fas fa-times-circle fa-3x"></i>
+                    </div>
+                    <h2 class="card-title">Top-Up Failed</h2>
+                    <p class="card-text">Your top-up was not successful. Please try again.</p>
+                    
+                    @if (ViewData["Message"] != null)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>Error:</strong> @ViewData["Message"]
+                        </div>
+                    }
+                    
+                    <div class="mt-4">
+                        <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-primary">Back to Wallet</a>
+                        <a href="@Url.Action("TopUp", "Wallet")" class="btn btn-outline-secondary">Try Again</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

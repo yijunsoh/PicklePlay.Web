@@ -1,0 +1,803 @@
+@model PicklePlay.ViewModels.EditProfileModel
+@{
+    ViewData["Title"] = "Edit Profile - PicklePlay";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <style>
+        body {
+            background: #F8F9FA;
+            background-size: cover;
+            min-height: 100vh;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .profile-header img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #A1D336;
+        }
+
+        .form-container {
+            max-width: 100%;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .btn-save {
+            background-color: #A1D336;
+            color: white;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+        }
+
+        .btn-save:hover {
+            background-color: #8cb52d;
+            color: white;
+        }
+
+        .btn-edit {
+            background-color: #6c757d;
+            color: white;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+        }
+
+        .btn-edit:hover {
+            background-color: #5a6268;
+            color: white;
+        }
+
+        .btn-cancel {
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+        }
+
+        .btn-cancel:hover {
+            background-color: #c82333;
+            color: white;
+        }
+
+        .btn-verify {
+            background-color: #17a2b8;
+            color: white;
+            font-weight: bold;
+            border: none;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+        }
+
+        .btn-verify:hover {
+            background-color: #138496;
+            color: white;
+        }
+
+        /* Form states */
+        .form-control:read-only {
+            background-color: #f8f9fa;
+            border-color: #e9ecef;
+        }
+
+        .form-control:focus {
+            border-color: #A1D336;
+            box-shadow: 0 0 0 0.2rem rgba(161, 211, 54, 0.25);
+        }
+
+        .edit-mode .form-control {
+            background-color: white;
+            border-color: #ced4da;
+        }
+
+        /* Validation styles */
+        .field-validation-error {
+            color: #dc3545;
+            font-size: 0.875rem;
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        .input-validation-error {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+
+        .validation-summary-errors {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .validation-summary-errors ul {
+            margin-bottom: 0;
+            padding-left: 1rem;
+        }
+
+        /* Email verification section */
+        .email-verification {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .email-verified {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .email-pending {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        /* Wallet + Communities box */
+        .side-box {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            height: fit-content;
+        }
+
+        .wallet-balance {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        .wallet-overview {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .wallet-overview p {
+            margin-bottom: 5px;
+        }
+
+        .community-list li {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .community-list li:hover {
+            background: #e9ecef;
+        }
+
+        .community-list a {
+            color: #333;
+            text-decoration: none;
+        }
+
+        .community-list a:hover {
+            color: #A1D336;
+        }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+
+        /* Responsive design */
+        @@media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .profile-header img {
+                width: 80px;
+                height: 80px;
+            }
+
+            .button-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .button-group .btn {
+                width: 100%;
+            }
+
+            .form-container {
+                padding: 20px 15px;
+                margin: 10px 0;
+            }
+
+            .side-box {
+                padding: 15px;
+            }
+
+            .wallet-balance {
+                font-size: 1.5rem;
+            }
+
+            .container {
+                padding: 0 10px;
+            }
+        }
+
+        @@media (max-width: 576px) {
+            .profile-header img {
+                width: 70px;
+                height: 70px;
+            }
+
+            .form-container {
+                padding: 15px 10px;
+            }
+
+            .btn-save,
+            .btn-edit,
+            .btn-cancel {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+
+            .wallet-balance {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+}
+
+<div class="container mt-4">
+    <a href="@Url.Action("Community", "Home")" class="btn btn-warning mb-3">&larr; Back to Community</a>
+
+    <!-- Display Messages -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["InfoMessage"] != null)
+    {
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            @TempData["InfoMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left side: Profile form -->
+        <div class="col-lg-8 col-md-7">
+            <div class="form-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="mb-0">Edit Profile</h3>
+                    <button type="button" class="btn btn-edit" id="editToggleBtn">Edit Profile</button>
+                </div>
+
+                <!-- Profile Form -->
+                <form method="post" asp-controller="Home" asp-action="UpdateProfile" enctype="multipart/form-data"
+                    id="profileForm" class="needs-validation" novalidate>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="UserId" />
+                    <input type="hidden" asp-for="CurrentProfileImagePath" />
+
+                    @Html.ValidationSummary(true, "", new { @class = "validation-summary-errors" })
+
+                    <div class="profile-header mb-4">
+                        <img src="@(string.IsNullOrEmpty(Model.CurrentProfileImagePath) ? "/images/profile_image.jpg" : Model.CurrentProfileImagePath)"
+                            alt="Profile Picture" id="profileImagePreview">
+                        <div class="flex-grow-1">
+                            <h4 class="fw-bold mb-2" id="displayName">@Model.FullName</h4>
+                            <input type="file" class="form-control d-none" id="profileImage" name="ProfileImage"
+                                accept="image/*" style="max-width: 300px;">
+                            <small class="text-muted d-none" id="imageHelp">Max file size: 5MB. Supported formats: JPG,
+                                PNG, GIF</small>
+                        </div>
+                    </div>
+
+                    <!-- REMOVED: Email Verification Section -->
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="FullName" class="form-label"></label>
+                            <input asp-for="FullName" class="form-control" readonly
+                                data-original-value="@Model.FullName" />
+                            <span asp-validation-for="FullName" class="field-validation-error"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="Email" class="form-control" readonly
+                                    data-original-value="@Model.Email" />
+                                <span class="input-group-text email-verified">✓ Verified</span>
+                            </div>
+                            <small class="text-muted">Email cannot be changed</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PhoneNumber" class="form-label"></label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="e.g., +6012-3456789" readonly
+                                data-original-value="@Model.PhoneNumber" pattern="^(\+?6?01)[0-46-9]-*[0-9]{7,8}$"
+                                title="Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)" />
+                            <span asp-validation-for="PhoneNumber" class="field-validation-error"></span>
+                            <small class="text-muted">Format: +6012-3456789 or 012-3456789</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Gender" class="form-label"></label>
+                            <select asp-for="Gender" class="form-control" disabled data-original-value="@Model.Gender">
+                                <option value="">Select your gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="prefer-not-to-say">Prefer not to say</option>
+                            </select>
+                            <span asp-validation-for="Gender" class="field-validation-error"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="DateOfBirth" class="form-label"></label>
+                            <input asp-for="DateOfBirth" type="date" class="form-control" readonly
+                                data-original-value="@Model.DateOfBirth?.ToString("yyyy-MM-dd")"
+                                max="@DateTime.Now.AddYears(-18).ToString("yyyy-MM-dd")"
+                                title="You must be at least 18 years old" />
+                            <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Age" class="form-label">Age</label>
+                            <input asp-for="Age" class="form-control" readonly />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Bio" class="form-label"></label>
+                        <textarea asp-for="Bio" class="form-control" rows="3"
+                            placeholder="Tell something about yourself..." readonly data-original-value="@Model.Bio"
+                            maxlength="500"></textarea>
+                        <span asp-validation-for="Bio" class="field-validation-error"></span>
+                        <small class="text-muted"><span id="bioCharCount">@(Model.Bio?.Length ?? 0)</span>/500
+                            characters</small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 button-group">
+                        <button type="submit" class="btn btn-save d-none" id="saveBtn">Save Changes</button>
+                        <button type="button" class="btn btn-cancel d-none" id="cancelBtn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right side: Wallet + Communities (UNCHANGED) -->
+        <div class="col-lg-4 col-md-5">
+            <!-- Wallet Section -->
+            <div class="side-box text-center">
+                <h5 class="mb-3">💰 Wallet Balance & Overview</h5>
+                <div class="chart-container">
+                    <canvas id="walletChart"></canvas>
+                </div>
+
+                <!-- Legend -->
+                <div class="mt-3">
+                    <span class="badge bg-success me-1">Balance</span>
+                    <span class="badge bg-primary me-1">Escrow</span>
+                    <span class="badge bg-danger">Spent</span>
+                </div>
+                <div class="wallet-balance mt-2">RM 250.00</div>
+                <div class="wallet-overview text-muted">
+                    <p class="mb-1">Total Escrow: RM 120.00</p>
+                    <p class="mb-2">Total Spent: RM 80.00</p>
+                    <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-sm btn-save mt-2">
+                        Go to Wallet Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Communities Section -->
+            <div class="side-box">
+                <h5 class="mb-3">🌐 Communities Joined</h5>
+                <ul class="community-list list-unstyled">
+                    <li>
+                        <a href="@Url.Action("CommunityPages", "Home")" class="text-decoration-none">
+                            🏸 KL Pickleball Club
+                        </a>
+                    </li>
+                    <li>🎾 Penang Pickleballers</li>
+                    <li>⚡ Weekend Warriors</li>
+                </ul>
+                <div class="text-center mt-3">
+                    <a href="@Url.Action("Community", "Home")" class="btn btn-outline-primary btn-sm">View All
+                        Communities</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize wallet chart
+            const ctx = document.getElementById('walletChart').getContext('2d');
+            const walletChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Balance', 'Escrow', 'Spent'],
+                    datasets: [{
+                        data: [250, 120, 80],
+                        backgroundColor: [
+                            'rgba(25, 135, 84, 0.8)',
+                            'rgba(13, 110, 253, 0.8)',
+                            'rgba(220, 53, 69, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(25, 135, 84, 1)',
+                            'rgba(13, 110, 253, 1)',
+                            'rgba(220, 53, 69, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            },
+                            formatter: (value, ctx) => {
+                                let label = ctx.chart.data.labels[ctx.dataIndex];
+                                return label + "\nRM " + value;
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+
+            const editToggleBtn = document.getElementById('editToggleBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const form = document.getElementById('profileForm');
+            const inputs = form.querySelectorAll('input, select, textarea');
+            const profileImageInput = document.getElementById('profileImage');
+            const imageHelp = document.getElementById('imageHelp');
+            const bioTextarea = document.getElementById('Bio');
+            const bioCharCount = document.getElementById('bioCharCount');
+            const fullNameInput = document.getElementById('FullName');
+
+            // Store original values for cancel functionality
+            const originalValues = {};
+            inputs.forEach(input => {
+                if (input.type !== 'file') {
+                    originalValues[input.name] = input.value;
+                }
+            });
+
+            // Edit mode toggle
+            editToggleBtn.addEventListener('click', function () {
+                form.classList.add('edit-mode');
+                inputs.forEach(input => {
+                    if (input.id !== 'Age' && input.name !== 'Email') { // Keep age and email readonly
+                        input.readOnly = false;
+                    }
+                    if (input.tagName === 'SELECT') {
+                        input.disabled = false;
+                    }
+                });
+
+                // Show file input
+                profileImageInput.classList.remove('d-none');
+                imageHelp.classList.remove('d-none');
+
+                // Show action buttons
+                saveBtn.classList.remove('d-none');
+                cancelBtn.classList.remove('d-none');
+                editToggleBtn.classList.add('d-none');
+            });
+
+            // Cancel edit
+            cancelBtn.addEventListener('click', function () {
+                form.classList.remove('edit-mode');
+                inputs.forEach(input => {
+                    input.readOnly = true;
+                    if (input.tagName === 'SELECT') {
+                        input.disabled = true;
+                    }
+                    // Restore original values
+                    if (originalValues[input.name] !== undefined) {
+                        input.value = originalValues[input.name];
+                    }
+                });
+
+                // Hide file input and reset
+                profileImageInput.classList.add('d-none');
+                imageHelp.classList.add('d-none');
+                profileImageInput.value = '';
+
+                // Hide action buttons
+                saveBtn.classList.add('d-none');
+                cancelBtn.classList.add('d-none');
+                editToggleBtn.classList.remove('d-none');
+
+                // Clear validation errors
+                clearValidationErrors();
+                updateBioCharCount();
+            });
+
+            // Bio character counter
+            function updateBioCharCount() {
+                if (bioTextarea) {
+                    const charCount = bioTextarea.value.length;
+                    bioCharCount.textContent = charCount;
+                }
+            }
+
+            if (bioTextarea) {
+                bioTextarea.addEventListener('input', updateBioCharCount);
+            }
+
+            // Real-time validation
+            inputs.forEach(input => {
+                if (input.type !== 'file') {
+                    input.addEventListener('blur', function () {
+                        validateField(this);
+                    });
+
+                    input.addEventListener('input', function () {
+                        // Clear error when user starts typing
+                        clearFieldError(this);
+                    });
+                }
+            });
+
+            // Clear field error
+            function clearFieldError(field) {
+                field.classList.remove('input-validation-error');
+                let errorSpan = getErrorSpan(field);
+                if (errorSpan) {
+                    errorSpan.style.display = 'none';
+                }
+            }
+
+            // Get error span for a field
+            function getErrorSpan(field) {
+                let errorSpan = field.nextElementSibling;
+                if (!errorSpan || !errorSpan.classList.contains('field-validation-error')) {
+                    errorSpan = field.parentNode.querySelector('.field-validation-error');
+                }
+                return errorSpan;
+            }
+
+            // Field validation function
+            function validateField(field) {
+                // Clear previous validation
+                clearFieldError(field);
+
+                let errorSpan = getErrorSpan(field);
+                let isValid = true;
+                let errorMessage = '';
+
+                // Full Name validation - ALWAYS required when in edit mode
+                if (field.name === 'FullName') {
+                    if (!field.value.trim()) {
+                        errorMessage = 'Full name is required.';
+                        isValid = false;
+                    } else if (field.value.trim().length < 2) {
+                        errorMessage = 'Full name must be at least 2 characters long.';
+                        isValid = false;
+                    } else if (field.value.trim().length > 100) {
+                        errorMessage = 'Full name cannot exceed 100 characters.';
+                        isValid = false;
+                    }
+                }
+                // Phone number validation
+                else if (field.name === 'PhoneNumber' && field.value.trim()) {
+                    const phoneRegex = /^(\+?6?01)[0-46-9]-*[0-9]{7,8}$/;
+                    if (!phoneRegex.test(field.value.trim())) {
+                        errorMessage = 'Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)';
+                        isValid = false;
+                    }
+                }
+                // Phone number is empty - THIS IS ALLOWED, so no error
+                else if (field.name === 'PhoneNumber' && !field.value.trim()) {
+                    // Empty phone number is allowed, so no validation error
+                    isValid = true;
+                }
+                // Date of birth validation (must be 18+)
+                else if (field.type === 'date' && field.value) {
+                    const dob = new Date(field.value);
+                    const today = new Date();
+                    let age = today.getFullYear() - dob.getFullYear();
+                    const monthDiff = today.getMonth() - dob.getMonth();
+
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                        age--;
+                    }
+
+                    if (age < 18) {
+                        errorMessage = 'You must be at least 18 years old.';
+                        isValid = false;
+                    }
+                }
+                // Bio length validation
+                else if (field.name === 'Bio' && field.value.length > 500) {
+                    errorMessage = 'Bio cannot exceed 500 characters.';
+                    isValid = false;
+                }
+
+                // Show error if invalid
+                if (!isValid) {
+                    field.classList.add('input-validation-error');
+                    if (errorSpan) {
+                        errorSpan.textContent = errorMessage;
+                        errorSpan.style.display = 'block';
+                    }
+                }
+
+                return isValid;
+            }
+
+            // Clear all validation errors
+            function clearValidationErrors() {
+                inputs.forEach(input => {
+                    clearFieldError(input);
+                });
+            }
+
+            // Form submission validation - STRICT validation
+            form.addEventListener('submit', function (e) {
+                let isFormValid = true;
+
+                // Validate all editable fields
+                inputs.forEach(input => {
+                    if (input.type !== 'file' && !input.readOnly) {
+                        if (!validateField(input)) {
+                            isFormValid = false;
+                        }
+                    }
+                });
+
+                // SPECIAL CHECK: FullName must not be empty
+                if (fullNameInput && !fullNameInput.readOnly) {
+                    if (!fullNameInput.value.trim()) {
+                        validateField(fullNameInput); // This will show the error
+                        isFormValid = false;
+                    }
+                }
+
+                if (!isFormValid) {
+                    e.preventDefault();
+                    e.stopPropagation(); // Important: Stop the form from submitting
+
+                    // Scroll to first error
+                    const firstError = form.querySelector('.input-validation-error');
+                    if (firstError) {
+                        firstError.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                        firstError.focus(); // Focus on the first error field
+                    }
+
+                    // Show alert with specific instructions
+                    @* const errorFields = form.querySelectorAll('.input-validation-error');
+                    if (errorFields.length > 0) {
+                        const fieldNames = Array.from(errorFields).map(field => {
+                            const label = field.closest('.mb-3').querySelector('label');
+                            return label ? label.textContent.trim() : field.name;
+                        });
+
+                        alert(`Please fix the following errors before saving:\n• ${fieldNames.join('\n• ')}`);
+                    } *@
+
+                    return false;
+                }
+
+                // If we get here, form is valid and will submit
+                console.log('Form is valid, submitting...');
+            });
+
+            // Profile image preview
+            if (profileImageInput) {
+                profileImageInput.addEventListener('change', function () {
+                    if (this.files && this.files[0]) {
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                        if (!allowedTypes.includes(this.files[0].type)) {
+                            alert('Please select a valid image file (JPG, PNG, GIF).');
+                            this.value = '';
+                            return;
+                        }
+
+                        // Validate file size (5MB)
+                        if (this.files[0].size > 5 * 1024 * 1024) {
+                            alert('File size must be less than 5MB.');
+                            this.value = '';
+                            return;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            document.getElementById('profileImagePreview').src = e.target.result;
+                        }
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            }
+
+            // Age calculation from date of birth
+            const dobInput = document.getElementById('DateOfBirth');
+            const ageInput = document.getElementById('Age');
+            if (dobInput && ageInput) {
+                dobInput.addEventListener('change', function () {
+                    if (this.value) {
+                        const dob = new Date(this.value);
+                        const today = new Date();
+                        let age = today.getFullYear() - dob.getFullYear();
+                        const monthDiff = today.getMonth() - dob.getMonth();
+
+                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                            age--;
+                        }
+
+                        ageInput.value = age > 0 ? age : '';
+                    } else {
+                        ageInput.value = '';
+                    }
+                });
+            }
+
+            // Additional: Prevent form submission on Enter key in readonly mode
+            form.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !form.classList.contains('edit-mode')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+}
