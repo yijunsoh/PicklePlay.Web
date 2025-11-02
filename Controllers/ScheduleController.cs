@@ -16,7 +16,7 @@ namespace PicklePlay.Controllers
         }
 
         // ... Index, Details, MyGames remain the same ...
-        public IActionResult Index()
+        public IActionResult GameListing()
         {
             var schedules = _scheduleRepository.All();
             return View(schedules);

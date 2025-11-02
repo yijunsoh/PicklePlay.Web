@@ -26,7 +26,7 @@ namespace PicklePlay.Controllers
 
 
         // Community Home Page
-        public IActionResult Index()
+        public IActionResult Activity()
         {
              var games = _scheduleRepository.All();
             return View(games);
@@ -60,7 +60,7 @@ namespace PicklePlay.Controllers
             // --- 1. Create the Parent "Template" Schedule ---
             
             RecurringWeek combinedWeek = RecurringWeek.None;
-            foreach (var day in vm.RecurringWeek) { combinedWeek |= day; }
+            foreach (var day in vm.RecurringWeek!) { combinedWeek |= day; }
 
             var parentSchedule = new Schedule
             {
@@ -98,7 +98,7 @@ namespace PicklePlay.Controllers
             var durationTimeSpan = ScheduleHelper.GetTimeSpan(vm.Duration);
             var dayFlagMap = BuildDayFlagMap();
 
-            for (var date = DateTime.Today; date <= vm.RecurringEndDate.Value; date = date.AddDays(1))
+            for (var date = DateTime.Today; date <= vm.RecurringEndDate!.Value; date = date.AddDays(1))
             {
                 if (dayFlagMap.TryGetValue(date.DayOfWeek, out var dayFlag) && vm.RecurringWeek.Contains(dayFlag))
                 {
@@ -136,7 +136,7 @@ namespace PicklePlay.Controllers
                 }
             }
 
-            return RedirectToAction("Index", "Community");
+            return RedirectToAction("Activity", "Community");
         }
 
 
@@ -191,7 +191,7 @@ namespace PicklePlay.Controllers
             }
 
             _scheduleRepository.Add(newSchedule);
-            return RedirectToAction("Index", "Community");
+            return RedirectToAction("Activity", "Community");
         }
 
 
@@ -299,9 +299,9 @@ namespace PicklePlay.Controllers
             {
                 ScheduleId = schedule.ScheduleId,
                 ExistingImageUrl = schedule.CompetitionImageUrl,
-                GameName = schedule.GameName,
+                GameName = schedule.GameName!,
                 Description = schedule.Description,
-                Location = schedule.Location,
+                Location = schedule.Location!,
                 StartTime = schedule.StartTime ?? DateTime.Now, // Handle potential nulls
                 EndTime = schedule.EndTime ?? DateTime.Now,
                 ApproxStartTime = schedule.ApproxStartTime,
@@ -535,19 +535,19 @@ public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
             if (scheduleToPublish == null)
             {
                 TempData["ErrorMessage"] = "Schedule not found.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Activity");
             }
 
             if (scheduleToPublish.ScheduleType != ScheduleType.Competition || scheduleToPublish.Competition == null)
             {
                 TempData["ErrorMessage"] = "This schedule is not a competition or is missing details.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Activity");
             }
 
             if (scheduleToPublish.Status != ScheduleStatus.PendingSetup)
             {
                 TempData["ErrorMessage"] = "This competition cannot be published because its status is not 'Pending Setup'.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Activity");
             }
 
             scheduleToPublish.Status = ScheduleStatus.Active;

@@ -32,11 +32,16 @@
 @{
     ViewData["Title"] = "Community Hub";
     var today = DateTime.Today;
+    var yearVal = Context.Request.Query["year"];
+    var monthVal = Context.Request.Query["month"];
+
+    string yearStr = yearVal.ToString(); // Explicitly convert to string
+    string monthStr = monthVal.ToString(); // Explicitly convert to string
 
     // --- 1. Date setup for Monthly Calendar ---
-    int requestedYear = Context.Request.Query.TryGetValue("year", out var yearVal) ? int.Parse(yearVal) : today.Year;
-    int requestedMonth = Context.Request.Query.TryGetValue("month", out var monthVal) ? int.Parse(monthVal) : today.Month;
-    var displayDate = new DateTime(requestedYear, requestedMonth, 1);
+    int year = string.IsNullOrEmpty(yearStr) ? DateTime.Now.Year : int.Parse(yearStr);
+    int month = string.IsNullOrEmpty(monthStr) ? DateTime.Now.Month : int.Parse(monthStr);
+    var displayDate = new DateTime(year, month, 1);
     var nextMonthDate = displayDate.AddMonths(1);
     var prevMonthDate = displayDate.AddMonths(-1);
     var displayYear = displayDate.Year;
@@ -65,12 +70,12 @@
     foreach (var schedule in Model.Where(s => s.ScheduleType != ScheduleType.Recurring && s.StartTime.HasValue))
     {
         // Check if it's in the displayed month
-        if (schedule.StartTime.Value.Year == displayYear && schedule.StartTime.Value.Month == displayMonth)
+        if (schedule.StartTime!.Value.Year == displayYear && schedule.StartTime.Value.Month == displayMonth)
         {
             if (schedule.ScheduleType == ScheduleType.OneOff)
             {
                 AddEvent(schedule.StartTime.Value.Day, new CalendarEvent(
-                    schedule.ScheduleId, schedule.GameName, schedule.StartTime.Value,
+                    schedule.ScheduleId, schedule.GameName!, schedule.StartTime.Value,
                     schedule.ScheduleType.Value, schedule.Status));
             }
             else if (schedule.ScheduleType == ScheduleType.Competition)
@@ -83,7 +88,7 @@
                     if (date.Year == displayYear && date.Month == displayMonth)
                     {
                         AddEvent(date.Day, new CalendarEvent(
-                            schedule.ScheduleId, schedule.GameName, schedule.StartTime.Value,
+                            schedule.ScheduleId, schedule.GameName!, schedule.StartTime.Value,
                             schedule.ScheduleType.Value, schedule.Status));
                     }
                 }
@@ -183,11 +188,11 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 class="mb-0">@displayDate.ToString("MMMM yyyy")</h4>
                                 <div>
-                                    <a asp-action="Index" asp-controller="Community"
+                                    <a asp-action="Activity" asp-controller="Community"
                                        asp-route-year="@prevMonthDate.Year" asp-route-month="@prevMonthDate.Month"
                                        class="btn btn-sm btn-outline-secondary">&lt;</a>
                                     
-                                    <a asp-action="Index" asp-controller="Community"
+                                    <a asp-action="Activity" asp-controller="Community"
                                        asp-route-year="@nextMonthDate.Year" asp-route-month="@nextMonthDate.Month"
                                        class="btn btn-sm btn-outline-secondary">&gt;</a>
                                 </div>
@@ -279,7 +284,7 @@
                                     @{
                                         var activeGamesByDay = activeGames
                                                                   .Where(g => g.StartTime.HasValue) 
-                                                                  .GroupBy(g => g.StartTime.Value.Date)
+                                                                  .GroupBy(g => g.StartTime!.Value.Date)
                                                                   .OrderBy(g => g.Key);
                                     }
 
@@ -292,9 +297,9 @@
                                         <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
                                             @GetFriendlyDateString(dayGroup.Key)
                                         </h4>
-                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
                                         {
-                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
                                             <div class="row row-cols-1 row-cols-md-2 g-4 mb-3">
                                                 @* --- Embedded _GameCard --- *@
                                                 @foreach (var game in timeGroup)
@@ -331,7 +336,7 @@
                                 @* --- PAST GAMES (CORRECTED LOGIC) --- *@
                                 <div class="tab-pane fade" id="past-games-pane" role="tabpanel" aria-labelledby="past-games-tab" tabindex="0">
                                     @{
-                                        var pastGamesByDay = pastGames.GroupBy(g => g.StartTime.Value.Date)
+                                        var pastGamesByDay = pastGames.GroupBy(g => g.StartTime!.Value.Date)
                                                                       .OrderByDescending(g => g.Key);
                                     }
                                     @if (!pastGamesByDay.Any()) {
@@ -343,9 +348,9 @@
                                         <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
                                             @GetFriendlyDateString(dayGroup.Key)
                                         </h4>
-                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
                                         {
-                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
                                             <div class="row row-cols-1 row-cols-md-2 g-4 mb-3" style="opacity: 0.7;">
                                                 @* --- Embedded _GameCard --- *@
                                                 @foreach (var game in timeGroup)
@@ -398,7 +403,7 @@
                                 <div class="tab-pane fade show active" id="active-comps-pane" role="tabpanel" aria-labelledby="active-comps-tab" tabindex="0">
                                     @{
                                         var activeCompsByDay = activeCompetitions.Where(c => c.StartTime.HasValue)
-                                                                                 .GroupBy(c => c.StartTime.Value.Date)
+                                                                                 .GroupBy(c => c.StartTime!.Value.Date)
                                                                                  .OrderBy(c => c.Key);
                                     }
                                     @if (!activeCompsByDay.Any()) {
@@ -410,9 +415,9 @@
                                         <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
                                             @GetFriendlyDateString(dayGroup.Key)
                                         </h4>
-                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
                                         {
-                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
                                             <div class="row row-cols-1 row-cols-md-2 g-4 mb-3">
                                                 @* --- Embedded _CompetitionCard --- *@
                                                 @foreach (var comp in timeGroup)
@@ -463,7 +468,7 @@
                                 <div class="tab-pane fade" id="past-comps-pane" role="tabpanel" aria-labelledby="past-comps-tab" tabindex="0">
                                     @{
                                         var pastCompsByDay = pastCompetitions.Where(c => c.StartTime.HasValue)
-                                                                             .GroupBy(c => c.StartTime.Value.Date)
+                                                                             .GroupBy(c => c.StartTime!.Value.Date)
                                                                              .OrderByDescending(c => c.Key);
                                     }
                                     @if (!pastCompsByDay.Any()) {
@@ -475,9 +480,9 @@
                                         <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
                                             @GetFriendlyDateString(dayGroup.Key)
                                         </h4>
-                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
                                         {
-                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
                                             <div class="row row-cols-1 row-cols-md-2 g-4 mb-3" style="opacity: 0.7;">
                                                 @* --- Embedded _CompetitionCard --- *@
                                                 @foreach (var comp in timeGroup)

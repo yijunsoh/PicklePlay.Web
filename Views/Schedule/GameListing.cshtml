@@ -20,7 +20,7 @@
                      .OrderBy(s => s.StartTime);
 
     // Group by Date
-    var groupedByDay = games.GroupBy(g => g.StartTime.Value.Date).OrderBy(g => g.Key);
+    var groupedByDay = games.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
 }
 
 <div class="container mt-4 page-wrapper">
@@ -39,12 +39,12 @@
         </h4>
 
         // Group this day's games by the specific time
-        var groupedByTime = dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key);
+        var groupedByTime = dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key);
 
         @foreach (var timeGroup in groupedByTime)
         {
             // Time subtitle
-            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
 
             // Loop through all games at this specific time
             @foreach (var game in timeGroup)

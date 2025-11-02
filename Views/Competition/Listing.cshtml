@@ -22,7 +22,7 @@
 
     // --- New Grouping (copied from Schedule/Index) ---
     // Group by Date
-    var groupedByDay = competitions.GroupBy(g => g.StartTime.Value.Date).OrderBy(g => g.Key);
+    var groupedByDay = competitions.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
 }
 
 <div class="container mt-4 page-wrapper">
@@ -41,12 +41,13 @@
         </h4>
 
         // Group this day's competitions by the specific time
-        var groupedByTime = dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key);
+        var groupedByTime = dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key);
 
         @foreach (var timeGroup in groupedByTime)
         {
+            
             // Time subtitle
-            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+            <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
 
             // Use the original competition card layout in a grid
             <div class="row row-cols-1 row-cols-md-2 g-4">
