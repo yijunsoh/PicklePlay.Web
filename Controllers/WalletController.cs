@@ -4,10 +4,10 @@ using PicklePlay.Services;
 using PicklePlay.Models;
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
+using static PicklePlay.Services.MockPaymentService;
 
 public class WalletController : Controller
 {
-
     private readonly IPaymentService _paymentService;
     private readonly IPayPalService _payPalService;
     private readonly ApplicationDbContext _context;
@@ -24,6 +24,7 @@ public class WalletController : Controller
         _context = context;
         _logger = logger;
     }
+
     // GET: /Wallet/Management
     public IActionResult WalletManagement()
     {
@@ -66,16 +67,32 @@ public class WalletController : Controller
 
         return View();
     }
+
     // GET: /Wallet/Withdraw
-    public IActionResult Withdraw()
+    public async Task<IActionResult> Withdraw()
     {
         if (HttpContext.Session.GetString("UserEmail") == null)
         {
             return RedirectToAction("Login", "Auth");
         }
 
+        var userId = GetCurrentUserId();
+        decimal currentBalance = 0.00m;
+
+        if (userId.HasValue)
+        {
+            var wallet = await _context.Wallets
+                .FirstOrDefaultAsync(w => w.UserId == userId.Value);
+
+            if (wallet != null)
+            {
+                currentBalance = wallet.WalletBalance;
+            }
+        }
+
         ViewData["Title"] = "Withdraw Funds";
         ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+        ViewData["CurrentBalance"] = currentBalance;
 
         return View();
     }
@@ -117,6 +134,47 @@ public class WalletController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing top-up");
+            return StatusCode(500, new { success = false, message = "Internal server error" });
+        }
+    }
+
+    // API: Process Withdraw
+    [HttpPost]
+    [Route("/api/wallet/withdraw")]
+    public async Task<IActionResult> ProcessWithdraw([FromBody] WithdrawRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized(new { success = false, message = "User not logged in" });
+            }
+
+            _logger.LogInformation($"Processing withdraw request for user {userId}");
+
+            var result = await _paymentService.ProcessWithdrawAsync(
+                userId.Value,
+                request.Amount,
+                request.WithdrawMethod,
+                request.PaymentDetails);
+
+            if (result.Success)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message,
+                    transactionId = result.TransactionId,
+                    newBalance = result.NewBalance
+                });
+            }
+
+            return BadRequest(new { success = false, message = result.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing withdraw");
             return StatusCode(500, new { success = false, message = "Internal server error" });
         }
     }
@@ -213,7 +271,7 @@ public class WalletController : Controller
     }
 
     // GET: PayPal Cancel Callback
-    [HttpGet]
+    [HttpGet]   
     [Route("/api/PayPal/cancel")]
     public IActionResult PayPalCancel()
     {
@@ -241,6 +299,25 @@ public class WalletController : Controller
         return View();
     }
 
+    // GET: Withdraw Success Page
+    [HttpGet]
+    [Route("/Wallet/WithdrawSuccess")]
+    public IActionResult WithdrawSuccess()
+    {
+        if (HttpContext.Session.GetString("UserEmail") == null)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        ViewData["Title"] = "Withdraw Success";
+        ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+        ViewData["Amount"] = HttpContext.Request.Query["amount"];
+        ViewData["NewBalance"] = HttpContext.Request.Query["newBalance"];
+        ViewData["TransactionId"] = HttpContext.Request.Query["transactionId"];
+
+        return View();
+    }
+
     // GET: Top Up Failed Page
     [HttpGet]
     [Route("/Wallet/TopUpFailed")]
@@ -252,6 +329,23 @@ public class WalletController : Controller
         }
 
         ViewData["Title"] = "Top Up Failed";
+        ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+        ViewData["Message"] = HttpContext.Request.Query["message"];
+
+        return View();
+    }
+
+    // GET: Withdraw Failed Page
+    [HttpGet]
+    [Route("/Wallet/WithdrawFailed")]
+    public IActionResult WithdrawFailed()
+    {
+        if (HttpContext.Session.GetString("UserEmail") == null)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        ViewData["Title"] = "Withdraw Failed";
         ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
         ViewData["Message"] = HttpContext.Request.Query["message"];
 
@@ -330,6 +424,7 @@ public class WalletController : Controller
                     description = $"{t.TransactionType} - {t.PaymentMethod}",
                     // Add these for the frontend display
                     isTopUp = t.TransactionType == "TopUp",
+                    isWithdraw = t.TransactionType == "Withdraw",
                     formattedDate = t.CreatedAt.ToString("MMM dd, yyyy"),
                     formattedTime = t.CreatedAt.ToString("hh:mm tt")
                 })
@@ -352,16 +447,6 @@ public class WalletController : Controller
 
 
 
-    public class PaymentDetails
-    {
-        public string? BankName { get; set; }
-        public string? AccountNumber { get; set; }
-        public string? AccountHolderName { get; set; }
-        public string? CardNumber { get; set; }
-        public string? PayPalEmail { get; set; }
-    }
-
-
     public class TopUpRequest
     {
         public decimal Amount { get; set; }
@@ -369,9 +454,15 @@ public class WalletController : Controller
         public CardInfo? CardInfo { get; set; }
     }
 
+    public class WithdrawRequest
+    {
+        public decimal Amount { get; set; }
+        public string WithdrawMethod { get; set; } = string.Empty;
+        public PaymentDetails? PaymentDetails { get; set; }
+    }
+
     public class CreatePayPalPaymentRequest
     {
         public decimal Amount { get; set; }
     }
-
 }

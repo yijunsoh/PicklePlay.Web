@@ -1,4 +1,5 @@
 using PicklePlay.Models;
+using static PicklePlay.Services.MockPaymentService;
 
 namespace PicklePlay.Services
 {
@@ -6,15 +7,9 @@ namespace PicklePlay.Services
     {
         Task<PaymentResult> ProcessTopUpAsync(int userId, decimal amount, string paymentMethod, CardInfo? cardInfo = null);
         Task<PaymentResult> ProcessPayPalTopUpAsync(int userId, decimal amount, string paypalPaymentId);
-        
+        Task<PaymentResult> ProcessWithdrawAsync(int userId, decimal amount, string withdrawMethod, PaymentDetails? paymentDetails);
     }
-    public class PaymentResult
-    {
-        public bool Success { get; set; }
-        public string TransactionId { get; set; } = string.Empty;
-        public string Message { get; set; } = string.Empty;
-        public decimal NewBalance { get; set; }
-    }
+   
 
     public class CardInfo
     {
