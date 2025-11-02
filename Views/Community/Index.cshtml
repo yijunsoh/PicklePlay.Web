@@ -1,0 +1,650 @@
+@model IEnumerable<Schedule>
+@using PicklePlay.Models
+@using System.Globalization
+
+@* --- UPDATED Helper Record (Simpler) --- *@
+@functions {
+    public record CalendarEvent(
+        int ScheduleId,
+        string GameName,
+        DateTime StartTime,
+        ScheduleType ScheduleType, // Only used to differentiate Game vs Comp
+        ScheduleStatus? Status)     // Only used for Comp coloring
+    {
+        // --- UPDATED CSS Logic (Simpler) ---
+        public string CssClass
+        {
+            get
+            {
+                if (ScheduleType == ScheduleType.Competition)
+                {
+                    // If PendingSetup, use orange. Otherwise, use yellow.
+                    return (Status == ScheduleStatus.PendingSetup) ? "cal-event-pending" : "cal-event-comp";
+                }
+                
+                // All other types (OneOff, Recurring instances) are just "Games"
+                return "cal-event-game"; // Green
+            }
+        }
+    }
+}
+
+@{
+    ViewData["Title"] = "Community Hub";
+    var today = DateTime.Today;
+
+    // --- 1. Date setup for Monthly Calendar ---
+    int requestedYear = Context.Request.Query.TryGetValue("year", out var yearVal) ? int.Parse(yearVal) : today.Year;
+    int requestedMonth = Context.Request.Query.TryGetValue("month", out var monthVal) ? int.Parse(monthVal) : today.Month;
+    var displayDate = new DateTime(requestedYear, requestedMonth, 1);
+    var nextMonthDate = displayDate.AddMonths(1);
+    var prevMonthDate = displayDate.AddMonths(-1);
+    var displayYear = displayDate.Year;
+    var displayMonth = displayDate.Month;
+    var daysInMonth = DateTime.DaysInMonth(displayYear, displayMonth);
+    var firstDayOfMonth = new DateTime(displayYear, displayMonth, 1);
+
+    // --- 2. Prepare Event Data for Calendar (SIMPLIFIED LOGIC) ---
+    // We NO LONGER read the Recurring "templates". We only read the
+    // actual game instances (ScheduleType.OneOff) and competitions.
+    
+    var eventsByDay = new Dictionary<int, List<CalendarEvent>>();
+    void AddEvent(int day, CalendarEvent calEvent)
+    {
+        if (!eventsByDay.ContainsKey(day))
+        {
+            eventsByDay[day] = new List<CalendarEvent>();
+        }
+        if (!eventsByDay[day].Any(e => e.ScheduleId == calEvent.ScheduleId))
+        {
+            eventsByDay[day].Add(calEvent);
+        }
+    }
+
+    // Process ALL displayable schedules (OneOff instances and Competitions)
+    foreach (var schedule in Model.Where(s => s.ScheduleType != ScheduleType.Recurring && s.StartTime.HasValue))
+    {
+        // Check if it's in the displayed month
+        if (schedule.StartTime.Value.Year == displayYear && schedule.StartTime.Value.Month == displayMonth)
+        {
+            if (schedule.ScheduleType == ScheduleType.OneOff)
+            {
+                AddEvent(schedule.StartTime.Value.Day, new CalendarEvent(
+                    schedule.ScheduleId, schedule.GameName, schedule.StartTime.Value,
+                    schedule.ScheduleType.Value, schedule.Status));
+            }
+            else if (schedule.ScheduleType == ScheduleType.Competition)
+            {
+                // For multi-day comps, add all days
+                var startDate = schedule.StartTime.Value;
+                var endDate = schedule.EndTime ?? startDate;
+                for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                {
+                    if (date.Year == displayYear && date.Month == displayMonth)
+                    {
+                        AddEvent(date.Day, new CalendarEvent(
+                            schedule.ScheduleId, schedule.GameName, schedule.StartTime.Value,
+                            schedule.ScheduleType.Value, schedule.Status));
+                    }
+                }
+            }
+        }
+    }
+
+
+    // --- 3. Lists for Active/Past Tabs (CORRECTED LOGIC) ---
+    
+    // Get ONLY the game instances (ScheduleType.OneOff).
+    // This correctly excludes the parent "Recurring" templates.
+    var allGames = Model.Where(s => s.ScheduleType == ScheduleType.OneOff);
+
+    // Active games are OneOff instances in the future (or today).
+    var activeGames = allGames.Where(g => g.StartTime.HasValue && g.StartTime.Value >= today)
+                              .OrderBy(g => g.StartTime);
+
+    // Past games are OneOff instances in the past.
+    var pastGames = allGames.Where(g => g.StartTime.HasValue && g.StartTime.Value < today)
+                            .OrderByDescending(g => g.StartTime);
+
+    // Competition lists (Unchanged)
+    var allCompetitions = Model.Where(s => s.ScheduleType == ScheduleType.Competition);
+    var activeCompetitions = allCompetitions.Where(c => (c.Status == ScheduleStatus.Active ||
+                                                        c.Status == ScheduleStatus.PendingSetup) &&
+                                                        c.EndTime.HasValue && c.EndTime.Value.Date >= today)
+                                            .OrderBy(c => c.StartTime);
+    var pastCompetitions = allCompetitions.Where(c => c.Status == ScheduleStatus.Past || 
+                                                     (c.EndTime.HasValue && c.EndTime.Value.Date < today))
+                                          .OrderByDescending(c => c.StartTime);
+
+    // --- 4. Friendly Date Helper ---
+    string GetFriendlyDateString(DateTime date)
+    {
+        if (date == today) return "Today";
+        if (date == today.AddDays(1)) return "Tomorrow";
+        return date.ToString("dddd, dd MMM yyyy");
+    }
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+
+        @* --- Left Column (Placeholder) --- *@
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h5 class="card-title">Community Info</h5>
+                    <p class="card-text">Placeholder for community details, quick links, etc.</p>
+                    <a asp-action="CreateOneOff" asp-controller="Community" class="btn btn-sm btn-outline-success mb-2 w-100">Create One-Off</a>
+                    <a asp-action="CreateRecurring" asp-controller="Community" class="btn btn-sm btn-outline-success mb-2 w-100">Create Recurring</a>
+                    <a asp-action="CreateCompetition" asp-controller="Community" class="btn btn-sm btn-outline-success w-100">Create Competition</a>
+                </div>
+            </div>
+        </div>
+
+        @* --- Center Content Column --- *@
+        <div class="col-lg-6 col-md-8">
+
+             @* --- MAIN TABS (Activity, Chat, Members) --- *@
+            <ul class="nav nav-tabs mb-3" id="communityMainTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity-tab-pane" type="button" role="tab" aria-controls="activity-tab-pane" aria-selected="true">Activity</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane" type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                     <button class="nav-link disabled" id="members-tab" data-bs-toggle="tab" data-bs-target="#members-tab-pane" type="button" role="tab" aria-controls="members-tab-pane" aria-selected="false">Members</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="communityMainTabsContent">
+                
+                @* --- ACTIVITY TAB PANE --- *@
+                <div class="tab-pane fade show active" id="activity-tab-pane" role="tabpanel" aria-labelledby="activity-tab" tabindex="0">
+
+                    @* --- Activity Sub-Tabs --- *@
+                    <ul class="nav nav-pills nav-fill mb-3" id="activitySubTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="regular-schedule-tab" data-bs-toggle="tab" data-bs-target="#regular-schedule-pane" type="button" role="tab" aria-controls="regular-schedule-pane" aria-selected="true">Schedule Calendar</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="games-tab" data-bs-toggle="tab" data-bs-target="#games-pane" type="button" role="tab" aria-controls="games-pane" aria-selected="false">Games</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="competitions-tab" data-bs-toggle="tab" data-bs-target="#competitions-pane" type="button" role="tab" aria-controls="competitions-pane" aria-selected="false">Competitions</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="activitySubTabsContent">
+
+                        @* --- PANE 1: Regular Schedule (Calendar) --- *@
+                        <div class="tab-pane fade show active" id="regular-schedule-pane" role="tabpanel" aria-labelledby="regular-schedule-tab" tabindex="0">
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">@displayDate.ToString("MMMM yyyy")</h4>
+                                <div>
+                                    <a asp-action="Index" asp-controller="Community"
+                                       asp-route-year="@prevMonthDate.Year" asp-route-month="@prevMonthDate.Month"
+                                       class="btn btn-sm btn-outline-secondary">&lt;</a>
+                                    
+                                    <a asp-action="Index" asp-controller="Community"
+                                       asp-route-year="@nextMonthDate.Year" asp-route-month="@nextMonthDate.Month"
+                                       class="btn btn-sm btn-outline-secondary">&gt;</a>
+                                </div>
+                            </div>
+
+                            @* --- UPDATED LEGEND --- *@
+                            <div class="d-flex justify-content-start align-items-center mb-2 small">
+                                <span class="me-2"><span class="cal-legend cal-event-game"></span> Game</span>
+                                <span class="me-2"><span class="cal-legend cal-event-comp"></span> Competition</span>
+                                <span class="me-2"><span class="cal-legend cal-event-pending"></span> Pending Setup</span>
+                            </div>
+
+
+                            <div class="table-responsive">
+                                <table class="table table-bordered calendar-table" style="table-layout: fixed;">
+                                    <thead class="table-light">
+                                        <tr class="text-center">
+                                            <th>Mon</th> <th>Tue</th> <th>Wed</th> <th>Thu</th> <th>Fri</th> <th>Sat</th> <th>Sun</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @{
+                                            int startOffset = (int)firstDayOfMonth.DayOfWeek;
+                                            startOffset = (startOffset == 0) ? 6 : startOffset - 1; // Mon=0..Sun=6
+                                            var dayCounter = 1;
+                                        }
+
+                                        @for (int w = 0; w < 6; w++) // Max 6 weeks
+                                        {
+                                            <tr>
+                                                @for (int d = 0; d < 7; d++) // 7 days
+                                                {
+                                                    if (w == 0 && d < startOffset || dayCounter > daysInMonth)
+                                                    {
+                                                        <td class="calendar-day other-month"></td> // Empty
+                                                    }
+                                                    else
+                                                    {
+                                                        var day = dayCounter;
+                                                        var isToday = (displayYear == today.Year && displayMonth == today.Month && day == today.Day);
+                                                        
+                                                        <td class="calendar-day @(isToday ? "today" : "")">
+                                                            <strong class="day-number">@day</strong>
+                                                            
+                                                            <div class="cal-events-wrapper">
+                                                            @if (eventsByDay.TryGetValue(day, out var events))
+                                                            {
+                                                                @foreach (var calEvent in events.OrderBy(e => e.StartTime))
+                                                                {
+                                                                    @* Link logic: Comps go to CompDetails, others (Games) go to Schedule/Details *@
+                                                                    <a asp-controller="@(calEvent.ScheduleType == ScheduleType.Competition ? "Competition" : "Schedule")"
+                                                                       asp-action="@(calEvent.ScheduleType == ScheduleType.Competition ? "CompDetails" : "Details")"
+                                                                       asp-route-id="@calEvent.ScheduleId"
+                                                                       class="cal-event @calEvent.CssClass" 
+                                                                       title="@calEvent.GameName">
+                                                                        @calEvent.StartTime.ToString("hh:mm tt")
+                                                                    </a>
+                                                                }
+                                                            }
+                                                            </div>
+                                                        </td>
+                                                        dayCounter++;
+                                                    }
+                                                }
+                                            </tr>
+                                            if (dayCounter > daysInMonth) { break; } 
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        @* --- PANE 2: Games (Active/Past) --- *@
+                        <div class="tab-pane fade" id="games-pane" role="tabpanel" aria-labelledby="games-tab" tabindex="0">
+                            
+                            <ul class="nav nav-tabs nav-justified mb-3" id="gamesSubTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="active-games-tab" data-bs-toggle="tab" data-bs-target="#active-games-pane" type="button" role="tab" aria-controls="active-games-pane" aria-selected="true">Active</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="past-games-tab" data-bs-toggle="tab" data-bs-target="#past-games-pane" type="button" role="tab" aria-controls="past-games-pane" aria-selected="false">Past</button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="gamesSubTabsContent">
+                                
+                                @* --- ACTIVE GAMES (CORRECTED LOGIC) --- *@
+                                <div class="tab-pane fade show active" id="active-games-pane" role="tabpanel" aria-labelledby="active-games-tab" tabindex="0">
+                                    @{
+                                        var activeGamesByDay = activeGames
+                                                                  .Where(g => g.StartTime.HasValue) 
+                                                                  .GroupBy(g => g.StartTime.Value.Date)
+                                                                  .OrderBy(g => g.Key);
+                                    }
+
+                                    @if (!activeGamesByDay.Any()) {
+                                        <p class="text-muted col-12">No active games scheduled.</p>
+                                    }
+                                    
+                                    @foreach (var dayGroup in activeGamesByDay)
+                                    {
+                                        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                                            @GetFriendlyDateString(dayGroup.Key)
+                                        </h4>
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        {
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <div class="row row-cols-1 row-cols-md-2 g-4 mb-3">
+                                                @* --- Embedded _GameCard --- *@
+                                                @foreach (var game in timeGroup)
+                                                {
+                                                    <div class="col">
+                                                        <div class="card h-100 shadow-sm">
+                                                            <div class="card-body d-flex flex-column">
+                                                                <h5 class="card-title">@game.GameName</h5>
+                                                                @if(game.EventTag.HasValue && game.EventTag != EventTag.None) {
+                                                                    <span class="badge bg-primary mb-2 align-self-start">@game.EventTag.ToString()</span>
+                                                                }
+                                                                <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @game.Location</p>
+                                                                <p class="card-text mb-1 small">
+                                                                    <i class="bi bi-calendar-event me-1"></i>
+                                                                    @if (game.StartTime.HasValue) {
+                                                                        @* This is a OneOff, so just show the date *@
+                                                                        <span>@game.StartTime.Value.ToString("ddd, MMM d, H:mm")</span>
+                                                                    }
+                                                                </p>
+                                                                <p class="card-text small"><i class="bi bi-people-fill me-1"></i> @game.NumPlayer players</p>
+                                                                <div class="mt-auto pt-2">
+                                                                    <a asp-controller="Schedule" asp-action="Details" asp-route-id="@game.ScheduleId" class="btn btn-sm btn-outline-primary w-100">View Details</a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @* --- End Embedded _GameCard --- *@
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                
+                                @* --- PAST GAMES (CORRECTED LOGIC) --- *@
+                                <div class="tab-pane fade" id="past-games-pane" role="tabpanel" aria-labelledby="past-games-tab" tabindex="0">
+                                    @{
+                                        var pastGamesByDay = pastGames.GroupBy(g => g.StartTime.Value.Date)
+                                                                      .OrderByDescending(g => g.Key);
+                                    }
+                                    @if (!pastGamesByDay.Any()) {
+                                        <p class="text-muted col-12">No past games found.</p>
+                                    }
+
+                                    @foreach (var dayGroup in pastGamesByDay)
+                                    {
+                                        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                                            @GetFriendlyDateString(dayGroup.Key)
+                                        </h4>
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        {
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <div class="row row-cols-1 row-cols-md-2 g-4 mb-3" style="opacity: 0.7;">
+                                                @* --- Embedded _GameCard --- *@
+                                                @foreach (var game in timeGroup)
+                                                {
+                                                    <div class="col">
+                                                        <div class="card h-100 shadow-sm">
+                                                            <div class="card-body d-flex flex-column">
+                                                                <h5 class="card-title">@game.GameName</h5>
+                                                                @if(game.EventTag.HasValue && game.EventTag != EventTag.None) {
+                                                                    <span class="badge bg-primary mb-2 align-self-start">@game.EventTag.ToString()</span>
+                                                                }
+                                                                <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @game.Location</p>
+                                                                <p class="card-text mb-1 small">
+                                                                    <i class="bi bi-calendar-event me-1"></i>
+                                                                    @if (game.StartTime.HasValue) {
+                                                                        <span>@game.StartTime.Value.ToString("ddd, MMM d, H:mm")</span>
+                                                                    }
+                                                                </p>
+                                                                <p class="card-text small"><i class="bi bi-people-fill me-1"></i> @game.NumPlayer players</p>
+                                                                <div class="mt-auto pt-2">
+                                                                    <a asp-controller="Schedule" asp-action="Details" asp-route-id="@game.ScheduleId" class="btn btn-sm btn-outline-secondary w-100">View Details</a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @* --- End Embedded _GameCard --- *@
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        @* --- PANE 3: Competitions (Active/Past) --- *@
+                        <div class="tab-pane fade" id="competitions-pane" role="tabpanel" aria-labelledby="competitions-tab" tabindex="0">
+                            
+                             <ul class="nav nav-tabs nav-justified mb-3" id="competitionsSubTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="active-comps-tab" data-bs-toggle="tab" data-bs-target="#active-comps-pane" type="button" role="tab" aria-controls="active-comps-pane" aria-selected="true">Active</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="past-comps-tab" data-bs-toggle="tab" data-bs-target="#past-comps-pane" type="button" role="tab" aria-controls="past-comps-pane" aria-selected="false">Past</button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="competitionsSubTabsContent">
+                                
+                                @* --- ACTIVE COMPS (DATE GROUPED) --- *@
+                                <div class="tab-pane fade show active" id="active-comps-pane" role="tabpanel" aria-labelledby="active-comps-tab" tabindex="0">
+                                    @{
+                                        var activeCompsByDay = activeCompetitions.Where(c => c.StartTime.HasValue)
+                                                                                 .GroupBy(c => c.StartTime.Value.Date)
+                                                                                 .OrderBy(c => c.Key);
+                                    }
+                                    @if (!activeCompsByDay.Any()) {
+                                        <p class="text-muted col-12">No active competitions scheduled.</p>
+                                    }
+                                    
+                                    @foreach (var dayGroup in activeCompsByDay)
+                                    {
+                                        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                                            @GetFriendlyDateString(dayGroup.Key)
+                                        </h4>
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        {
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <div class="row row-cols-1 row-cols-md-2 g-4 mb-3">
+                                                @* --- Embedded _CompetitionCard --- *@
+                                                @foreach (var comp in timeGroup)
+                                                {
+                                                    <div class="col">
+                                                        <div class="card h-100 shadow-sm">
+                                                            <div class="card-body d-flex flex-column">
+                                                                <h5 class="card-title">@comp.GameName</h5>
+                                                                <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @comp.Location</p>
+                                                                <p class="card-text mb-1 small">
+                                                                    <i class="bi bi-calendar-event me-1"></i>
+                                                                    @if (comp.StartTime.HasValue) {
+                                                                        <span>@comp.StartTime.Value.ToString("ddd, MMM d")</span>
+                                                                        <small class="text-muted"> (@comp.StartTime.Value.ToString("t") - @comp.EndTime?.ToString("t"))</small>
+                                                                    }
+                                                                </p>
+                                                                <p class="card-text small"><i class="bi bi-trophy-fill me-1"></i> @comp.NumTeam Teams</p>
+                                                                
+                                                                @if (comp.Status == ScheduleStatus.PendingSetup)
+                                                                {
+                                                                    <span class="badge bg-warning text-dark align-self-start mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Pending Match Setup</span>
+                                                                    <div class="mt-auto pt-2 d-grid gap-2 d-sm-flex justify-content-sm-between">
+                                                                        <a asp-controller="Community" asp-action="SetupMatch" asp-route-id="@comp.ScheduleId" class="btn btn-sm btn-warning mb-1 mb-sm-0">Continue Setup</a>
+                                                                        <form asp-controller="Community" asp-action="Publish" asp-route-id="@comp.ScheduleId" method="post" onsubmit="return confirm('Publish this competition? Default format settings will be used and editable after publish')" class="d-inline-block">
+                                                                             @Html.AntiForgeryToken()
+                                                                             <button type="submit" class="btn btn-sm btn-info w-100">Publish Now</button>
+                                                                        </form>
+                                                                     </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="badge bg-success align-self-start mb-2">@comp.Status?.ToString()</span>
+                                                                     <div class="mt-auto pt-2">
+                                                                         <a asp-controller="Competition" asp-action="CompDetails" asp-route-id="@comp.ScheduleId" class="btn btn-sm btn-outline-primary w-100">View Competition</a>
+                                                                     </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @* --- End Embedded _CompetitionCard --- *@
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                
+                                @* --- PAST COMPS (DATE GROUPED) --- *@
+                                <div class="tab-pane fade" id="past-comps-pane" role="tabpanel" aria-labelledby="past-comps-tab" tabindex="0">
+                                    @{
+                                        var pastCompsByDay = pastCompetitions.Where(c => c.StartTime.HasValue)
+                                                                             .GroupBy(c => c.StartTime.Value.Date)
+                                                                             .OrderByDescending(c => c.Key);
+                                    }
+                                    @if (!pastCompsByDay.Any()) {
+                                        <p class="text-muted col-12">No past competitions found.</p>
+                                    }
+                                    
+                                    @foreach (var dayGroup in pastCompsByDay)
+                                    {
+                                        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                                            @GetFriendlyDateString(dayGroup.Key)
+                                        </h4>
+                                        @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                                        {
+                                            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+                                            <div class="row row-cols-1 row-cols-md-2 g-4 mb-3" style="opacity: 0.7;">
+                                                @* --- Embedded _CompetitionCard --- *@
+                                                @foreach (var comp in timeGroup)
+                                                {
+                                                    <div class="col">
+                                                        <div class="card h-100 shadow-sm">
+                                                            <div class="card-body d-flex flex-column">
+                                                                <h5 class="card-title">@comp.GameName</h5>
+                                                                <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @comp.Location</p>
+                                                                <p class="card-text mb-1 small">
+                                                                    <i class="bi bi-calendar-event me-1"></i>
+                                                                    @if (comp.StartTime.HasValue) {
+                                                                        <span>@comp.StartTime.Value.ToString("ddd, MMM d")</span>
+                                                                        <small class="text-muted"> (@comp.StartTime.Value.ToString("t") - @comp.EndTime?.ToString("t"))</small>
+                                                                    }
+                                                                </p>
+                                                                <p class="card-text small"><i class="bi bi-trophy-fill me-1"></i> @comp.NumTeam Teams</p>
+                                                                
+                                                                <span class="badge bg-dark align-self-start mb-2">@comp.Status?.ToString()</span>
+                                                                <div class="mt-auto pt-2">
+                                                                     <a asp-controller="Competition" asp-action="CompDetails" asp-route-id="@comp.ScheduleId" class="btn btn-sm btn-outline-secondary w-100">View Competition</a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @* --- End Embedded _CompetitionCard --- *@
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div> @* End Activity Sub-Tabs Content *@
+                </div> @* End Activity Tab Pane *@
+
+                @* --- CHAT/MEMBERS TAB PANES (Placeholders) --- *@
+                <div class="tab-pane fade" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
+                    <h4>Chat</h4>
+                    <p>Community chat feature coming soon.</p>
+                </div>
+                 <div class="tab-pane fade" id="members-tab-pane" role="tabpanel" aria-labelledby="members-tab" tabindex="0">
+                     <h4>Members</h4>
+                    <p>Community member list coming soon.</p>
+                </div>
+
+            </div> @* End Main Tab Content *@
+        </div> @* End Center Column *@
+
+         @* --- Right Column (Placeholder) --- *@
+        <div class="col-lg-3 d-none d-lg-block">
+             <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h5 class="card-title">Announcements</h5>
+                    <p class="card-text">Placeholder for announcements or upcoming events.</p>
+                </div>
+            </div>
+        </div>
+
+    </div> @* End Row *@
+</div> @* End Container *@
+
+@* --- UPDATED CSS Styles for Calendar --- *@
+<style>
+    .calendar-table {
+        border: 1px solid #dee2e6;
+    }
+    .calendar-day {
+        height: 120px;
+        vertical-align: top;
+        padding: 4px;
+        position: relative;
+        background-color: #fff;
+    }
+    .calendar-day.other-month {
+        background-color: #f8f9fa;
+    }
+    .calendar-day.today {
+        border: 2px solid #0d6efd; 
+    }
+    .day-number {
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .today .day-number { color: #0d6efd; }
+
+    .cal-events-wrapper {
+        max-height: 90px;
+        overflow-y: auto;
+        margin-top: 4px;
+    }
+    .cal-event {
+        display: block;
+        padding: 2px 5px;
+        margin-bottom: 3px;
+        border-radius: 4px;
+        color: #333;
+        text-decoration: none;
+        font-size: 0.75rem;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        border: 1px solid transparent;
+    }
+    .cal-event:hover { opacity: 0.8; }
+
+    /* --- NEW: Green: All Games (OneOff & Recurring Instances) --- */
+    .cal-event-game {
+        background-color: #d1e7dd;
+        border-color: #a3cfbb;
+        color: #0a3622;
+    }
+
+    /* Yellow: Competition (Active) */
+    .cal-event-comp {
+        background-color: #fff3cd;
+        border-color: #ffe69c;
+        color: #664d03;
+    }
+    
+    /* Strong Orange: Competition (Pending) */
+    .cal-event-pending {
+        background-color: #fd7e14;
+        border-color: #e85d04;
+        color: #ffffff;
+    }
+
+    /* Legend CSS */
+    .cal-legend {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        margin-right: 4px;
+        vertical-align: middle;
+    }
+</style>
+
+
+@section Scripts {
+    <script>
+        // Optional: Activate tab from URL hash if needed
+        document.addEventListener('DOMContentLoaded', function() {
+            var hash = window.location.hash;
+            if (hash) {
+                // Try to activate main tabs
+                var triggerEl = document.querySelector('#communityMainTabs button[data-bs-target="' + hash + '"]');
+                if (triggerEl) {
+                    var tab = new bootstrap.Tab(triggerEl);
+                    tab.show();
+                }
+
+                // Try to activate activity sub-tabs
+                var subTriggerEl = document.querySelector('#activitySubTabs button[data-bs-target="' + hash + '"]');
+                if (subTriggerEl) {
+                    var subTab = new bootstrap.Tab(subTriggerEl);
+                    subTab.show();
+                    
+                    // Also ensure the parent 'Activity' tab is active
+                    var parentTabTrigger = document.querySelector('#activity-tab');
+                    if (parentTabTrigger) {
+                        var parentTab = new bootstrap.Tab(parentTabTrigger);
+                        parentTab.show();
+                    }
+                }
+            }
+        });
+    </script>
+}

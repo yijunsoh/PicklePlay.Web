@@ -1,0 +1,80 @@
+@model IEnumerable<PicklePlay.Models.Schedule>
+@using PicklePlay.Models
+
+@{
+    ViewData["Title"] = "Game Schedule";
+    var today = DateTime.Today;
+
+    // Helper function to make date headers user-friendly
+    string GetFriendlyDateString(DateTime date)
+    {
+        if (date == today) return "Today";
+        if (date == today.AddDays(1)) return "Tomorrow";
+        return date.ToString("dd/MM/yyyy (dddd)");
+    }
+
+    // Filter by OneOff, StartTime.HasValue, and future games
+    var games = Model.Where(s => s.ScheduleType == ScheduleType.OneOff &&
+                                 s.StartTime.HasValue &&
+                                 s.StartTime.Value.Date >= today)
+                     .OrderBy(s => s.StartTime);
+
+    // Group by Date
+    var groupedByDay = games.GroupBy(g => g.StartTime.Value.Date).OrderBy(g => g.Key);
+}
+
+<div class="container mt-4 page-wrapper">
+    <h2 class="mb-4">Games Schedule</h2>
+
+    @if (!groupedByDay.Any())
+    {
+        <p class="text-muted">No upcoming one-off games found.</p>
+    }
+
+    @foreach (var dayGroup in groupedByDay)
+    {
+        // Use the helper for the main date title
+        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+            @GetFriendlyDateString(dayGroup.Key)
+        </h4>
+
+        // Group this day's games by the specific time
+        var groupedByTime = dayGroup.GroupBy(g => g.StartTime.Value.TimeOfDay).OrderBy(tg => tg.Key);
+
+        @foreach (var timeGroup in groupedByTime)
+        {
+            // Time subtitle
+            <h6 class="text-muted mt-3">@timeGroup.First().StartTime.Value.ToString("hh:mm tt")</h6>
+
+            // Loop through all games at this specific time
+            @foreach (var game in timeGroup)
+            {
+                <div class="card mb-3 shadow-sm game-card"
+                     onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
+                     style="cursor:pointer;">
+                    <div class="card-body d-flex align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">@game.GameName</h5>
+                            <p class="mb-0"><strong>Location:</strong> @game.Location</p>
+                            <p class="mb-0 text-muted">
+                                @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
+                                {
+                                    <span class="badge bg-primary fs-6">@game.EventTag.ToString()</span>
+                                }
+                                <span class="ms-2">Players: @game.NumPlayer</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+<style>
+    .game-card:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: 0.2s;
+    }
+</style>

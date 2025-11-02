@@ -1,0 +1,263 @@
+@model Schedule
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = Model.GameName ?? "Competition Details";
+    bool setupPending = ViewData["SetupPending"] as bool? ?? false;
+}
+
+<div class="container mt-4">
+    @* --- Header Section --- *@
+     <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+        <div>
+            <h2>@Model.GameName</h2>
+            <p class="text-muted mb-0">@Model.Location</p>
+             @if (Model.Status == ScheduleStatus.PendingSetup) {
+                 <span class="badge bg-warning text-dark">Pending Setup</span>
+             } else {
+                 <span class="badge bg-success">@Model.Status?.ToString()</span>
+             }
+        </div>
+        <div>
+            <button class="btn btn-outline-secondary"><i class="bi bi-share"></i> Share</button>
+             @if (Model.Status == ScheduleStatus.PendingSetup) {
+                 <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="btn btn-warning"><i class="bi bi-pencil-square"></i> Continue Setup</a>
+             } else {
+                 <button class="btn btn-primary"><i class="bi bi-person-plus"></i> Register Team</button>
+             }
+
+           @* --- UPDATED DROPDOWN --- *@
+            <div class="dropdown d-inline-block">
+                 <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                </button>
+                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="compActionsDropdown">
+                     
+                    @* 1. Edit Details Link *@
+                    @if (Model.Status == ScheduleStatus.PendingSetup) {
+                        <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Draft Details</a></li>
+                    } else {
+                        <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Details</a></li>
+                    }
+
+                    @* 2. NEW: Edit Setup Match Link *@
+                    <li>
+                        <a class="dropdown-item" asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId">
+                            <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
+                        </a>
+                    </li>
+
+                     <li><a class="dropdown-item disabled" href="#">Manage Teams (Future)</a></li>
+                     <li><hr class="dropdown-divider"></li>
+
+                    @* 3. Delete Link (No changes here) *@
+                    @if (Model.Status == ScheduleStatus.PendingSetup) {
+                        <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
+                    } else {
+                        <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId" onclick="return confirm('Are you sure you want to permanently delete this competition? This action cannot be undone.')"><i class="bi bi-trash-fill me-2"></i> Delete Competition</a></li>
+                    }
+                </ul>
+            </div>
+            @* --- END UPDATED DROPDOWN --- *@
+
+        </div>
+    
+ </div>
+
+    @* --- Poster Image (from previous step) --- *@
+    @if (!string.IsNullOrEmpty(Model.CompetitionImageUrl))
+    {
+        <div class="mb-4 text-center">
+            <img src="@Url.Content(Model.CompetitionImageUrl)" alt="@Model.GameName Poster" 
+                 style="max-width: 100%; height: auto; max-height: 400px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+        </div>
+    }
+
+    @* --- Main Tabs --- *@
+    <ul class="nav nav-tabs" id="competitionTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-tab-pane" type="button" role="tab" aria-controls="details-tab-pane" aria-selected="true">Details</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration-tab-pane" type="button" role="tab" aria-controls="registration-tab-pane" aria-selected="false">Registration</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="match-tab" data-bs-toggle="tab" data-bs-target="#match-tab-pane" type="button" role="tab" aria-controls="match-tab-pane" aria-selected="false">Match</button>
+        </li>
+         <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-tab-pane" type="button" role="tab" aria-controls="result-tab-pane" aria-selected="false">Result</button>
+        </li>
+          <li class="nav-item" role="presentation">
+           <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane" type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
+        </li>
+    </ul>
+
+    @* --- Main Tab Content --- *@
+    <div class="tab-content" id="competitionTabContent">
+        @* --- Details Tab Pane (with null-checks from previous step) --- *@
+        <div class="tab-pane fade show active p-3" id="details-tab-pane" role="tabpanel" aria-labelledby="details-tab" tabindex="0">
+
+             @if (setupPending && Model.Competition != null)
+             {
+                 <div class="alert alert-warning" role="alert">
+                    This competition setup is not complete.
+                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="alert-link">Continue Setup</a> or <a asp-action="Publish" asp-controller="Community" asp-route-id="@Model.ScheduleId" onclick="event.preventDefault(); document.getElementById('publish-form-@Model.ScheduleId').submit();" class="alert-link">Publish</a> with default settings for **@Model.Competition.Format**.
+                 </div>
+                 <form id="publish-form-@Model.ScheduleId" asp-controller="Community" asp-action="Publish" asp-route-id="@Model.ScheduleId" method="post" class="d-none"> @Html.AntiForgeryToken() </form>
+             }
+
+            <h5>About</h5>
+            <p>@Model.Description</p>
+            <hr/>
+            
+            <h5>Schedule & Registration</h5>
+            <div class="row">
+                 <div class="col-md-6">
+                    <p><strong>Start:</strong> @Model.StartTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                    <p><strong>End:</strong> @Model.EndTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                    
+                    @if (Model.ApproxStartTime.HasValue)
+                    {
+                        <p><strong>Approx Start:</strong> @Model.ApproxStartTime?.ToString("hh:mm tt")</p>
+                    }
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Reg Opens:</strong> @Model.RegOpen?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                    <p><strong>Reg Closes:</strong> @Model.RegClose?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                    
+                    @if (Model.EarlyBirdClose.HasValue)
+                    {
+                        <p><strong>Early Bird:</strong> @Model.EarlyBirdClose?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                    }
+                </div>
+            </div>
+            <hr/>
+
+             <h5>Participation</h5>
+            <div class="row">
+                <div class="col-md-6">
+                     <p><strong>Teams Limit:</strong> @Model.NumTeam</p>
+                    <p>
+                        <strong>Fee:</strong>
+                         @if(Model.FeeType == FeeType.Free) { <span>Free</span> }
+                         else if (Model.FeeType == FeeType.PerPerson) { <span>RM @Model.FeeAmount?.ToString("0.00") per Team</span> }
+                         else { <span>N/A</span> }
+                    </p>
+                </div>
+                 
+                 <div class="col-md-6">
+                    <p><strong>Gender:</strong> @(Model.GenderRestriction.HasValue && Model.GenderRestriction != GenderRestriction.None ? Model.GenderRestriction.ToString() : "Any")</p>
+                    <p><strong>Age Group:</strong> @(Model.AgeGroupRestriction.HasValue && Model.AgeGroupRestriction != AgeGroupRestriction.Adult ? Model.AgeGroupRestriction.ToString() : "Any")</p>
+                    <p><strong>Rank:</strong> @(Model.MinRankRestriction?.ToString("0.00") ?? "Any") - @(Model.MaxRankRestriction?.ToString("0.00") ?? "Any")</p>
+                 </div>
+             </div>
+
+        </div> @* End Details Tab Pane *@
+
+        @* --- Registration Tab Pane --- *@
+        <div class="tab-pane fade p-3" id="registration-tab-pane" role="tabpanel" aria-labelledby="registration-tab" 
+ tabindex="0">... Registration content coming soon ...</div>
+
+        @* --- Match Tab Pane --- *@
+        <div class="tab-pane fade p-3" id="match-tab-pane" role="tabpanel" aria-labelledby="match-tab" tabindex="0">
+
+             @if (setupPending)
+             {
+                 <div class="alert alert-warning" role="alert">
+                    Match setup cannot be completed until the initial competition setup is saved.
+                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="alert-link">Go to Setup</a>.
+                 </div>
+             }
+             else if (Model.Competition == null)
+             {
+                  <div class="alert alert-danger" role="alert">
+                    Error: Competition details are missing.
+                    Cannot display match information.
+                 </div>
+             }
+             else
+             {
+                @* --- Nested Match Tabs --- *@
+                 <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
+             
+               <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="format-subtab" data-bs-toggle="tab" data-bs-target="#format-subtab-pane" type="button" role="tab" aria-controls="format-subtab-pane" aria-selected="true">Format</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                 <button class="nav-link disabled" id="listing-subtab" data-bs-toggle="tab" data-bs-target="#listing-subtab-pane" type="button" role="tab" aria-controls="listing-subtab-pane" aria-selected="false">Listing</button>
+                    </li>
+                     <li class="nav-item" role="presentation">
+                        <button class="nav-link disabled" id="standing-subtab" data-bs-toggle="tab" data-bs-target="#standing-subtab-pane" type="button" role="tab" aria-controls="standing-subtab-pane" aria-selected="false">Standing</button>
+                     </li>
+                </ul>
+
+                <div class="tab-content" id="matchSubTabsContent">
+                    @* --- Format Sub-Tab Pane --- *@
+                    <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel" 
+ aria-labelledby="format-subtab" tabindex="0">
+                        <h5>Format & Rules</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                             <p><strong>Format:</strong> @Model.Competition.Format.ToString()</p>
+                                @if (Model.Competition.Format == CompetitionFormat.PoolPlay)
+                                {
+                                    <p><strong>Pools:</strong> @Model.Competition.NumPool</p>
+                                    <p><strong>Winners/Pool:</strong> @Model.Competition.WinnersPerPool</p>
+                                    <p><strong>Standings:</strong> @Model.Competition.StandingCalculation.ToString()</p>
+                                    @if (Model.Competition.StandingCalculation == StandingCalculation.WinLossPoints)
+                                    {
+                                        <h6>Point System</h6>
+                                         <ul>
+                                            <li>Standard Win: @Model.Competition.StandardWin pts</li>
+                                            <li>Standard Loss: @Model.Competition.StandardLoss pts</li>
+                                            <li>Tie-Break Win: @Model.Competition.TieBreakWin pts</li>
+                                            <li>Tie-Break Loss: @Model.Competition.TieBreakLoss pts</li>
+                                            <li>Draw: @Model.Competition.Draw pts</li>
+                                        </ul>
+                                    }
+                                }
+                                @if (Model.Competition.Format == CompetitionFormat.Elimination)
+                                {
+                                    <p><strong>3rd Place Match:</strong> @(Model.Competition.ThirdPlaceMatch ? "Yes" : "No")</p>
+                                }
+                                @if (Model.Competition.Format == CompetitionFormat.RoundRobin)
+                                {
+                                    <p><strong>Double Round:</strong> @(Model.Competition.DoublePool ? "Yes" : "No")</p>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                @if (!string.IsNullOrEmpty(Model.Competition.MatchRule))
+                                {
+                                     <p><strong>Match Rules:</strong></p>
+                                    <p style="white-space: pre-wrap;">@Model.Competition.MatchRule</p> 
+                                }
+                            </div>
+                        </div>
+                    </div> @* End Format Sub-Tab Pane *@
+
+                    @* --- Listing Sub-Tab Pane --- *@
+                    <div class="tab-pane fade" id="listing-subtab-pane" role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
+                        <h5>Match Listing</h5>
+                        <p>Match listing feature coming soon.</p>
+                    </div>
+
+                    @* --- Standing Sub-Tab Pane --- *@
+                     <div class="tab-pane fade" id="standing-subtab-pane" role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
+                        <h5>Standings</h5>
+                         <p>Standings feature coming soon.</p>
+                     </div>
+                </div> @* End Nested Tab Content *@
+             } @* End else block for setupPending / Competition null check *@
+        </div> @* End Match Tab Pane *@
+
+
+        @* --- Other Main Tab Panes (Placeholders) --- *@
+        <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">... Result content coming soon ...</div>
+         <div class="tab-pane fade p-3" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">... Chat content coming soon ...</div>
+
+    </div> @* End Main Tab Content *@
+
+</div> @* End Container *@
+
+@section Scripts {
+    @* Add any specific JS needed for activating tabs maybe *@
+}

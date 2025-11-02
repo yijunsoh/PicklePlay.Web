@@ -349,7 +349,99 @@ public class WalletController : Controller
         // Use GetInt32 instead of GetString
         return HttpContext.Session.GetInt32("UserId");
     }
+
+    // Update the GetWithdrawMethods method in WalletController.cs
+    [HttpGet]
+    [Route("/api/wallet/withdraw-methods")]
+    public IActionResult GetWithdrawMethods()
+    {
+        var methods = new[]
+        {
+        new {
+            value = WithdrawalMethod.BankTransfer.ToString(),
+            label = "Bank Transfer",
+            description = "Transfer to your bank account",
+            fee = 1.00m // Fixed fee
+        },
+        new {
+            value = WithdrawalMethod.PayPal.ToString(),
+            label = "PayPal",
+            description = "Withdraw to PayPal account",
+            fee = 2.00m // Fixed fee
+        },
+        new {
+            value = WithdrawalMethod.DebitCard.ToString(),
+            label = "Debit Card",
+            description = "Withdraw to debit card",
+            fee = 1.50m // Fixed fee
+        }
+    };
+
+        return Ok(new { success = true, methods });
+    }
+
+    // Update the ProcessWithdraw method parameter type
+    [HttpPost]
+    [Route("/api/wallet/withdraw")]
+    public async Task<IActionResult> ProcessWithdraw([FromBody] WithdrawRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized(new { success = false, message = "User not logged in" });
+            }
+
+            _logger.LogInformation($"Processing withdraw request: {System.Text.Json.JsonSerializer.Serialize(request)}");
+
+            // Log more details for debugging
+            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId.Value);
+            _logger.LogInformation($"User {userId} wallet found: {wallet != null}, Balance: {wallet?.WalletBalance}");
+
+            var result = await _paymentService.ProcessWithdrawAsync(
+                userId.Value,
+                request.Amount,
+                request.WithdrawMethod,
+                request.PaymentDetails);
+
+            if (result.Success)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message,
+                    transactionId = result.TransactionId,
+                    newBalance = result.NewBalance
+                });
+            }
+
+            return BadRequest(new { success = false, message = result.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error processing withdraw - User: {GetCurrentUserId()}, Amount: {request?.Amount}, Method: {request?.WithdrawMethod}");
+            return StatusCode(500, new { success = false, message = $"Internal server error: {ex.Message}" });
+        }
+    }
 }
+// Update WithdrawRequest to use enum
+public class WithdrawRequest
+{
+    public decimal Amount { get; set; }
+    public WithdrawalMethod WithdrawMethod { get; set; }
+    public PaymentDetails? PaymentDetails { get; set; }
+}
+
+public class PaymentDetails
+{
+    public string? BankName { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? AccountHolderName { get; set; }
+    public string? CardNumber { get; set; }
+    public string? PayPalEmail { get; set; }
+}
+
 
 public class TopUpRequest
 {

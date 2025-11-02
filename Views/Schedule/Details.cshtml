@@ -1,0 +1,154 @@
+@model Schedule
+@using PicklePlay.Models 
+@{
+    ViewData["Title"] = Model.GameName ?? "Game Details";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                    <h2 class="mb-0 me-3">@Model.GameName</h2>
+                    @* --- CHANGE 1: Conditional Event Tag --- *@
+                    @if(Model.EventTag.HasValue && Model.EventTag != EventTag.None) 
+                    {
+                        <span class="badge bg-primary fs-6">@Model.EventTag.ToString()</span>
+                    }
+                </div>
+                <div>
+                    <a href="#" class="text-secondary me-2 fs-4"><i class="bi bi-bookmark"></i></a>
+
+                    <div class="dropdown d-inline-block">
+                        <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
+                            <li>
+                                <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                    <i class="bi bi-pencil-fill me-2"></i> Edit Schedule
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                    <i class="bi bi-trash-fill me-2"></i> Delete Schedule
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="mb-4">
+                <h5>About this game</h5>
+                <p>@Model.Description</p>
+            </div>
+
+            <hr />
+
+            <h5 class="mt-4">Restrictions</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p>
+                        <strong>Gender:</strong> 
+                        <span>@Model.GenderRestriction.ToString()</span>
+                    </p>
+                    <p>
+                        <strong>Age:</strong> 
+                        <span>@Model.AgeGroupRestriction.ToString()</span>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p>
+                        <strong>Rank:</strong> 
+                        <span>
+                            @(Model.MinRankRestriction?.ToString("0.00") ?? "N/A") - 
+                            @(Model.MaxRankRestriction?.ToString("0.00") ?? "N/A")
+                        </span>
+                    </p>
+                     <p>
+                        <strong>Players:</strong> 
+                        <span>@Model.NumPlayer players</span>
+                    </p>
+                </div>
+            </div>
+
+             <hr />
+            
+             @* --- CHANGE 2: Removed Game Type --- *@
+             @* <p><strong>Game Type:</strong> @Model.GameFeature.ToString()</p> *@
+            
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h5 class="card-title">Schedule Details</h5>
+                    
+                    <p>
+                        <i class="bi bi-calendar-event"></i> 
+                        <strong>When:</strong>
+                        @if (Model.StartTime.HasValue && Model.EndTime.HasValue)
+                        {
+                            if (Model.ScheduleType == ScheduleType.Recurring)
+                            {
+                                <span>Every @Model.RecurringWeek.ToString()</span><br/>
+                                <small>@Model.StartTime.Value.ToString("t") - @Model.EndTime.Value.ToString("t")</small>
+                            }
+                            else
+                            {
+                                <span>@Model.StartTime.Value.ToString("MMM d, yyyy")</span><br/>
+                                <small>@Model.StartTime.Value.ToString("t") - @Model.EndTime.Value.ToString("t")</small> 
+                            }
+                        }
+                        else if (Model.StartTime.HasValue)
+                        {
+                             <span>@Model.StartTime.Value.ToString("MMM d, yyyy, h:mm tt")</span>
+                        }
+                    </p>
+
+                    <p>
+                        <i class="bi bi-clock"></i>
+                        <strong>Duration:</strong>
+                        @if (Model.Duration.HasValue)
+                        {
+                            <span>@ScheduleHelper.GetFriendlyDuration(Model.Duration.Value)</span> 
+                        }
+                    </p>
+
+                    <p>
+                        <i class="bi bi-geo-alt"></i>
+                        <strong>Where:</strong>
+                        <span>@Model.Location</span>
+                    </p>
+                    
+                    <hr />
+
+                    <p>
+                        <i class="bi bi-cash-coin"></i>
+                        <strong>Fee:</strong>
+                        @if(Model.FeeType == FeeType.Free || Model.FeeType == FeeType.None)
+                        {
+                            <span>Free</span>
+                        }
+                        else if (Model.FeeType == FeeType.PerPerson)
+                        {
+                            <span>RM @Model.FeeAmount?.ToString("0.00") per person</span>
+                        }
+                        else if (Model.FeeType == FeeType.AutoSplitTotal)
+                        {
+                             <span>RM @Model.FeeAmount?.ToString("0.00") (Total)</span>
+                        }
+                    </p>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="#" class="btn btn-success btn-lg">Join Game</a>
+                        <a href="#" class="btn btn-outline-secondary">Contact Host</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

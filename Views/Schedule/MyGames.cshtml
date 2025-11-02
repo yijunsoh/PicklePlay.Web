@@ -1,0 +1,142 @@
+@model IEnumerable<PicklePlay.Models.Schedule>
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "My Games";
+    var today = DateTime.Today;
+    
+    // Ensure Model is never null
+    var list = Model ?? Enumerable.Empty<PicklePlay.Models.Schedule>();
+
+    // --- REFACTORED QUERIES using the new Status enum ---
+
+    // Active = 'Active' or 'Null' status
+    var activeGames = list.Where(g => g.Status == ScheduleStatus.Active || g.Status == ScheduleStatus.Null);
+    
+    // Past = 'Past' status
+    var pastGames = list.Where(g => g.Status == ScheduleStatus.Past);
+    
+    // Hidden = 'Cancelled' or 'Quit' status
+    var hiddenGames = list.Where(g => g.Status == ScheduleStatus.Cancelled || g.Status == ScheduleStatus.Quit);
+    
+    // 'Bookmarked' has been removed as it's not in the new model.
+
+    // --- REFACTORED StatusBadge function ---
+    string StatusBadge(PicklePlay.Models.Schedule g)
+    {
+        switch (g.Status)
+        {
+            case ScheduleStatus.Cancelled:
+                return "<span class='badge bg-danger'>Cancelled</span>";
+            case ScheduleStatus.Quit:
+                return "<span class='badge bg-danger'>Quit</span>";
+            case ScheduleStatus.Past:
+                return "<span class='badge bg-warning text-dark'>Past</span>";
+            case ScheduleStatus.Active:
+            case ScheduleStatus.Null:
+            default:
+                return "<span class='badge bg-success'>Active</span>";
+        }
+    }
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">My Games</h2>
+
+    <ul class="nav nav-tabs" id="gameTabs" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#active" role="tab">Active</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#past" role="tab">History</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#hidden" role="tab">Hidden</a></li>
+    </ul>
+
+    <div class="tab-content mt-3">
+
+        <div class="tab-pane fade show active" id="active" role="tabpanel">
+            @if (!activeGames.Any())
+            {
+                <p class="text-muted">No active games.</p>
+            }
+            else
+            {
+                @foreach (var g in activeGames)
+                {
+                    <div class="card mb-3 shadow-sm game-card"
+                         onclick="location.href='@Url.Action("Details", "Schedule", new { id = g.ScheduleId })'"
+                         style="cursor:pointer;">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">
+                                    @g.GameName
+                                    @Html.Raw(StatusBadge(g))
+                                    </h5>
+                                <p class="mb-0"><strong>Location:</strong> @g.Location</p>
+                                <p class="mb-0 text-muted">
+                                    <span class="badge bg-primary">@g.EventTag</span>
+                                    <span class="ms-2">Players: @g.NumPlayer</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="tab-pane fade" id="past" role="tabpanel">
+            @if (!pastGames.Any())
+            {
+                <p class="text-muted">No past games.</p>
+            }
+            else
+            {
+                @foreach (var g in pastGames)
+                {
+                    <div class="card mb-3 shadow-sm game-card">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">@g.GameName @Html.Raw(StatusBadge(g))</h5>
+                                <p class="mb-0"><strong>Location:</strong> @g.Location</p>
+                                <p class="mb-0 text-muted">
+                                    <span class="badge bg-primary">@g.EventTag</span>
+                                    <span class="ms-2">Players: @g.NumPlayer</span>
+                                </p>
+                            </div>
+                            </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="tab-pane fade" id="hidden" role="tabpanel">
+            @if (!hiddenGames.Any())
+            {
+                <p class="text-muted">No hidden games.</p>
+            }
+            else
+            {
+                @foreach (var g in hiddenGames)
+                {
+                    <div class="card mb-3 shadow-sm game-card">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">@g.GameName @Html.Raw(StatusBadge(g))</h5>
+                                <p class="mb-0"><strong>Location:</strong> @g.Location</p>
+                                <p class="mb-0 text-muted">
+                                    <span class="badge bg-primary">@g.EventTag</span>
+                                    <span class="ms-2">Players: @g.NumPlayer</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        </div>
+</div>
+
+<style>
+    .game-card:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: 0.2s;
+    }
+</style>

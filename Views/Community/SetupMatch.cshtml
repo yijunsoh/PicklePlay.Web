@@ -1,0 +1,204 @@
+@model CompetitionSetupViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "Setup Competition Matches";
+}
+
+<div class="container">
+    @* --- THIS IS THE NEW CODE --- *@
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Setup: @Model.GameName</h3>
+    <div>
+        @{
+            // Define the target URL with the hash
+            var cancelUrl = Url.Action("Index", "Community") + "#competitions-pane";
+        }
+        
+        <a href="@cancelUrl" class="btn btn-link">Skip for now</a>
+        
+        <a href="@cancelUrl" 
+           class="btn btn-outline-secondary" 
+           onclick="return confirm('Are you sure you want to go back? Any unsaved changes on this page will be lost.')">
+           Back
+        </a>
+    </div>
+</div>
+
+    <form asp-action="SetupMatch" asp-route-id="@Model.ScheduleId" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ScheduleId" />
+        <input type="hidden" asp-for="GameName" /> @* Pass GameName back if needed *@
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        @* --- Format Selection --- *@
+        <div class="mb-3">
+            <label asp-for="Format" class="form-label"></label>
+            <select asp-for="Format" class="form-select" id="competitionFormatSelect" asp-items="Html.GetEnumSelectList<CompetitionFormat>()"></select>
+            <span asp-validation-for="Format" class="text-danger"></span>
+        </div>
+
+        <hr />
+
+        @* --- Pool Play Specific Section --- *@
+        <div id="poolPlayOptions" style="display: none;"> @* Hidden by default *@
+            <h5>Pool Play Settings</h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="NumPool" class="form-label"></label>
+                    <input asp-for="NumPool" type="number" class="form-control" />
+                    <span asp-validation-for="NumPool" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="WinnersPerPool" class="form-label"></label>
+                    <input asp-for="WinnersPerPool" type="number" class="form-control" />
+                    <span asp-validation-for="WinnersPerPool" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="StandingCalculation" class="form-label"></label>
+                <select asp-for="StandingCalculation" id="standingCalculationSelect" class="form-select" asp-items="Html.GetEnumSelectList<StandingCalculation>()"></select>
+                <span asp-validation-for="StandingCalculation" class="text-danger"></span>
+            </div>
+
+            @* Point System (Visible only for WinLossPoints calculation) *@
+            <div id="pointSystemOptions" style="display: none;"> @* Hidden by default *@
+                 <h6>Point System Settings</h6>
+                 <div class="row">
+                     <div class="col-md-6 mb-3">
+                         <label asp-for="StandardWin" class="form-label"></label>
+                         <input asp-for="StandardWin" type="number" class="form-control" />
+                         <span asp-validation-for="StandardWin" class="text-danger"></span>
+                     </div>
+                      <div class="col-md-6 mb-3">
+                         <label asp-for="StandardLoss" class="form-label"></label>
+                         <input asp-for="StandardLoss" type="number" class="form-control" />
+                         <span asp-validation-for="StandardLoss" class="text-danger"></span>
+                     </div>
+                 </div>
+                  <div class="row">
+                     <div class="col-md-6 mb-3">
+                         <label asp-for="TieBreakWin" class="form-label"></label>
+                         <input asp-for="TieBreakWin" type="number" class="form-control" />
+                         <span asp-validation-for="TieBreakWin" class="text-danger"></span>
+                     </div>
+                      <div class="col-md-6 mb-3">
+                         <label asp-for="TieBreakLoss" class="form-label"></label>
+                         <input asp-for="TieBreakLoss" type="number" class="form-control" />
+                         <span asp-validation-for="TieBreakLoss" class="text-danger"></span>
+                     </div>
+                 </div>
+                  <div class="row">
+                       <div class="col-md-6 mb-3">
+                         <label asp-for="Draw" class="form-label"></label>
+                         <input asp-for="Draw" type="number" class="form-control" />
+                         <span asp-validation-for="Draw" class="text-danger"></span>
+                     </div>
+                  </div>
+            </div>
+            <hr />
+            <div class="mb-3">
+        <label asp-for="MatchRule" class="form-label">Match Rules (for Pool Play)</label>
+        <textarea asp-for="MatchRule" class="form-control" rows="3" placeholder="e.g., 'Games to 11, win by 2.'"></textarea>
+        <small class="form-text text-muted">Define the rules for all matches in this stage.</small>
+    </div>
+        </div>
+
+        
+
+        @* --- Elimination Specific Section --- *@
+        <div id="eliminationOptions" style="display: none;"> @* Hidden by default *@
+            <h5>Elimination Settings</h5>
+            <div class="form-check mb-3">
+                <input asp-for="ThirdPlaceMatch" class="form-check-input" type="checkbox" />
+                <label asp-for="ThirdPlaceMatch" class="form-check-label"></label>
+                <span asp-validation-for="ThirdPlaceMatch" class="text-danger"></span>
+            </div>
+             <div class="mb-3">
+                <label asp-for="MatchRule" class="form-label"></label>
+                <textarea asp-for="MatchRule" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="MatchRule" class="text-danger"></span>
+            </div>
+             <hr />
+        </div>
+
+        @* --- Round Robin Specific Section --- *@
+         <div id="roundRobinOptions" style="display: none;"> @* Hidden by default *@
+             <h5>Round Robin Settings</h5>
+             <div class="form-check mb-3">
+                <input asp-for="DoublePool" class="form-check-input" type="checkbox" />
+                <label asp-for="DoublePool" class="form-check-label"></label>
+                <span asp-validation-for="DoublePool" class="text-danger"></span>
+            </div>
+             <div class="mb-3">
+                <label asp-for="MatchRule" class="form-label"></label>
+                <textarea asp-for="MatchRule" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="MatchRule" class="text-danger"></span>
+            </div>
+             <hr />
+        </div>
+
+
+        <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Save Setup & Activate</button>
+    </form>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        const formatSelect = document.getElementById('competitionFormatSelect');
+        const poolPlayDiv = document.getElementById('poolPlayOptions');
+        const eliminationDiv = document.getElementById('eliminationOptions');
+        const roundRobinDiv = document.getElementById('roundRobinOptions');
+
+        const standingSelect = document.getElementById('standingCalculationSelect');
+        const pointsDiv = document.getElementById('pointSystemOptions');
+
+        // Enum values (ensure these match your CompetitionFormat enum integers)
+        const poolPlayValue = "@((int)CompetitionFormat.PoolPlay)";
+        const eliminationValue = "@((int)CompetitionFormat.Elimination)";
+        const roundRobinValue = "@((int)CompetitionFormat.RoundRobin)";
+
+        // Enum values for StandingCalculation
+         const winLossPointsValue = "@((int)StandingCalculation.WinLossPoints)";
+
+        function toggleFormatOptions() {
+            const selectedFormat = formatSelect.value;
+
+            // Hide all format-specific sections initially
+            poolPlayDiv.style.display = 'none';
+            eliminationDiv.style.display = 'none';
+            roundRobinDiv.style.display = 'none';
+             togglePointSystemOptions(); // Also hide/show points based on initial standing calc
+
+            // Show the relevant section
+            if (selectedFormat === poolPlayValue) {
+                poolPlayDiv.style.display = 'block';
+                 togglePointSystemOptions(); // Check point system visibility on format change
+            } else if (selectedFormat === eliminationValue) {
+                eliminationDiv.style.display = 'block';
+            } else if (selectedFormat === roundRobinValue) {
+                roundRobinDiv.style.display = 'block';
+            }
+        }
+
+         function togglePointSystemOptions() {
+            // Only relevant if pool play is visible
+            if (poolPlayDiv.style.display === 'block' && standingSelect.value === winLossPointsValue) {
+                pointsDiv.style.display = 'block';
+            } else {
+                pointsDiv.style.display = 'none';
+            }
+         }
+
+
+        // Event listeners
+        formatSelect.addEventListener('change', toggleFormatOptions);
+         standingSelect.addEventListener('change', togglePointSystemOptions);
+
+
+        // Initial call on page load to set the correct visibility
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleFormatOptions();
+        });
+    </script>
+}

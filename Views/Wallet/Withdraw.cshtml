@@ -127,21 +127,6 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        .btn-outline-custom {
-            border: 2px solid #FF6B35;
-            color: #FF6B35;
-            border-radius: 50px;
-            padding: 10px 24px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn-outline-custom:hover {
-            background: #FF6B35;
-            color: white;
-            transform: translateY(-2px);
-        }
-
         .withdraw-method {
             border: 2px solid #e9ecef;
             border-radius: 12px;
@@ -216,18 +201,6 @@
             z-index: 1;
         }
 
-        .withdraw-success {
-            display: none;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .withdraw-success i {
-            font-size: 4rem;
-            color: #2E8B57;
-            margin-bottom: 20px;
-        }
-
         .balance-warning {
             color: #dc3545;
             font-size: 0.9rem;
@@ -235,8 +208,8 @@
             display: none;
         }
 
-        .instant-badge {
-            background: #28a745;
+        .fee-badge {
+            background: #6c757d;
             color: white;
             padding: 2px 8px;
             border-radius: 12px;
@@ -253,136 +226,33 @@
             border-radius: 8px;
             border-left: 4px solid #FF6B35;
         }
+
+        .calculation-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .calculation-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .calculation-row.total {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #FF6B35;
+            border-bottom: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #e9ecef;
+        }
     </style>
-}
-
-@section Scripts {
-    <script>
-        let selectedAmount = 0;
-        let selectedWithdrawMethod = '';
-        const availableBalance = 250.00;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Quick amount buttons
-            document.querySelectorAll('.quick-amount-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    selectedAmount = parseFloat(this.getAttribute('data-amount'));
-                    document.getElementById('customAmount').value = selectedAmount;
-                    
-                    // Update button states
-                    document.querySelectorAll('.quick-amount-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    this.classList.add('active');
-                    
-                    validateWithdrawAmount();
-                    updateWithdrawButton();
-                });
-            });
-
-            // Custom amount input
-            document.getElementById('customAmount').addEventListener('input', function() {
-                selectedAmount = parseFloat(this.value) || 0;
-                document.querySelectorAll('.quick-amount-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                validateWithdrawAmount();
-                updateWithdrawButton();
-            });
-
-            // Withdraw method selection
-            document.querySelectorAll('.withdraw-method').forEach(method => {
-                method.addEventListener('click', function() {
-                    selectedWithdrawMethod = this.getAttribute('data-method');
-                    document.querySelectorAll('.withdraw-method').forEach(m => {
-                        m.classList.remove('selected');
-                    });
-                    this.classList.add('selected');
-                    
-                    // Show method details
-                    document.querySelectorAll('.method-details').forEach(detail => {
-                        detail.style.display = 'none';
-                    });
-                    const detailsId = this.getAttribute('data-details');
-                    if (detailsId) {
-                        document.getElementById(detailsId).style.display = 'block';
-                    }
-                    
-                    updateWithdrawButton();
-                });
-            });
-
-            // Withdraw button handler
-            document.getElementById('withdrawBtn').addEventListener('click', function() {
-                if (!selectedAmount || selectedAmount <= 0) {
-                    alert('Please enter a valid amount');
-                    return;
-                }
-                if (selectedAmount > availableBalance) {
-                    alert('Withdrawal amount exceeds available balance');
-                    return;
-                }
-                if (!selectedWithdrawMethod) {
-                    alert('Please select a withdrawal method');
-                    return;
-                }
-
-                // Show processing state
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-                this.disabled = true;
-
-                // Simulate instant processing
-                setTimeout(function() {
-                    // Show success message
-                    document.querySelector('.withdraw-section').style.display = 'none';
-                    document.getElementById('withdrawSuccess').style.display = 'block';
-                    document.getElementById('successAmount').textContent = selectedAmount.toFixed(2);
-                    document.getElementById('successMethod').textContent = 
-                        selectedWithdrawMethod === 'paypal' ? 'PayPal' : 
-                        selectedWithdrawMethod === 'bank' ? 'Bank Account' : 'Debit Card';
-                    
-                    // In real app, send AJAX request to backend here
-                    console.log('Withdrawal processed:', {
-                        amount: selectedAmount,
-                        method: selectedWithdrawMethod
-                    });
-                    
-                    // Redirect to wallet management after 3 seconds
-                    setTimeout(function() {
-                        window.location.href = '/Wallet/WalletManagement';
-                    }, 3000);
-                }, 1500);
-            });
-
-            function validateWithdrawAmount() {
-                const warning = document.getElementById('balanceWarning');
-                if (selectedAmount > availableBalance) {
-                    warning.style.display = 'block';
-                } else {
-                    warning.style.display = 'none';
-                }
-            }
-
-            function updateWithdrawButton() {
-                const button = document.getElementById('withdrawBtn');
-                const isValid = selectedAmount > 0 && selectedAmount <= availableBalance && selectedWithdrawMethod;
-                
-                if (isValid) {
-                    button.disabled = false;
-                    button.classList.remove('btn-secondary');
-                    button.classList.add('btn-custom');
-                } else {
-                    button.disabled = true;
-                    button.classList.remove('btn-custom');
-                    button.classList.add('btn-secondary');
-                }
-            }
-
-            // Initial validation
-            validateWithdrawAmount();
-            updateWithdrawButton();
-        });
-    </script>
 }
 
 <div class="withdraw-page court-pattern">
@@ -415,15 +285,16 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold">Withdrawal Amount</label>
                         <div class="d-flex flex-wrap mb-3">
-                            <button type="button" class="btn quick-amount-btn" data-amount="10">RM 10</button>
                             <button type="button" class="btn quick-amount-btn" data-amount="50">RM 50</button>
                             <button type="button" class="btn quick-amount-btn" data-amount="100">RM 100</button>
                             <button type="button" class="btn quick-amount-btn" data-amount="200">RM 200</button>
+                            <button type="button" class="btn quick-amount-btn" data-amount="500">RM 500</button>
                         </div>
                         <div class="amount-input-group">
                             <input type="number" id="customAmount" class="form-control form-control-lg" 
-                                   placeholder="Enter custom amount" min="1" step="0.01" max="250">
+                                   placeholder="Enter custom amount" min="10" step="0.01">
                         </div>
+                        <small class="text-muted">Minimum withdrawal: RM 10.00</small>
                         <div id="balanceWarning" class="balance-warning">
                             <i class="fas fa-exclamation-triangle me-1"></i>
                             Withdrawal amount exceeds available balance
@@ -432,53 +303,81 @@
 
                     <!-- Withdrawal Method -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Withdrawal Method <span class="instant-badge">INSTANT</span></label>
-                        <div class="withdraw-method" data-method="paypal" data-details="paypalDetails">
-                            <div class="text-center">
-                                <i class="fab fa-paypal"></i>
-                                <h5>PayPal <span class="instant-badge">INSTANT</span></h5>
-                                <p class="text-muted mb-0">Transfer to your PayPal account</p>
-                            </div>
-                        </div>
-                        <div id="paypalDetails" class="method-details">
-                            <div class="mb-3">
-                                <label class="form-label">PayPal Email</label>
-                                <input type="email" class="form-control" placeholder="your-email@example.com">
-                            </div>
-                        </div>
-
-                        <div class="withdraw-method" data-method="bank" data-details="bankDetails">
+                        <label class="form-label fw-bold">Withdrawal Method</label>
+                        
+                        <!-- Bank Transfer -->
+                        <div class="withdraw-method" data-method="BankTransfer">
                             <div class="text-center">
                                 <i class="fas fa-university"></i>
-                                <h5>Bank Transfer <span class="instant-badge">INSTANT</span></h5>
-                                <p class="text-muted mb-0">Direct to your bank account</p>
+                                <h5>Bank Transfer</h5>
+                                <p class="text-muted mb-0">Transfer to your bank account</p>
+                                <span class="fee-badge">Fee: RM 1.00</span>
                             </div>
                         </div>
-                        <div id="bankDetails" class="method-details">
+                        <div id="BankTransferDetails" class="method-details">
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-12 mb-3">
                                     <label class="form-label">Bank Name</label>
-                                    <input type="text" class="form-control" placeholder="e.g., Maybank">
+                                    <input type="text" id="bankName" class="form-control" placeholder="e.g., Maybank, CIMB">
                                 </div>
-                                <div class="col-md-6 mb-3">
+                                <div class="col-12 mb-3">
                                     <label class="form-label">Account Number</label>
-                                    <input type="text" class="form-control" placeholder="1234567890">
+                                    <input type="text" id="accountNumber" class="form-control" placeholder="Enter account number">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Account Holder Name</label>
+                                    <input type="text" id="accountHolderName" class="form-control" placeholder="As per bank account">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="withdraw-method" data-method="debit" data-details="debitDetails">
+                        <!-- PayPal -->
+                        <div class="withdraw-method" data-method="PayPal">
                             <div class="text-center">
-                                <i class="fas fa-credit-card"></i>
-                                <h5>Debit Card <span class="instant-badge">INSTANT</span></h5>
-                                <p class="text-muted mb-0">Transfer to your debit card</p>
+                                <i class="fab fa-paypal"></i>
+                                <h5>PayPal</h5>
+                                <p class="text-muted mb-0">Withdraw to your PayPal account</p>
+                                <span class="fee-badge">Fee: RM 1.00</span>
                             </div>
                         </div>
-                        <div id="debitDetails" class="method-details">
+                        <div id="PayPalDetails" class="method-details">
+                            <div class="mb-3">
+                                <label class="form-label">PayPal Email</label>
+                                <input type="email" id="paypalEmail" class="form-control" placeholder="your-email@example.com">
+                            </div>
+                        </div>
+
+                        <!-- Debit Card -->
+                        <div class="withdraw-method" data-method="DebitCard">
+                            <div class="text-center">
+                                <i class="fas fa-credit-card"></i>
+                                <h5>Debit Card</h5>
+                                <p class="text-muted mb-0">Withdraw to your debit card</p>
+                                <span class="fee-badge">Fee: RM 1.00</span>
+                            </div>
+                        </div>
+                        <div id="DebitCardDetails" class="method-details">
                             <div class="mb-3">
                                 <label class="form-label">Card Number</label>
-                                <input type="text" class="form-control" placeholder="1234 5678 9012 3456">
+                                <input type="text" id="cardNumber" class="form-control" placeholder="1234 5678 9012 3456">
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculation Preview -->
+                    <div id="calculationPreview" class="calculation-box">
+                        <h6 class="fw-bold mb-3">Withdrawal Calculation</h6>
+                        <div class="calculation-row">
+                            <span>Withdraw Amount:</span>
+                            <span id="calcAmount">RM 0.00</span>
+                        </div>
+                        <div class="calculation-row">
+                            <span>Processing Fee:</span>
+                            <span id="calcFee">RM 0.00</span>
+                        </div>
+                        <div class="calculation-row total">
+                            <span>Total Deducted:</span>
+                            <span id="calcTotal">RM 0.00</span>
                         </div>
                     </div>
 
@@ -488,15 +387,6 @@
                             <i class="fas fa-paper-plane me-2"></i>Withdraw Funds
                         </button>
                     </div>
-
-                    <!-- Success Message -->
-                    <div id="withdrawSuccess" class="withdraw-success">
-                        <i class="fas fa-check-circle"></i>
-                        <h3 class="text-success">Withdrawal Successful!</h3>
-                        <p class="lead">RM <span id="successAmount">0.00</span> has been sent to your <span id="successMethod">account</span></p>
-                        <p class="text-success"><i class="fas fa-bolt me-2"></i>Funds transferred instantly</p>
-                        <p class="text-muted">Redirecting to wallet management...</p>
-                    </div>
                 </div>
             </div>
 
@@ -504,80 +394,25 @@
             <div class="col-lg-6">
                 <!-- Wallet Summary -->
                 <div class="side-box">
-                    <h3 class="section-title"><i class="fas fa-info-circle me-2"></i>Withdrawal Information</h3>
+                    <h3 class="section-title"><i class="fas fa-wallet me-2"></i>Wallet Summary</h3>
                     <div class="row">
                         <div class="col-12 mb-4">
                             <div class="stats-card">
                                 <i class="fas fa-wallet"></i>
-                                <h4>RM 250.00</h4>
-                                <p>Available for Withdrawal</p>
+                                <h4 class="wallet-balance">RM 0.00</h4>
+                                <p>Available Balance</p>
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-4">
-                        <h5><i class="fas fa-bolt me-2"></i>Instant Processing</h5>
-                        <ul class="list-unstyled">
-                            <li><i class="fab fa-paypal text-primary me-2"></i>PayPal: Instant transfer</li>
-                            <li><i class="fas fa-university text-info me-2"></i>Bank Transfer: Instant</li>
-                            <li><i class="fas fa-credit-card text-success me-2"></i>Debit Card: Instant</li>
-                        </ul>
-                    </div>
-                    <div class="mt-3">
-                        <h5><i class="fas fa-exclamation-circle me-2"></i>Important Notes</h5>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success me-2"></i>Minimum withdrawal: RM 10</li>
-                            <li><i class="fas fa-check text-success me-2"></i>No withdrawal fees</li>
-                            <li><i class="fas fa-check text-success me-2"></i>Instant processing</li>
-                            <li><i class="fas fa-check text-success me-2"></i>Secure transaction</li>
-                        </ul>
                     </div>
                 </div>
 
                 <!-- Recent Withdrawals -->
                 <div class="side-box">
                     <h3 class="section-title"><i class="fas fa-history me-2"></i>Recent Withdrawals</h3>
-                    <div class="recent-activity">
-                        <div class="activity-item">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <i class="fas fa-money-bill-wave text-danger me-2"></i>
-                                    <span>Withdrawal - PayPal</span>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-danger">- RM 50.00</div>
-                                    <small class="text-success"><i class="fas fa-bolt me-1"></i>Instant</small>
-                                    <br>
-                                    <small class="text-muted">1 hour ago</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <i class="fas fa-money-bill-wave text-danger me-2"></i>
-                                    <span>Withdrawal - Bank Transfer</span>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-danger">- RM 100.00</div>
-                                    <small class="text-success"><i class="fas fa-bolt me-1"></i>Instant</small>
-                                    <br>
-                                    <small class="text-muted">Yesterday</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <i class="fas fa-money-bill-wave text-danger me-2"></i>
-                                    <span>Withdrawal - Debit Card</span>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-danger">- RM 75.00</div>
-                                    <small class="text-success"><i class="fas fa-bolt me-1"></i>Instant</small>
-                                    <br>
-                                    <small class="text-muted">3 days ago</small>
-                                </div>
-                            </div>
+                    <div class="recent-activity" id="recentWithdrawals">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-receipt fa-2x mb-2"></i>
+                            <p>No recent withdrawals</p>
                         </div>
                     </div>
                 </div>
@@ -585,3 +420,458 @@
         </div>
     </div>
 </div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <div class="text-success">
+                    <i class="fas fa-check-circle fa-4x mb-3"></i>
+                    <h3>Withdrawal Successful!</h3>
+                    <p class="lead">Your withdrawal request has been processed</p>
+                    <p>Amount: <strong>RM <span id="modalSuccessAmount">0.00</span></strong></p>
+                    <p>Fee: <strong>RM <span id="modalSuccessFee">0.00</span></strong></p>
+                    <p>New Balance: <strong>RM <span id="modalNewBalance">0.00</span></strong></p>
+                </div>
+                <div class="mt-4">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <div class="text-danger">
+                    <i class="fas fa-times-circle fa-4x mb-3"></i>
+                    <h3>Withdrawal Failed</h3>
+                    <p id="modalErrorMessage" class="lead">An error occurred. Please try again.</p>
+                </div>
+                <div class="mt-4">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let selectedAmount = 0;
+        let selectedWithdrawMethod = '';
+        let withdrawMethods = [];
+        let currentBalance = 0;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize modals
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+
+            // Load initial data
+            loadWalletBalance();
+            loadWithdrawMethods();
+            loadRecentWithdrawals();
+            setupInputFormatting();
+
+            // Quick amount buttons
+            document.querySelectorAll('.quick-amount-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    selectedAmount = parseFloat(this.getAttribute('data-amount'));
+                    document.getElementById('customAmount').value = selectedAmount;
+                    
+                    document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    updateCalculation();
+                    updateWithdrawButton();
+                });
+            });
+
+            // Custom amount input
+            document.getElementById('customAmount').addEventListener('input', function() {
+                selectedAmount = parseFloat(this.value) || 0;
+                document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                updateCalculation();
+                updateWithdrawButton();
+            });
+
+            // Withdraw method selection
+            document.querySelectorAll('.withdraw-method').forEach(method => {
+                method.addEventListener('click', function() {
+                    selectedWithdrawMethod = this.getAttribute('data-method');
+                    document.querySelectorAll('.withdraw-method').forEach(m => {
+                        m.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                    
+                    // Show method details
+                    document.querySelectorAll('.method-details').forEach(detail => {
+                        detail.style.display = 'none';
+                    });
+                    const detailsElement = document.getElementById(selectedWithdrawMethod + 'Details');
+                    if (detailsElement) {
+                        detailsElement.style.display = 'block';
+                    }
+                    
+                    updateCalculation();
+                    updateWithdrawButton();
+                });
+            });
+
+            // Withdraw button handler
+            document.getElementById('withdrawBtn').addEventListener('click', async function() {
+                if (!selectedAmount || selectedAmount < 10) {
+                    showError('Minimum withdrawal amount is RM 10.00');
+                    return;
+                }
+                if (!selectedWithdrawMethod) {
+                    showError('Please select a withdraw method');
+                    return;
+                }
+                if (selectedAmount > currentBalance) {
+                    showError('Insufficient balance');
+                    return;
+                }
+
+                // Show processing state
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                this.disabled = true;
+
+                try {
+                    await processWithdrawal(selectedAmount, selectedWithdrawMethod);
+                    resetWithdrawButton(originalText);
+                } catch (error) {
+                    console.error('Withdrawal Error:', error);
+                    showError(error.message || 'An error occurred. Please try again.');
+                    resetWithdrawButton(originalText);
+                }
+            });
+        });
+
+        // Load withdraw methods from API
+        async function loadWithdrawMethods() {
+            try {
+                const response = await fetch('/api/wallet/withdraw-methods');
+                const result = await response.json();
+                
+                if (result.success) {
+                    withdrawMethods = result.methods;
+                }
+            } catch (error) {
+                console.error('Failed to load withdraw methods:', error);
+                // Fallback methods if API fails - all with RM 1.00 fee
+                withdrawMethods = [
+                    { value: 'BankTransfer', label: 'Bank Transfer', description: 'Transfer to your bank account', fee: 1.00 },
+                    { value: 'PayPal', label: 'PayPal', description: 'Withdraw to PayPal account', fee: 1.00 },
+                    { value: 'DebitCard', label: 'Debit Card', description: 'Withdraw to debit card', fee: 1.00 }
+                ];
+            }
+        }
+
+        // Process withdrawal with payment details
+        async function processWithdrawal(amount, withdrawMethod) {
+            // Get payment details based on method
+            const paymentDetails = getPaymentDetails(withdrawMethod);
+            
+            if (!paymentDetails) {
+                throw new Error('Please fill in all required payment details');
+            }
+
+            const response = await fetch('/api/wallet/withdraw', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    withdrawMethod: withdrawMethod,
+                    paymentDetails: paymentDetails
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showSuccess(result.newBalance, amount, result.message);
+                loadWalletBalance();
+                loadRecentWithdrawals();
+                clearWithdrawForm();
+            } else {
+                throw new Error(result.message);
+            }
+        }
+
+        // Get payment details based on selected method
+        function getPaymentDetails(method) {
+            switch (method) {
+                case 'BankTransfer':
+                    const bankName = document.getElementById('bankName')?.value;
+                    const accountNumber = document.getElementById('accountNumber')?.value;
+                    const accountHolderName = document.getElementById('accountHolderName')?.value;
+                    
+                    if (!bankName || !accountNumber || !accountHolderName) {
+                        throw new Error('Please fill in all bank account details');
+                    }
+                    
+                    return {
+                        bankName: bankName,
+                        accountNumber: accountNumber,
+                        accountHolderName: accountHolderName
+                    };
+                    
+                case 'PayPal':
+                    const paypalEmail = document.getElementById('paypalEmail')?.value;
+                    if (!paypalEmail) {
+                        throw new Error('Please enter your PayPal email');
+                    }
+                    
+                    // No email validation - let PayPal handle it
+                    return { paypalEmail: paypalEmail };
+                    
+                case 'DebitCard':
+                    const cardNumber = document.getElementById('cardNumber')?.value;
+                    if (!cardNumber) {
+                        throw new Error('Please enter your card number');
+                    }
+                    
+                    // Basic card number format check (only check if it looks like a card number)
+                    const cleanCardNumber = cardNumber.replace(/\s/g, '');
+                    if (cleanCardNumber.length < 13 || cleanCardNumber.length > 19) {
+                        throw new Error('Please enter a valid card number (13-19 digits)');
+                    }
+                    
+                    return { cardNumber: cardNumber };
+                    
+                default:
+                    return null;
+            }
+        }
+
+        // Update calculation preview
+        function updateCalculation() {
+            const calculationBox = document.getElementById('calculationPreview');
+            const warning = document.getElementById('balanceWarning');
+            
+            if (selectedAmount > 0 && selectedWithdrawMethod) {
+                const method = withdrawMethods.find(m => m.value === selectedWithdrawMethod);
+                const fee = 1.00; // Fixed fee for all methods
+                const total = selectedAmount + fee;
+
+                document.getElementById('calcAmount').textContent = `RM ${selectedAmount.toFixed(2)}`;
+                document.getElementById('calcFee').textContent = `RM ${fee.toFixed(2)}`;
+                document.getElementById('calcTotal').textContent = `RM ${total.toFixed(2)}`;
+                
+                calculationBox.style.display = 'block';
+                
+                // Show balance warning if insufficient
+                if (total > currentBalance) {
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            } else {
+                calculationBox.style.display = 'none';
+                warning.style.display = 'none';
+            }
+        }
+
+        // Load recent withdrawals
+        async function loadRecentWithdrawals() {
+            try {
+                const response = await fetch('/api/wallet/transactions');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayRecentWithdrawals(result.transactions);
+                }
+            } catch (error) {
+                console.error('Failed to load recent withdrawals:', error);
+            }
+        }
+
+        // Display recent withdrawals
+        function displayRecentWithdrawals(transactions) {
+            const container = document.getElementById('recentWithdrawals');
+            if (!container) return;
+
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-receipt fa-2x mb-2"></i>
+                        <p>No recent withdrawals</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const withdrawTransactions = transactions
+                .filter(t => t.type === 'Withdraw' && t.status === 'Completed')
+                .slice(0, 3);
+
+            if (withdrawTransactions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-receipt fa-2x mb-2"></i>
+                        <p>No recent withdrawals</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = withdrawTransactions.map(transaction => `
+                <div class="activity-item mb-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <i class="fas fa-money-bill-wave text-primary me-2"></i>
+                            <span>Withdraw - ${transaction.method}</span>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold text-primary">- RM ${Math.abs(transaction.amount).toFixed(2)}</div>
+                            <small class="text-muted">${transaction.formattedDate || formatDate(transaction.date)}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // Load wallet balance
+        async function loadWalletBalance() {
+            try {
+                const response = await fetch('/api/wallet/balance');
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentBalance = result.balance;
+                    document.querySelector('.wallet-balance').textContent = `RM ${result.balance.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.error('Failed to load wallet balance:', error);
+            }
+        }
+
+        // Input formatting for better UX
+        function setupInputFormatting() {
+            // Card number formatting
+            const cardNumberInput = document.getElementById('cardNumber');
+            if (cardNumberInput) {
+                cardNumberInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    value = value.replace(/(\d{4})/g, '$1 ').trim();
+                    e.target.value = value.substring(0, 19);
+                });
+            }
+
+            // Account number formatting (numbers only)
+            const accountNumberInput = document.getElementById('accountNumber');
+            if (accountNumberInput) {
+                accountNumberInput.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/\D/g, '');
+                });
+            }
+        }
+
+        // UI helper functions
+        function updateWithdrawButton() {
+            const button = document.getElementById('withdrawBtn');
+            const total = selectedAmount + 1.00; // Fixed RM 1.00 fee
+            const isValid = selectedAmount >= 10 && selectedWithdrawMethod && total <= currentBalance;
+            
+            if (isValid) {
+                button.disabled = false;
+                button.classList.remove('btn-secondary');
+                button.classList.add('btn-custom');
+            } else {
+                button.disabled = true;
+                button.classList.remove('btn-custom');
+                button.classList.add('btn-secondary');
+            }
+        }
+
+        function resetWithdrawButton(originalText = '<i class="fas fa-paper-plane me-2"></i>Withdraw Funds') {
+            const button = document.getElementById('withdrawBtn');
+            button.innerHTML = originalText;
+            button.disabled = false;
+            updateWithdrawButton();
+        }
+
+        function clearWithdrawForm() {
+            selectedAmount = 0;
+            selectedWithdrawMethod = '';
+            document.getElementById('customAmount').value = '';
+            
+            // Clear all input fields
+            const inputFields = [
+                'bankName', 'accountNumber', 'accountHolderName',
+                'paypalEmail', 'cardNumber'
+            ];
+            
+            inputFields.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) element.value = '';
+            });
+            
+            // Reset UI states
+            document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.withdraw-method').forEach(m => {
+                m.classList.remove('selected');
+            });
+            document.querySelectorAll('.method-details').forEach(detail => {
+                detail.style.display = 'none';
+            });
+            
+            document.getElementById('calculationPreview').style.display = 'none';
+            document.getElementById('balanceWarning').style.display = 'none';
+            updateWithdrawButton();
+        }
+
+        function showSuccess(newBalance, amount, message) {
+            const fee = 1.00; // Fixed RM 1.00 fee
+
+            // Update modal content
+            document.getElementById('modalSuccessAmount').textContent = amount.toFixed(2);
+            document.getElementById('modalSuccessFee').textContent = fee.toFixed(2);
+            document.getElementById('modalNewBalance').textContent = newBalance.toFixed(2);
+            
+            // Update wallet balance display
+            document.querySelector('.wallet-balance').textContent = `RM ${newBalance.toFixed(2)}`;
+            currentBalance = newBalance;
+            
+            // Show success modal
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            successModal.show();
+            
+            // Reload recent withdrawals after modal closes
+            successModal._element.addEventListener('hidden.bs.modal', function() {
+                loadRecentWithdrawals();
+            });
+        }
+
+        function showError(message) {
+            document.getElementById('modalErrorMessage').textContent = message;
+            const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+            errorModal.show();
+        }
+    </script>
+}

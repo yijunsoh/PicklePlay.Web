@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IScheduleRepository, MySqlScheduleRepository>();
 
 // Add Session services
 builder.Services.AddSession(options =>

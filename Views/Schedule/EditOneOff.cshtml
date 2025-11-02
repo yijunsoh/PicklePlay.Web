@@ -1,0 +1,171 @@
+@model ScheduleEditViewModel
+@using PicklePlay.Models
+
+@{
+    ViewData["Title"] = "Edit One-Off Schedule";
+}
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Edit One-Off Schedule</h3>
+        <a asp-action="Details" asp-route-id="@Model.ScheduleId" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+
+    <form asp-action="Edit" asp-route-id="@Model.ScheduleId" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ScheduleId" />
+        <input type="hidden" asp-for="ScheduleType" /> @* Keep track of the type *@
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+<div asp-validation-summary="All" class="text-danger mb-3"></div>
+        @* --- Replicate ALL form fields from CreateOneOff.cshtml --- *@
+        @* --- Use asp-for with properties from ScheduleEditViewModel --- *@
+
+        @* Example: *@
+        <h5 class="mt-4">Game Info</h5>
+        <div class="mb-3">
+            <label asp-for="GameName" class="form-label"></label>
+            <input asp-for="GameName" type="text" maxlength="100" class="form-control"/>
+            <span asp-validation-for="GameName" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Description" class="form-label"></label>
+            <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+
+        <hr />
+
+        <div class="mb-3">
+             <label asp-for="EventTag" class="form-label"></label>
+             <select asp-for="EventTag" class="form-select" asp-items="Html.GetEnumSelectList<EventTag>()"></select>
+             <span asp-validation-for="EventTag" class="text-danger"></span>
+        </div>
+
+         <div class="row">
+            <div class="col-md-6 mb-3">
+                <label asp-for="StartTime" class="form-label"></label>
+                <input asp-for="StartTime" type="datetime-local" class="form-control"/>
+                <span asp-validation-for="StartTime" class="text-danger"></span>
+            </div>
+             <div class="col-md-6 mb-3">
+                 <label asp-for="Duration" class="form-label"></label>
+                 <select asp-for="Duration" class="form-select" asp-items="Html.GetEnumSelectList<Duration>()"></select>
+                 <span asp-validation-for="Duration" class="text-danger"></span>
+             </div>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Location" class="form-label"></label>
+            <input asp-for="Location" type="text" class="form-control"/>
+            <span asp-validation-for="Location" class="text-danger"></span>
+        </div>
+
+         @* ... Add ALL other fields similarly (NumPlayer, Privacy, FeeType, FeeAmount, etc.) ... *@
+          <div class="row">
+            <div class="col-md-6 mb-3">
+                <label asp-for="NumPlayer" class="form-label"></label>
+                <input asp-for="NumPlayer" type="number" class="form-control"/>
+                <span asp-validation-for="NumPlayer" class="text-danger"></span>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label asp-for="Privacy" class="form-label"></label>
+                <select asp-for="Privacy" class="form-select" asp-items="Html.GetEnumSelectList<Privacy>()"></select>
+                <span asp-validation-for="Privacy" class="text-danger"></span>
+            </div>
+        </div>
+
+         <div class="mb-3">
+            <label asp-for="FeeType" class="form-label"></label>
+            <select asp-for="FeeType" class="form-select" id="feeSelect" onchange="toggleFeeInput()" asp-items="Html.GetEnumSelectList<FeeType>()"></select>
+            <span asp-validation-for="FeeType" class="text-danger"></span>
+
+            <div id="feeInput" class="mt-2" style='display:@((Model.FeeType == FeeType.AutoSplitTotal || Model.FeeType == FeeType.PerPerson) ? "block" : "none");'>
+                <label asp-for="FeeAmount" class="form-label"></label>
+                <input asp-for="FeeAmount" type="number" class="form-control" placeholder="Enter price (RM)" step="0.01"/>
+                <span asp-validation-for="FeeAmount" class="text-danger"></span>
+            </div>
+        </div>
+
+        <h5 class="mt-4">Restrictions</h5>
+        <div class="row">
+             <div class="col-md-6 mb-3">
+                 <label asp-for="MinRankRestriction" class="form-label"></label>
+                 <input asp-for="MinRankRestriction" type="number" class="form-control" step="0.01"/>
+                 <span asp-validation-for="MinRankRestriction" class="text-danger"></span>
+             </div>
+             <div class="col-md-6 mb-3">
+                 <label asp-for="MaxRankRestriction" class="form-label"></label>
+                 <input asp-for="MaxRankRestriction" type="number" class="form-control" step="0.01"/>
+                 <span asp-validation-for="MaxRankRestriction" class="text-danger"></span>
+             </div>
+        </div>
+         <div class="row">
+             <div class="col-md-6 mb-3">
+                 <label asp-for="GenderRestriction" class="form-label"></label>
+                 <select asp-for="GenderRestriction" class="form-select" asp-items="Html.GetEnumSelectList<GenderRestriction>()"></select>
+                 <span asp-validation-for="GenderRestriction" class="text-danger"></span>
+             </div>
+             <div class="col-md-6 mb-3">
+                 <label asp-for="AgeGroupRestriction" class="form-label"></label>
+                 <select asp-for="AgeGroupRestriction" class="form-select" asp-items="Html.GetEnumSelectList<AgeGroupRestriction>()"></select>
+                 <span asp-validation-for="AgeGroupRestriction" class="text-danger"></span>
+             </div>
+        </div>
+
+         <h5 class="mt-4">Advanced Options</h5>
+         <div class="row">
+             <div class="col-md-6 mb-3">
+                 <label asp-for="CancellationFreeze" class="form-label"></label>
+                 <select asp-for="CancellationFreeze" class="form-select" asp-items="Html.GetEnumSelectList<CancellationFreeze>()"></select>
+                 <span asp-validation-for="CancellationFreeze" class="text-danger"></span>
+             </div>
+             <div class="col-md-6 mb-3">
+                 <label asp-for="HostRole" class="form-label"></label>
+                 <select asp-for="HostRole" class="form-select" asp-items="Html.GetEnumSelectList<HostRole>()"></select>
+                 <span asp-validation-for="HostRole" class="text-danger"></span>
+             </div>
+        </div>
+         <div class="mb-3">
+             <label asp-for="Repeat" class="form-label"></label>
+             <select asp-for="Repeat" class="form-select" asp-items="Html.GetEnumSelectList<Repeat>()"></select>
+             <span asp-validation-for="Repeat" class="text-danger"></span>
+        </div>
+
+
+        <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        // --- Keep Fee Toggle Script ---
+        function toggleFeeInput(){
+            const feeSelect = document.getElementById("feeSelect");
+            const feeInput = document.getElementById("feeInput");
+            if(feeSelect.value === "2" || feeSelect.value === "3"){ // 2=AutoSplitTotal, 3=PerPerson
+                feeInput.style.display = "block";
+            } else {
+                feeInput.style.display = "none";
+            }
+        }
+        // Run on load
+        document.addEventListener("DOMContentLoaded", toggleFeeInput);
+
+         // --- Keep Future Time Script ---
+         document.addEventListener("DOMContentLoaded", function() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const minDateTimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+            const startTimeInputOneOff = document.getElementById("StartTime");
+            if (startTimeInputOneOff && startTimeInputOneOff.type === 'datetime-local') {
+                startTimeInputOneOff.min = minDateTimeLocal;
+            }
+        });
+    </script>
+}

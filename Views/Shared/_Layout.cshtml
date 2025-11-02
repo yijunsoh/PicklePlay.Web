@@ -138,7 +138,16 @@
                             <a class="nav-link" href="@Url.Action("Community", "Home")"><i class="fas fa-users me-1"></i> Community</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Index", "Community")"><i class="fas fa-users me-1"></i> Community</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="@Url.Action("Search", "Home")"><i class="fas fa-search me-1"></i> Search</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Index", "Schedule")"><i class="fas fa-search me-1"></i> Search</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="@Url.Action("Listing", "Competition")"><i class="fas fa-search me-1"></i> Search</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link active" href="@Url.Action("WalletManagement", "Home")"><i class="fas fa-wallet me-1"></i> Wallet</a>
@@ -199,11 +208,34 @@
         @RenderBody()
     </div>
 
+    <!-- Main Content -->
+    <main class="container flex-grow-1 bg-white rounded shadow-sm p-4 mt-3 mb-5">
+
+    @* --- ADD THIS BLOCK --- *@
+            @if (TempData["SuccessMessage"] != null)
+ {
+     <div class="alert alert-success alert-dismissible fade show" role="alert" id="success-alert"> @* Ensure ID is present *@
+         @TempData["SuccessMessage"]
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+     </div>
+ }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @* --- END ADD --- *@
+            
+        @RenderBody()
+    </main>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Custom Auth JS -->
-    <script src="~/js/auth.js" asp-append-version="true"></script>
+    @* <script src="~/js/auth.js" asp-append-version="true"></script> *@
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
