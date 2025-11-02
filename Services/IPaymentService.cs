@@ -6,7 +6,7 @@ namespace PicklePlay.Services
     {
         Task<PaymentResult> ProcessTopUpAsync(int userId, decimal amount, string paymentMethod, CardInfo? cardInfo = null);
         Task<PaymentResult> ProcessPayPalTopUpAsync(int userId, decimal amount, string paypalPaymentId);
-        Task<PaymentResult> ProcessWithdrawAsync(int userId, decimal amount, WithdrawalMethod withdrawMethod, PaymentDetails? paymentDetails = null);
+        
     }
     public class PaymentResult
     {
