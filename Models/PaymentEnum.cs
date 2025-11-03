@@ -22,4 +22,13 @@ namespace PicklePlay.Models
         Completed,
         Failed
     }
+
+    // Add this enum for transaction types
+    public enum TransactionType
+    {
+        TopUp,
+        Withdraw,
+        Payment,
+        Refund
+    }
 }

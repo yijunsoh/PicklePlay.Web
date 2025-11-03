@@ -599,7 +599,7 @@
             // Filter only top-up transactions and take last 3
             const topUpTransactions = transactions
                 .filter(t => t.isTopUp && t.status === 'Completed')
-                .slice(0, 3);
+                .slice(0, 5);
 
             if (topUpTransactions.length === 0) {
                 container.innerHTML = `
