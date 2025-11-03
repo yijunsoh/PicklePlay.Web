@@ -307,7 +307,7 @@ public IActionResult Edit(int id, ScheduleEditViewModel vm)
                 _scheduleRepository.Delete(id);
                 // Optional: Add TempData success message
                 TempData["SuccessMessage"] = "Schedule deleted successfully!";
-                return RedirectToAction("Index", "Community"); // Redirect to listing after delete
+                return RedirectToAction("Activity", "Community"); // Redirect to listing after delete
             }
             catch (Exception ex)
             {

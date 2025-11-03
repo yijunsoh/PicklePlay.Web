@@ -157,27 +157,33 @@ if (maxPlayers > 0)
                         <span class="badge bg-primary fs-6">@Model.EventTag.ToString()</span>
                     }
                 </div>
-                <div>
-                    <a href="#" class="text-secondary me-2 fs-4"><i class="bi bi-bookmark"></i></a>
+                <!-- *** ADD THIS ENTIRE BLOCK BACK *** -->
+<div>
+    <!-- This bookmark icon will be visible to everyone -->
+    <a href="#" class="text-secondary me-2 fs-4"><i class="bi bi-bookmark"></i></a>
 
-                    <div class="dropdown d-inline-block">
-                        <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-gear"></i>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
-                            <li>
-                                <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                                    <i class="bi bi-pencil-square me-2"></i>Edit
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                                    <i class="bi bi-trash me-2"></i>Delete
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+    
+    @if (organizers.Any(o => o.UserId == currentUserId))
+    {
+        <div class="dropdown d-inline-block">
+            <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-gear"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
+                <li>
+                    <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                        <i class="bi bi-pencil-square me-2"></i>Edit
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                        <i class="bi bi-trash me-2"></i>Delete
+                    </a>
+                </li>
+            </ul>
+        </div>
+    }
+</div>
             </div>
 
             <hr />
