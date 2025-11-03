@@ -318,7 +318,8 @@ if (maxPlayers > 0)
                     </p>
                     
                     <div class="d-grid gap-2 mt-4">
-    @if (currentUserParticipation == null && currentUserId.HasValue)
+    @if (currentUserParticipation == null && currentUserId.HasValue && 
+         !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
     {
         <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
             <i class="bi bi-person-plus-fill"></i> Join Game
@@ -366,7 +367,7 @@ if (maxPlayers > 0)
          Model.HostRole == HostRole.HostOnly)
     {
          <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
-            <i class="bi bi-person-plus-fill"></i> Join as Player
+            <i class="bi bi-person-plus-fill"></i> Host and Play
         </button>
     }
     
