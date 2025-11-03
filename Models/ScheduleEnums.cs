@@ -152,9 +152,11 @@ public enum ParticipantRole
     Player
 }
 
-public enum ParticipantStatus
-{
-    Confirmed,
-    OnHold
-}
+    public enum ParticipantStatus
+    {
+        Confirmed,
+        PendingPayment,
+        OnHold,
+        Cancelled
+    }
 }

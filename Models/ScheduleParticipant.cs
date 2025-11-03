@@ -6,7 +6,7 @@ namespace PicklePlay.Models
     public class ScheduleParticipant
     {
         [Key]
-        public int Id { get; set; }
+        public int SP_Id { get; set; }
 
         [Required]
         public int ScheduleId { get; set; }

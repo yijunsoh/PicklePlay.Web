@@ -3,11 +3,11 @@ using PicklePlay.Data;
 using PicklePlay.Models;
 using PicklePlay.Services;
 using System;
-using System.Linq; // Keep this if needed elsewhere in the controller
+using System.Linq;
 using Microsoft.EntityFrameworkCore; // Keep this if needed elsewhere
-using Microsoft.AspNetCore.Hosting; // <-- 1. ADD THIS
-using System.IO; // <-- 2. ADD THIS
-using System.Threading.Tasks; // <-- 3. ADD THIS
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace PicklePlay.Controllers
 {
@@ -151,7 +151,7 @@ namespace PicklePlay.Controllers
                         var organizer = new ScheduleParticipant
                         {
                             ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
-                            UserId = currentUserId.Value, 
+                            UserId = currentUserId.Value,
                             Role = ParticipantRole.Organizer,
                             Status = ParticipantStatus.Confirmed
                         };
@@ -163,7 +163,7 @@ namespace PicklePlay.Controllers
                             var player = new ScheduleParticipant
                             {
                                 ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
-                                UserId = currentUserId.Value, 
+                                UserId = currentUserId.Value,
                                 Role = ParticipantRole.Player,
                                 Status = ParticipantStatus.Confirmed
                             };
@@ -292,18 +292,32 @@ namespace PicklePlay.Controllers
 
             if (!isAlreadyParticipant)
             {
-                // Add user to "On Hold" list
+                // *** MODIFICATION START ***
+                // Check if the game is free. If so, join directly.
+                // Otherwise, go to OnHold.
+                var newStatus = ParticipantStatus.OnHold; // Default
+
+                if (schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None)
+                {
+                    newStatus = ParticipantStatus.Confirmed;
+                    TempData["SuccessMessage"] = "You have successfully joined this free game!";
+                }
+                else
+                {
+                    newStatus = ParticipantStatus.OnHold;
+                    TempData["SuccessMessage"] = "Requested! Please wait for the Organizer to Accept.";
+                }
+
                 var participant = new ScheduleParticipant
                 {
                     ScheduleId = scheduleId,
                     UserId = currentUserId.Value,
                     Role = ParticipantRole.Player,
-                    Status = ParticipantStatus.OnHold
+                    Status = newStatus // Use the newStatus variable
                 };
                 _context.ScheduleParticipants.Add(participant);
                 await _context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = "Requested! Please wait for the Organizer to Accept.";
+                // *** MODIFICATION END ***
             }
             else
             {
@@ -311,6 +325,59 @@ namespace PicklePlay.Controllers
             }
 
             // Redirect to the Schedule Details page
+            return RedirectToAction("Details", "Schedule", new { id = scheduleId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelJoin(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized(); // Not logged in
+            }
+
+            // Find the user's participation record as a Player
+            // This will find OnHold, PendingPayment, OR Confirmed statuses
+            var participant = await _context.ScheduleParticipants
+                .FirstOrDefaultAsync(p => p.ScheduleId == scheduleId &&
+                                          p.UserId == currentUserId.Value &&
+                                          p.Role == ParticipantRole.Player && // Ensure we only get the player record
+                                          (p.Status == ParticipantStatus.OnHold ||
+                                           p.Status == ParticipantStatus.PendingPayment ||
+                                           p.Status == ParticipantStatus.Confirmed));
+
+            if (participant != null)
+            {
+                // Store status before deleting
+                var oldStatus = participant.Status;
+
+                // Remove the participant
+                _context.ScheduleParticipants.Remove(participant);
+                await _context.SaveChangesAsync();
+
+                // Set a specific success message
+                if (oldStatus == ParticipantStatus.OnHold)
+                {
+                    TempData["SuccessMessage"] = "Your request to join has been cancelled.";
+                }
+                else if (oldStatus == ParticipantStatus.PendingPayment)
+                {
+                    TempData["SuccessMessage"] = "Your spot has been cancelled.";
+                }
+                else if (oldStatus == ParticipantStatus.Confirmed)
+                {
+                    TempData["SuccessMessage"] = "You have successfully left the game.";
+                }
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Could not find your participation record to cancel.";
+            }
+
+            // Redirect back to the details page
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
 
