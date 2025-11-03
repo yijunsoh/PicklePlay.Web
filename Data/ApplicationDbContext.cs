@@ -16,6 +16,8 @@ namespace PicklePlay.Data
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Competition> Competitions { get; set; }
         
+        public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

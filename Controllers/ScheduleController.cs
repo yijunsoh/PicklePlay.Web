@@ -9,13 +9,19 @@ namespace PicklePlay.Controllers
     public class ScheduleController : Controller
     {
         private readonly IScheduleRepository _scheduleRepository;
+        private readonly ApplicationDbContext _context; // Add this
+    private readonly IAuthService _authService; // Add this
 
-        public ScheduleController(IScheduleRepository scheduleRepository)
-        {
-            _scheduleRepository = scheduleRepository;
-        }
+        public ScheduleController(IScheduleRepository scheduleRepository, 
+                              ApplicationDbContext context, // Add this
+                              IAuthService authService) // Add this
+    {
+        _scheduleRepository = scheduleRepository;
+        _context = context; // Add this
+        _authService = authService; // Add this
+    }
 
-        // ... Index, Details, MyGames remain the same ...
+       
         public IActionResult GameListing()
         {
             var schedules = _scheduleRepository.All();

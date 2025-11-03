@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PicklePlay.Data;
 using PicklePlay.Models;
+using PicklePlay.Services;
 using System;
 using System.Linq; // Keep this if needed elsewhere in the controller
 using Microsoft.EntityFrameworkCore; // Keep this if needed elsewhere
@@ -14,21 +15,27 @@ namespace PicklePlay.Controllers
     {
         private readonly IScheduleRepository _scheduleRepository;
         private readonly ApplicationDbContext _context;
-        private readonly IWebHostEnvironment _webHostEnvironment; // <-- 4. ADD THIS FIELD
+        private readonly IWebHostEnvironment _webHostEnvironment;
+
 
         // 5. UPDATE THE CONSTRUCTOR to inject IWebHostEnvironment
         public CommunityController(IScheduleRepository scheduleRepository, ApplicationDbContext context, IWebHostEnvironment webHostEnvironment)
         {
             _scheduleRepository = scheduleRepository;
-            _context = context; 
-            _webHostEnvironment = webHostEnvironment; // <-- 6. ASSIGN THE FIELD
+            _context = context;
+            _webHostEnvironment = webHostEnvironment;
         }
 
+        private int? GetCurrentUserId()
+        {
+            // Use GetInt32 instead of GetString
+            return HttpContext.Session.GetInt32("UserId");
+        }
 
         // Community Home Page
         public IActionResult Activity()
         {
-             var games = _scheduleRepository.All();
+            var games = _scheduleRepository.All();
             return View(games);
         }
 
@@ -41,36 +48,38 @@ namespace PicklePlay.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CreateRecurring(ScheduleRecurringViewModel vm)
+        public async Task<IActionResult> CreateRecurring(ScheduleRecurringViewModel vm)
         {
             // --- Validation ---
-            if (vm.RecurringWeek == null || !vm.RecurringWeek.Any()) {
+            if (vm.RecurringWeek == null || !vm.RecurringWeek.Any())
+            {
                 ModelState.AddModelError("RecurringWeek", "Please select at least one day.");
             }
 
-            if (vm.RecurringEndDate.HasValue && vm.RecurringEndDate.Value < DateTime.Today) {
+            if (vm.RecurringEndDate.HasValue && vm.RecurringEndDate.Value < DateTime.Today)
+            {
                 ModelState.AddModelError("RecurringEndDate", "The end date must be in the future.");
             }
-            
+
             if (!ModelState.IsValid)
             {
                 return View(vm);
             }
-            
+
             // --- 1. Create the Parent "Template" Schedule ---
-            
+
             RecurringWeek combinedWeek = RecurringWeek.None;
             foreach (var day in vm.RecurringWeek!) { combinedWeek |= day; }
 
             var parentSchedule = new Schedule
             {
-                ScheduleType = Models.ScheduleType.Recurring, 
-                ParentScheduleId = null, 
+                ScheduleType = Models.ScheduleType.Recurring,
+                ParentScheduleId = null,
                 RecurringWeek = combinedWeek,
-                RecurringEndDate = vm.RecurringEndDate, 
+                RecurringEndDate = vm.RecurringEndDate,
                 AutoCreateWhen = vm.AutoCreateWhen,
-                StartTime = DateTime.Today.Add(vm.StartTime.ToTimeSpan()), 
-                EndTime = null, 
+                StartTime = DateTime.Today.Add(vm.StartTime.ToTimeSpan()),
+                EndTime = null,
                 GameName = vm.GameName,
                 Description = vm.Description,
                 EventTag = vm.EventTag,
@@ -87,13 +96,13 @@ namespace PicklePlay.Controllers
                 GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
-                Status = ScheduleStatus.Active 
+                Status = ScheduleStatus.Active
             };
 
             // --- 2. Save Parent to get its ID ---
-            _scheduleRepository.Add(parentSchedule); 
-            
-            
+            _scheduleRepository.Add(parentSchedule);
+
+
             // --- 3. Generate and Save all Child "Instance" Schedules ---
             var durationTimeSpan = ScheduleHelper.GetTimeSpan(vm.Duration);
             var dayFlagMap = BuildDayFlagMap();
@@ -103,11 +112,11 @@ namespace PicklePlay.Controllers
                 if (dayFlagMap.TryGetValue(date.DayOfWeek, out var dayFlag) && vm.RecurringWeek.Contains(dayFlag))
                 {
                     var instanceStartTime = date.Add(vm.StartTime.ToTimeSpan());
-                    
+
                     var instanceSchedule = new Schedule
                     {
-                        ScheduleType = Models.ScheduleType.OneOff, 
-                        ParentScheduleId = parentSchedule.ScheduleId, 
+                        ScheduleType = Models.ScheduleType.OneOff,
+                        ParentScheduleId = parentSchedule.ScheduleId,
                         StartTime = instanceStartTime,
                         EndTime = instanceStartTime.Add(durationTimeSpan),
                         GameName = parentSchedule.GameName,
@@ -126,19 +135,50 @@ namespace PicklePlay.Controllers
                         GameFeature = parentSchedule.GameFeature,
                         CancellationFreeze = parentSchedule.CancellationFreeze,
                         HostRole = parentSchedule.HostRole,
-                        Status = ScheduleStatus.Active, 
+                        Status = ScheduleStatus.Active,
                         RecurringWeek = null,
                         RecurringEndDate = null,
                         AutoCreateWhen = null
                     };
-                    
+
                     _scheduleRepository.Add(instanceSchedule);
+                    // --- ADD THIS NEW CODE ---
+                    var currentUserId = GetCurrentUserId(); // <-- Uses your new method
+
+                    if (currentUserId.HasValue) // <-- Check if the nullable int has a value
+                    {
+                        // Add as Organizer
+                        var organizer = new ScheduleParticipant
+                        {
+                            ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
+                            UserId = currentUserId.Value, 
+                            Role = ParticipantRole.Organizer,
+                            Status = ParticipantStatus.Confirmed
+                        };
+                        _context.ScheduleParticipants.Add(organizer);
+
+                        // Add as Player if "Host and Play"
+                        if (instanceSchedule.HostRole == HostRole.HostAndPlay) // <--- FIX 1
+                        {
+                            var player = new ScheduleParticipant
+                            {
+                                ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
+                                UserId = currentUserId.Value, 
+                                Role = ParticipantRole.Player,
+                                Status = ParticipantStatus.Confirmed
+                            };
+                            _context.ScheduleParticipants.Add(player);
+                        }
+
+                        // Save participant changes
+                        await _context.SaveChangesAsync();
+                    }
+                    // --- END OF NEW CODE ---
                 }
-            }
+            } // <--- FIX 2: End of the 'for' loop
 
-            return RedirectToAction("Activity", "Community");
+            return RedirectToAction("Activity", "Community"); // <--- FIX 2: Return moved outside the loop
         }
-
 
         // --- CREATE ONE-OFF ---
         [HttpGet]
@@ -149,7 +189,7 @@ namespace PicklePlay.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CreateOneOff(ScheduleCreateViewModel vm)
+        public async Task<IActionResult> CreateOneOff(ScheduleCreateViewModel vm)
         {
             if (vm.StartTime <= DateTime.Now)
             {
@@ -179,7 +219,7 @@ namespace PicklePlay.Controllers
                 FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
                 Privacy = vm.Privacy,
                 GameFeature = vm.GameFeature,
-                CancellationFreeze = vm.CancellationFreeze,                
+                CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
                 Status = ScheduleStatus.Active // Set status
             };
@@ -191,13 +231,92 @@ namespace PicklePlay.Controllers
             }
 
             _scheduleRepository.Add(newSchedule);
+            // --- ADD THIS NEW CODE ---
+            var currentUserId = GetCurrentUserId(); // <-- Uses your new method
+
+            if (currentUserId.HasValue) // <-- Check if the nullable int has a value
+            {
+                // Add as Organizer
+                var organizer = new ScheduleParticipant
+                {
+                    ScheduleId = newSchedule.ScheduleId,
+                    UserId = currentUserId.Value, // <-- Use .Value to get the non-nullable int
+                    Role = ParticipantRole.Organizer,
+                    Status = ParticipantStatus.Confirmed
+                };
+                _context.ScheduleParticipants.Add(organizer);
+
+                // Add as Player if "Host and Play"
+                if (newSchedule.HostRole == HostRole.HostAndPlay)
+                {
+                    var player = new ScheduleParticipant
+                    {
+                        ScheduleId = newSchedule.ScheduleId,
+                        UserId = currentUserId.Value, // <-- Use .Value
+                        Role = ParticipantRole.Player,
+                        Status = ParticipantStatus.Confirmed
+                    };
+                    _context.ScheduleParticipants.Add(player);
+                }
+
+                // Save participant changes
+                await _context.SaveChangesAsync();
+            }
+            // --- END OF NEW CODE ---
             return RedirectToAction("Activity", "Community");
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> JoinIndividually(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+            // Use _context to find the schedule, since the repository GetById isn't async
+            var schedule = await _context.Schedules
+                                         .Include(s => s.Participants)
+                                         .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+            if (schedule == null)
+            {
+                return NotFound();
+            }
+
+            // Check if user is already a participant (in any role)
+            bool isAlreadyParticipant = schedule.Participants.Any(p => p.UserId == currentUserId);
+
+            if (!isAlreadyParticipant)
+            {
+                // Add user to "On Hold" list
+                var participant = new ScheduleParticipant
+                {
+                    ScheduleId = scheduleId,
+                    UserId = currentUserId.Value,
+                    Role = ParticipantRole.Player,
+                    Status = ParticipantStatus.OnHold
+                };
+                _context.ScheduleParticipants.Add(participant);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Requested! Please wait for the Organizer to Accept.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "You are already in this game.";
+            }
+
+            // Redirect to the Schedule Details page
+            return RedirectToAction("Details", "Schedule", new { id = scheduleId });
+        }
 
         // --- CREATE COMPETITION ---
         // GET Action: Shows the form
-        [HttpGet] 
+        [HttpGet]
         public IActionResult CreateCompetition()
         {
             return View(new ScheduleCompetitionViewModel());
@@ -223,7 +342,7 @@ namespace PicklePlay.Controllers
             {
                 return View(vm);
             }
-    
+
             // --- 1. Handle File Upload FIRST ---
             string? uniqueImagePath = await ProcessUploadedImage(vm.PosterImage);
 
@@ -248,19 +367,19 @@ namespace PicklePlay.Controllers
                 MaxRankRestriction = vm.MaxRankRestriction,
                 GenderRestriction = vm.GenderRestriction,
                 AgeGroupRestriction = vm.AgeGroupRestriction,
-                FeeType = vm.FeeType, 
-                FeeAmount = (vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null, 
+                FeeType = vm.FeeType,
+                FeeAmount = (vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
                 Privacy = vm.Privacy,
                 CancellationFreeze = vm.CancellationFreeze,
-                HostRole = HostRole.HostOnly, 
-                Status = ScheduleStatus.PendingSetup, 
+                HostRole = HostRole.HostOnly,
+                Status = ScheduleStatus.PendingSetup,
                 CompetitionImageUrl = uniqueImagePath
             };
 
             // 3. Create the linked Competition entity
             var newCompetition = new Competition
             {
-                NumPool = 4, 
+                NumPool = 4,
                 WinnersPerPool = 1,
                 ThirdPlaceMatch = true,
                 DoublePool = false,
@@ -333,7 +452,7 @@ namespace PicklePlay.Controllers
         public async Task<IActionResult> EditCompetition(int id, ScheduleCompetitionViewModel vm)
         {
             if (id != vm.ScheduleId) return BadRequest();
-            
+
             // Re-run validation
             if (vm.EndTime <= vm.StartTime) { ModelState.AddModelError("EndTime", "End Date & Time must be after Start Date & Time."); }
             if (vm.RegClose <= vm.RegOpen) { ModelState.AddModelError("RegClose", "Registration Close Date must be after Registration Open Date."); }
@@ -407,7 +526,7 @@ namespace PicklePlay.Controllers
         public IActionResult SetupMatch(int id)
         {
             var schedule = _context.Schedules
-                                   .Include(s => s.Competition) 
+                                   .Include(s => s.Competition)
                                    .FirstOrDefault(s => s.ScheduleId == id);
 
             if (schedule == null) { return NotFound("Schedule not found."); }
@@ -436,90 +555,90 @@ namespace PicklePlay.Controllers
         }
 
         // POST: /Community/SetupMatch/{id}
-[HttpPost]
-[ValidateAntiForgeryToken]
-public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
-{
-    if (id != vm.ScheduleId) { return BadRequest("ID mismatch."); }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
+        {
+            if (id != vm.ScheduleId) { return BadRequest("ID mismatch."); }
 
-    if (vm.Format == CompetitionFormat.PoolPlay)
-    {
-        if (vm.NumPool <= 0) { ModelState.AddModelError("NumPool", "Number of pools must be positive."); }
-        if (vm.WinnersPerPool <= 0) { ModelState.AddModelError("WinnersPerPool", "Winners per pool must be positive."); }
-    }
+            if (vm.Format == CompetitionFormat.PoolPlay)
+            {
+                if (vm.NumPool <= 0) { ModelState.AddModelError("NumPool", "Number of pools must be positive."); }
+                if (vm.WinnersPerPool <= 0) { ModelState.AddModelError("WinnersPerPool", "Winners per pool must be positive."); }
+            }
 
-    if (!ModelState.IsValid)
-    {
-        return View(vm);
-    }
+            if (!ModelState.IsValid)
+            {
+                return View(vm);
+            }
 
-    var scheduleToUpdate = _context.Schedules
-                                 .Include(s => s.Competition)
-                                 .FirstOrDefault(s => s.ScheduleId == id);
+            var scheduleToUpdate = _context.Schedules
+                                         .Include(s => s.Competition)
+                                         .FirstOrDefault(s => s.ScheduleId == id);
 
-    if (scheduleToUpdate == null || scheduleToUpdate.Competition == null)
-    {
-        return NotFound("Competition or schedule not found for update.");
-    }
+            if (scheduleToUpdate == null || scheduleToUpdate.Competition == null)
+            {
+                return NotFound("Competition or schedule not found for update.");
+            }
 
             scheduleToUpdate.Competition.Format = vm.Format;
-    scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
+            scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
 
-    if (vm.Format == CompetitionFormat.PoolPlay)
-    {
-        scheduleToUpdate.Competition.NumPool = vm.NumPool;
-        scheduleToUpdate.Competition.WinnersPerPool = vm.WinnersPerPool;
-        scheduleToUpdate.Competition.StandingCalculation = vm.StandingCalculation;
-        if (vm.StandingCalculation == StandingCalculation.WinLossPoints)
-        {
-            scheduleToUpdate.Competition.StandardWin = vm.StandardWin;
-            scheduleToUpdate.Competition.StandardLoss = vm.StandardLoss;
-            scheduleToUpdate.Competition.TieBreakWin = vm.TieBreakWin;
-            scheduleToUpdate.Competition.TieBreakLoss = vm.TieBreakLoss;
-            scheduleToUpdate.Competition.Draw = vm.Draw;
+            if (vm.Format == CompetitionFormat.PoolPlay)
+            {
+                scheduleToUpdate.Competition.NumPool = vm.NumPool;
+                scheduleToUpdate.Competition.WinnersPerPool = vm.WinnersPerPool;
+                scheduleToUpdate.Competition.StandingCalculation = vm.StandingCalculation;
+                if (vm.StandingCalculation == StandingCalculation.WinLossPoints)
+                {
+                    scheduleToUpdate.Competition.StandardWin = vm.StandardWin;
+                    scheduleToUpdate.Competition.StandardLoss = vm.StandardLoss;
+                    scheduleToUpdate.Competition.TieBreakWin = vm.TieBreakWin;
+                    scheduleToUpdate.Competition.TieBreakLoss = vm.TieBreakLoss;
+                    scheduleToUpdate.Competition.Draw = vm.Draw;
+                }
+                scheduleToUpdate.Competition.ThirdPlaceMatch = true;
+                scheduleToUpdate.Competition.DoublePool = false;
+
+            }
+            else if (vm.Format == CompetitionFormat.Elimination)
+            {
+                scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch;
+                scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
+                scheduleToUpdate.Competition.NumPool = 4;
+                scheduleToUpdate.Competition.DoublePool = false;
+            }
+            else if (vm.Format == CompetitionFormat.RoundRobin)
+            {
+                scheduleToUpdate.Competition.DoublePool = vm.DoublePool;
+                scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
+                scheduleToUpdate.Competition.NumPool = 4;
+                scheduleToUpdate.Competition.ThirdPlaceMatch = true;
+            }
+
+            scheduleToUpdate.Status = ScheduleStatus.Active;
+
+            try
+            {
+                _context.SaveChanges();
+
+                TempData["SuccessMessage"] = "Competition setup saved successfully!";
+
+                // --- THIS IS THE FIX ---
+                // Changed "Details", "Schedule" to "CompDetails", "Competition"
+                return RedirectToAction("CompDetails", "Competition", new { id = scheduleToUpdate.ScheduleId });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                ModelState.AddModelError("", "The record you attempted to edit was modified by another user. Please reload and try again.");
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", $"An error occurred saving the setup: {ex.Message}");
+            }
+
+            return View(vm);
         }
-        scheduleToUpdate.Competition.ThirdPlaceMatch = true; 
-        scheduleToUpdate.Competition.DoublePool = false;   
-
-    }
-    else if (vm.Format == CompetitionFormat.Elimination)
-    {
-        scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch;
-        scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
-        scheduleToUpdate.Competition.NumPool = 4; 
-        scheduleToUpdate.Competition.DoublePool = false; 
-    }
-    else if (vm.Format == CompetitionFormat.RoundRobin)
-    {
-        scheduleToUpdate.Competition.DoublePool = vm.DoublePool;
-        scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
-        scheduleToUpdate.Competition.NumPool = 4; 
-        scheduleToUpdate.Competition.ThirdPlaceMatch = true; 
-    }
-
-    scheduleToUpdate.Status = ScheduleStatus.Active;
-
-    try
-    {
-        _context.SaveChanges(); 
-
-        TempData["SuccessMessage"] = "Competition setup saved successfully!";
-        
-        // --- THIS IS THE FIX ---
-        // Changed "Details", "Schedule" to "CompDetails", "Competition"
-        return RedirectToAction("CompDetails", "Competition", new { id = scheduleToUpdate.ScheduleId });
-    }
-    catch (DbUpdateConcurrencyException)
-    {
-        ModelState.AddModelError("", "The record you attempted to edit was modified by another user. Please reload and try again.");
-    }
-    catch (Exception ex)
-    {
-        ModelState.AddModelError("", $"An error occurred saving the setup: {ex.Message}");
-    }
-
-    return View(vm);
-}
 
         // ------------------------
 
@@ -564,7 +683,7 @@ public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
 
             return RedirectToAction("Listing", "Competition");
         }
-        
+
         // --- 
         // --- NEW: Helper method for processing images (FIX for CS0103) ---
         // --- 
@@ -577,7 +696,7 @@ public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
             string uploadsFolderRelative = "img/posters";
             // Full path to save the file
             string uploadsFolderAbsolute = Path.Combine(_webHostEnvironment.WebRootPath, uploadsFolderRelative);
-            
+
             Directory.CreateDirectory(uploadsFolderAbsolute); // Ensures the folder exists
 
             string uniqueFileName = Guid.NewGuid().ToString() + "_" + posterImage.FileName;
@@ -598,14 +717,14 @@ public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
         {
             switch (DateTime.Today.DayOfWeek)
             {
-                 case DayOfWeek.Monday:    return RecurringWeek.Mon;
-                 case DayOfWeek.Tuesday:   return RecurringWeek.Tue;
-                 case DayOfWeek.Wednesday: return RecurringWeek.Wed;
-                 case DayOfWeek.Thursday:  return RecurringWeek.Thur;
-                 case DayOfWeek.Friday:    return RecurringWeek.Fri;
-                 case DayOfWeek.Saturday:  return RecurringWeek.Sat;
-                 case DayOfWeek.Sunday:    return RecurringWeek.Sun;
-                 default: return RecurringWeek.None;
+                case DayOfWeek.Monday: return RecurringWeek.Mon;
+                case DayOfWeek.Tuesday: return RecurringWeek.Tue;
+                case DayOfWeek.Wednesday: return RecurringWeek.Wed;
+                case DayOfWeek.Thursday: return RecurringWeek.Thur;
+                case DayOfWeek.Friday: return RecurringWeek.Fri;
+                case DayOfWeek.Saturday: return RecurringWeek.Sat;
+                case DayOfWeek.Sunday: return RecurringWeek.Sun;
+                default: return RecurringWeek.None;
             }
         }
         private Dictionary<DayOfWeek, RecurringWeek> BuildDayFlagMap()
