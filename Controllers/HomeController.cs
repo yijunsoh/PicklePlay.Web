@@ -50,7 +50,8 @@ public class HomeController : Controller
             DateOfBirth = user.DateOfBirth,
             Age = user.Age,
             Bio = user.Bio,
-            CurrentProfileImagePath = user.ProfilePicture
+            CurrentProfileImagePath = user.ProfilePicture,
+            Location = user.Location
         };
 
         return View(model);
@@ -77,7 +78,8 @@ public async Task<IActionResult> UpdateProfile(EditProfileModel model)
                 // Re-populate any missing data
                 model.UserId = currentUser.UserId;
                 model.CurrentProfileImagePath = currentUser.ProfilePicture;
-                model.Email = currentUser.Email; // Ensure email is set
+                model.Email = currentUser.Email;// Ensure email is set
+                model.Location = currentUser.Location;
             }
         }
         
@@ -137,7 +139,8 @@ public async Task<IActionResult> UpdateProfile(EditProfileModel model)
             model.Gender ?? currentUser.Gender,
             model.DateOfBirth ?? currentUser.DateOfBirth,
             model.Bio ?? currentUser.Bio,
-            profileImagePath
+            profileImagePath,
+            model.Location
         );
 
         if (success)

@@ -1,0 +1,54 @@
+@model List<PicklePlay.Models.User>
+
+@if (Model != null && Model.Any())
+{
+    foreach (var player in Model)
+    {
+        <div class="col-md-6 mb-4">
+            <div class="result-card">
+                <div class="d-flex align-items-start">
+                    <img src="@(player.ProfilePicture ?? "/images/user.png")" alt="@player.Username" class="player-avatar rounded-circle"
+                         onerror="this.src='/images/user.png'">
+                    <div class="player-info">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4>@player.Username</h4>
+                                <p class="text-muted mb-2">@(player.Bio ?? "Active pickleball player")</p>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-primary mb-2">Player</div>
+                                <small class="text-muted">Joined @player.CreatedDate.ToString("MMM yyyy")</small>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap mb-3">
+                            <span class="stats-badge"><i class="fas fa-user me-1"></i>@(player.Gender ?? "Not specified")</span>
+                            <span class="stats-badge"><i class="fas fa-birthday-cake me-1"></i>@(player.Age?.ToString() ?? "N/A") years old</span>
+                            <span class="stats-badge"><i class="fas fa-calendar me-1"></i>Active</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#friendModal">
+                                <i class="fas fa-user-plus me-1"></i>Add Friend
+                            </button>
+                            <button class="btn btn-outline-custom favorite-btn">
+                                <i class="fas fa-star me-1"></i>Favorite
+                            </button>
+                            <button class="btn btn-profile" onclick="openProfileModal(@player.UserId)">
+                                <i class="fas fa-eye me-1"></i>View Profile
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="col-12">
+        <div class="empty-state">
+            <i class="fas fa-users text-muted"></i>
+            <h4>No players found</h4>
+            <p class="text-muted">Try adjusting your search criteria</p>
+        </div>
+    </div>
+}

@@ -50,6 +50,10 @@ namespace PicklePlay.Models
         [Column("bio", TypeName = "text")]
         public string? Bio { get; set; }
 
+        [MaxLength(100)]
+        [Column("location")]
+        public string? Location { get; set; }
+
         [Required]
         [MaxLength(20)]
         [Column("status")]
@@ -97,7 +101,7 @@ namespace PicklePlay.Models
             PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1);
         }
 
-        // Add this line
-public virtual ICollection<ScheduleParticipant> ScheduleParticipations { get; set; } = new List<ScheduleParticipant>();
+
+        public virtual ICollection<ScheduleParticipant> ScheduleParticipations { get; set; } = new List<ScheduleParticipant>();
     }
 }

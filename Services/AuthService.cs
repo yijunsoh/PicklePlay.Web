@@ -123,8 +123,9 @@ public class AuthService : IAuthService
     public async Task<bool> VerifyEmailAsync(int userId, string token)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-        if (user == null) return false;
 
+        if (user == null) return false;
+        var emailverifiedMalaysia = user.EmailVerifiedAt?.ToLocalTime();
         if (string.IsNullOrWhiteSpace(user.EmailVerificationToken) ||
             user.EmailVerificationToken != token ||
             user.VerificationTokenExpiry == null ||
@@ -134,7 +135,7 @@ public class AuthService : IAuthService
         }
 
         user.EmailVerify = true;
-        user.EmailVerifiedAt = DateTime.UtcNow;
+        user.EmailVerifiedAt = DateTime.Now;
         user.EmailVerificationToken = null;
         user.VerificationTokenExpiry = null;
         user.Status = "Active";
@@ -270,6 +271,7 @@ public class AuthService : IAuthService
         {
             var normalizedEmail = email.Trim().ToLowerInvariant();
 
+
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
             if (user == null)
@@ -293,6 +295,9 @@ public class AuthService : IAuthService
                     // User is null - we don't return user info for failed attempts
                 };
             }
+            var lastLoginMalaysia = user.LastLogin?.ToLocalTime();
+            user.LastLogin = DateTime.Now; ;
+            await _db.SaveChangesAsync();
 
             return new AuthenticationResult
             {
@@ -447,7 +452,7 @@ public class AuthService : IAuthService
     }
 
     public async Task<bool> UpdateUserProfileAsync(int userId, string fullName, string email, string? phoneNumber,
-    string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath)
+    string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath, string? location)
     {
         try
         {
@@ -460,7 +465,8 @@ public class AuthService : IAuthService
             user.PhoneNo = phoneNumber; // Direct assignment - can be null
             user.Gender = gender; // Direct assignment - can be null
             user.DateOfBirth = dateOfBirth; // Direct assignment - can be null
-            user.Bio = bio; // Direct assignment - can be null
+            user.Bio = bio;// Direct assignment - can be null
+            user.Location = location;
 
             // Only update profile picture if a new one was provided (not null or empty)
             if (!string.IsNullOrEmpty(profileImagePath))
@@ -492,7 +498,7 @@ public class AuthService : IAuthService
             return false;
         }
 
-
-
     }
+
+
 }

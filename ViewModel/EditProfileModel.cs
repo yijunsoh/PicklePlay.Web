@@ -38,33 +38,35 @@ namespace PicklePlay.ViewModels
         public IFormFile? ProfileImage { get; set; }
         public string? CurrentProfileImagePath { get; set; }
 
+        public string? Location { get; set; }
+
         // ✔ Return type is nullable; signature matches CustomValidation pattern
         public class AgeValidationAttribute : ValidationAttribute
-{
-    private readonly int _minAge;
-    private readonly int _maxAge;
-
-    public AgeValidationAttribute(int minAge, int maxAge)
-    {
-        _minAge = minAge;
-        _maxAge = maxAge;
-    }
-
-    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
-    {
-        if (value is DateTime dateOfBirth)
         {
-            var age = DateTime.Today.Year - dateOfBirth.Year;
-            if (dateOfBirth.Date > DateTime.Today.AddYears(-age)) age--;
+            private readonly int _minAge;
+            private readonly int _maxAge;
 
-            if (age < _minAge || age > _maxAge)
+            public AgeValidationAttribute(int minAge, int maxAge)
             {
-                return new ValidationResult(ErrorMessage);
+                _minAge = minAge;
+                _maxAge = maxAge;
+            }
+
+            protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
+            {
+                if (value is DateTime dateOfBirth)
+                {
+                    var age = DateTime.Today.Year - dateOfBirth.Year;
+                    if (dateOfBirth.Date > DateTime.Today.AddYears(-age)) age--;
+
+                    if (age < _minAge || age > _maxAge)
+                    {
+                        return new ValidationResult(ErrorMessage);
+                    }
+                }
+
+                return ValidationResult.Success;
             }
         }
-        
-        return ValidationResult.Success;
-    }
-}
     }
 }

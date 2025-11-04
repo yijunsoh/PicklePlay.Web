@@ -41,5 +41,5 @@ public interface IAuthService
     Task<bool> ResetPasswordAsync(int userId, string newPassword);
 
     Task<bool> UpdateUserProfileAsync(int userId, string fullName, string email, string? phoneNumber,
-        string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath);
+        string? gender, DateTime? dateOfBirth, string? bio, string? profileImagePath, string? location);
 }

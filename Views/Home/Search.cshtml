@@ -1,0 +1,932 @@
+@model PicklePlay.Controllers.SearchViewModel
+@{
+    ViewData["Title"] = "Search & Discover";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2E8B57;
+            --secondary: #2E8B57;
+            --accent: #1E5B32;
+            --light: #F8F9FA;
+            --dark: #343A40;
+            --court: #E8F5E9;
+        }
+
+        .search-page {
+            background: #E8F5E9;
+            min-height: calc(100vh - 80px);
+            padding: 0;
+        }
+
+        .page-header {
+            background: #2E8B57;
+            color: white;
+            padding: 30px 0;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-tabs .nav-link {
+            color: var(--dark);
+            font-weight: 600;
+            padding: 15px 25px;
+            border-radius: 12px 12px 0 0;
+            margin-right: 5px;
+            border: none;
+            background: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s;
+        }
+
+        .search-tabs .nav-link.active {
+            background-color: white;
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .search-tabs .nav-link:hover {
+            background: white;
+            transform: translateY(-2px);
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(46, 139, 87, 0.1);
+        }
+
+        .result-card {
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            height: 100%;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+        }
+
+        .btn-custom {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-custom:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-outline-custom {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-outline-custom:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-profile {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-profile:hover {
+            background: #5a6268;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-reset {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-reset:hover {
+            background: #5a6268;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .stats-badge {
+            background: rgba(46, 139, 87, 0.1);
+            color: var(--primary);
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .search-input {
+            border-radius: 50px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
+        }
+
+        .filter-select {
+            border-radius: 50px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+            transition: all 0.3s;
+        }
+
+        .filter-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
+        }
+
+        .court-pattern {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .court-pattern::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.1) 49%, rgba(255, 255, 255, 0.1) 51%, transparent 51%),
+                linear-gradient(0deg, transparent 49%, rgba(255, 255, 255, 0.1) 49%, rgba(255, 255, 255, 0.1) 51%, transparent 51%);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .court-pattern>* {
+            position: relative;
+            z-index: 1;
+        }
+
+        .player-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            margin-right: 20px;
+        }
+
+        .community-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            object-fit: cover;
+            margin-right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+
+        .game-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+
+        .competition-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+
+        .section-title {
+            color: var(--primary);
+            font-weight: 700;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: inline-block;
+            font-size: 1.4rem;
+        }
+
+        .result-count {
+            color: var(--dark);
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-info {
+            text-align: center;
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .page-btn {
+            padding: 10px 16px;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            min-width: 44px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .page-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(46, 139, 87, 0.3);
+        }
+
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(46, 139, 87, 0.3);
+        }
+
+        .page-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+        }
+
+        .page-btn.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .page-nav {
+            padding: 10px 16px;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .page-nav:hover:not(.disabled) {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(46, 139, 87, 0.3);
+        }
+
+        .page-nav.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+        }
+
+        .page-nav.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .pagination-ellipsis {
+            padding: 10px 8px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .filter-row {
+            margin-bottom: 15px;
+        }
+
+        .reset-section {
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+}
+
+<div class="search-page court-pattern">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-search me-3"></i>Search & Discover</h1>
+                    <p class="lead mb-0">Find players, communities, games and competitions in your area</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/Home/Index" class="btn btn-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs search-tabs" id="searchTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="players-tab" data-bs-toggle="tab" data-bs-target="#players"
+                    type="button" role="tab">
+                    <i class="fas fa-users me-2"></i>Players
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="communities-tab" data-bs-toggle="tab" data-bs-target="#communities"
+                    type="button" role="tab">
+                    <i class="fas fa-users me-2"></i>Communities
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="games-tab" data-bs-toggle="tab" data-bs-target="#games" type="button"
+                    role="tab">
+                    <i class="fas fa-table-tennis-paddle-ball me-2"></i>Games
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="competitions-tab" data-bs-toggle="tab" data-bs-target="#competitions"
+                    type="button" role="tab">
+                    <i class="fas fa-trophy me-2"></i>Competitions
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content mt-4">
+            <!-- Players Tab -->
+            <div class="tab-pane fade show active" id="players" role="tabpanel">
+                <div class="filter-section">
+                    <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Players</h3>
+                    
+                    <!-- Search Row -->
+                    <div class="row g-3 align-items-center filter-row">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control search-input" id="playerSearch" 
+                                   placeholder="Search by name, email, or bio...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select filter-select" id="playerGender">
+                                <option value="all">All Genders</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-custom w-100" onclick="searchPlayers(1)">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sort Row -->
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <select class="form-select filter-select" id="playerFilter">
+                                <option value="">Sort by: Newest First</option>
+                                <option value="newest">Newest Members</option>
+                                <option value="active">Most Active</option>
+                                <option value="experienced">Most Experienced</option>
+                                <option value="name_asc">Name A-Z</option>
+                                <option value="name_desc">Name Z-A</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="reset-section">
+                                <button class="btn btn-reset" onclick="resetSearch()">
+                                    <i class="fas fa-refresh me-2"></i>Reset Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Count -->
+                <div class="result-count">
+                    <i class="fas fa-users me-2"></i>
+                    <span id="playerCount">Page 1 - Showing players</span>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="playerLoading">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading players...</p>
+                </div>
+
+                <!-- Players Results -->
+                <div class="row" id="playersResults">
+                    @await Html.PartialAsync("_PlayerResults", Model.Players)
+                </div>
+
+                <!-- Pagination Container -->
+                <div id="paginationContainer"></div>
+            </div>
+
+            <!-- Communities Tab -->
+            <div class="tab-pane fade" id="communities" role="tabpanel">
+                <div class="filter-section">
+                    <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Communities</h3>
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control search-input" placeholder="Search community by name...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select filter-select">
+                                <option value="">All Communities</option>
+                                <option value="newest">Newest Communities</option>
+                                <option value="largest">Largest Communities</option>
+                                <option value="active">Most Active</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-custom w-100">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-count">
+                    <i class="fas fa-users me-2"></i>Found 0 communities matching your criteria
+                </div>
+
+                <div class="row" id="communitiesResults">
+                    <div class="col-12">
+                        <div class="empty-state">
+                            <i class="fas fa-users text-muted"></i>
+                            <h4>Communities feature coming soon</h4>
+                            <p class="text-muted">We're working on bringing communities to you!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Games Tab -->
+            <div class="tab-pane fade" id="games" role="tabpanel">
+                <div class="filter-section">
+                    <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Games</h3>
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control search-input" id="gameSearch" placeholder="Search games by location or name...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select filter-select" id="gameFilter">
+                                <option value="">All Games</option>
+                                <option value="upcoming">Upcoming Games</option>
+                                <option value="free">Free Games</option>
+                                <option value="paid">Paid Games</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-custom w-100" onclick="searchGames()">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-count">
+                    <i class="fas fa-table-tennis-paddle-ball me-2"></i><span id="gameCount">Found @Model.Games.Count games</span>
+                </div>
+
+                <div class="loading-spinner" id="gameLoading">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading games...</p>
+                </div>
+
+                <div class="row" id="gamesResults">
+                    @* @await Html.PartialAsync("_GameResults", Model.Games) *@
+                    <div class="col-12">
+                        <div class="empty-state">
+                            <i class="fas fa-table-tennis-paddle-ball text-muted"></i>
+                            <h4>Games feature coming soon</h4>
+                            <p class="text-muted">We're working on bringing games to you!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Competitions Tab -->
+            <div class="tab-pane fade" id="competitions" role="tabpanel">
+                <div class="filter-section">
+                    <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Competitions</h3>
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control search-input" id="competitionSearch" placeholder="Search competitions by name...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select filter-select" id="competitionFilter">
+                                <option value="">All Competitions</option>
+                                <option value="upcoming">Upcoming Competitions</option>
+                                <option value="registration">Open for Registration</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-custom w-100" onclick="searchCompetitions()">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-count">
+                    <i class="fas fa-trophy me-2"></i><span id="competitionCount">Found @Model.Competitions.Count competitions</span>
+                </div>
+
+                <div class="loading-spinner" id="competitionLoading">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading competitions...</p>
+                </div>
+
+                <div class="row" id="competitionsResults">
+                    @await Html.PartialAsync("_CompetitionResults", Model.Competitions)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include your existing modals here (FriendModal, JoinCommunityModal, RegisterModal, ViewProfileModal) -->
+
+@section Scripts {
+    <script>
+        let currentPlayerPage = 1;
+        let currentSearchTerm = '';
+        let currentFilter = '';
+        let currentGender = 'all';
+
+        // Load initial data when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            loadInitialPlayers(1);
+            
+            // Set up tab change events
+            document.getElementById('players-tab').addEventListener('click', function() {
+                loadInitialPlayers(1);
+            });
+        });
+
+        // Function to load initial players
+        function loadInitialPlayers(page = 1) {
+            showLoading('playerLoading');
+            currentPlayerPage = page;
+            currentSearchTerm = '';
+            currentFilter = '';
+            currentGender = 'all';
+            
+            // Reset form fields
+            document.getElementById('playerSearch').value = '';
+            document.getElementById('playerFilter').value = '';
+            document.getElementById('playerGender').value = 'all';
+            
+            fetch(`/Search/GetInitialPlayers?page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('playersResults').innerHTML = html;
+                    updatePlayerDisplayInfo();
+                    updatePaginationInfo();
+                    hideLoading('playerLoading');
+                    initializeFavoriteButtons();
+                })
+                .catch(error => {
+                    console.error('Error loading players:', error);
+                    hideLoading('playerLoading');
+                    showError('playersResults', 'Error loading players. Please try again.');
+                });
+        }
+
+        // Search function
+        function searchPlayers(page = 1) {
+            const searchTerm = document.getElementById('playerSearch').value;
+            const filter = document.getElementById('playerFilter').value;
+            const gender = document.getElementById('playerGender').value;
+            
+            currentSearchTerm = searchTerm;
+            currentFilter = filter;
+            currentGender = gender;
+            currentPlayerPage = page;
+            
+            showLoading('playerLoading');
+            
+            fetch(`/Search/GetPlayers?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&gender=${encodeURIComponent(gender)}&page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('playersResults').innerHTML = html;
+                    updatePlayerDisplayInfo();
+                    updatePaginationInfo(searchTerm, filter, gender);
+                    hideLoading('playerLoading');
+                    initializeFavoriteButtons();
+                })
+                .catch(error => {
+                    console.error('Error searching players:', error);
+                    hideLoading('playerLoading');
+                });
+        }
+
+        // Update player display info with clearer wording
+        function updatePlayerDisplayInfo() {
+            const count = document.querySelectorAll('#playersResults .result-card').length;
+            const countElement = document.getElementById('playerCount');
+            if (countElement) {
+                if (currentSearchTerm || currentFilter !== '' || currentGender !== 'all') {
+                    countElement.textContent = `Page ${currentPlayerPage} - Showing ${count} players (Filtered)`;
+                } else {
+                    countElement.textContent = `Page ${currentPlayerPage} - Showing ${count} players`;
+                }
+            }
+        }
+
+        // Function to update pagination information
+        function updatePaginationInfo(searchTerm = '', filter = '', gender = 'all') {
+            fetch(`/Search/GetPlayerCount?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&gender=${encodeURIComponent(gender)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    createPaginationControls(data.totalPages, data.totalCount);
+                })
+                .catch(error => {
+                    console.error('Error getting pagination info:', error);
+                    document.getElementById('paginationContainer').innerHTML = '';
+                });
+        }
+
+        // Function to create beautiful pagination controls
+        function createPaginationControls(totalPages, totalCount) {
+            const container = document.getElementById('paginationContainer');
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let paginationHTML = `
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
+                    </div>
+                    <div class="pagination-buttons">
+            `;
+
+            // Previous button
+            paginationHTML += `
+                <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
+                        onclick="changePage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+            `;
+
+            // Page numbers - show max 5 pages
+            const startPage = Math.max(1, currentPlayerPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            // First page and ellipsis
+            if (startPage > 1) {
+                paginationHTML += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+            }
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPlayerPage) {
+                    paginationHTML += `<button class="page-btn active">${i}</button>`;
+                } else {
+                    paginationHTML += `<button class="page-btn" onclick="changePage(${i})">${i}</button>`;
+                }
+            }
+
+            // Last page and ellipsis
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+                paginationHTML += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Next button
+            paginationHTML += `
+                <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
+                        onclick="changePage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+
+            paginationHTML += `
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        // Function to change page
+        function changePage(page) {
+            if (currentSearchTerm || currentFilter !== '' || currentGender !== 'all') {
+                searchPlayers(page);
+            } else {
+                loadInitialPlayers(page);
+            }
+        }
+
+        // Reset search and show all players
+        function resetSearch() {
+            loadInitialPlayers(1);
+        }
+
+        // Helper function to show errors
+        function showError(containerId, message) {
+            document.getElementById(containerId).innerHTML = `
+                <div class="col-12">
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle text-muted"></i>
+                        <h4>Error</h4>
+                        <p class="text-muted">${message}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Re-initialize favorite buttons
+        function initializeFavoriteButtons() {
+            document.querySelectorAll('.favorite-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.toggle('btn-custom');
+                    this.classList.toggle('btn-outline-custom');
+                    
+                    if (this.classList.contains('btn-custom')) {
+                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                    } else {
+                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                    }
+                });
+            });
+        }
+
+        // Helper functions
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'block';
+        }
+
+        function hideLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        }
+
+        // Enhanced View Profile functionality
+        async function openProfileModal(userId) {
+            try {
+                const response = await fetch(`/Search/GetPlayerProfile/${userId}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const playerData = await response.json();
+                
+                if (playerData) {
+                    document.getElementById('profileModalImage').src = playerData.profilePicture || '/images/user.png';
+                    document.getElementById('profileModalName').textContent = playerData.username;
+                    document.getElementById('profileModalLevel').textContent = 'Player';
+                    document.getElementById('profileModalEmail').textContent = playerData.email || 'Not provided';
+                    document.getElementById('profileModalPhone').textContent = playerData.phoneNo || 'Not provided';
+                    document.getElementById('profileModalGender').textContent = playerData.gender || 'Not specified';
+                    document.getElementById('profileModalAge').textContent = playerData.age ? playerData.age + ' years' : 'Not specified';
+                    document.getElementById('profileModalLocation').textContent = 'Location data';
+                    document.getElementById('profileModalBio').textContent = playerData.bio || 'No bio available';
+
+                    const modal = new bootstrap.Modal(document.getElementById('viewProfileModal'));
+                    modal.show();
+                }
+            } catch (error) {
+                console.error('Error loading player profile:', error);
+                alert('Error loading player profile. Please try again.');
+            }
+        }
+
+        // Enter key support for search
+        document.querySelectorAll('.search-input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const tabId = this.closest('.tab-pane').id;
+                    if (tabId === 'players') searchPlayers(1);
+                }
+            });
+        });
+    </script>
+}

@@ -1,0 +1,55 @@
+@model List<PicklePlay.Models.Schedule>
+
+@if (Model != null && Model.Any())
+{
+    foreach (var game in Model)
+    {
+        <div class="col-md-6 mb-4">
+            <div class="result-card">
+                <div class="d-flex align-items-start">
+                    <div class="game-icon">
+                        <i class="fas fa-table-tennis-paddle-ball"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4>@game.GameName</h4>
+                                <p class="text-muted mb-2">@game.Description</p>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold @(game.FeeAmount > 0 ? "text-warning" : "text-success") mb-2">
+                                    @(game.FeeAmount > 0 ? $"RM{game.FeeAmount}" : "FREE")
+                                </div>
+                                <small class="text-muted">@game.StartTime?.ToString("MMM dd, yyyy")</small>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap mb-3">
+                            <span class="stats-badge"><i class="fas fa-map-marker-alt me-1"></i>@game.Location</span>
+                            <span class="stats-badge"><i class="fas fa-users me-1"></i>@game.NumPlayer Players</span>
+                            <span class="stats-badge"><i class="fas fa-clock me-1"></i>@game.StartTime?.ToString("hh:mm tt")</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-custom">
+                                <i class="fas fa-eye me-1"></i>View Details
+                            </button>
+                            <button class="btn btn-outline-custom">
+                                <i class="fas fa-user-plus me-1"></i>Request to Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="col-12">
+        <div class="empty-state">
+            <i class="fas fa-table-tennis-paddle-ball text-muted"></i>
+            <h4>No games found</h4>
+            <p class="text-muted">Try adjusting your search criteria</p>
+        </div>
+    </div>
+}
+

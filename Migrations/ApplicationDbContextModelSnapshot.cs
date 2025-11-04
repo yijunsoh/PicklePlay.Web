@@ -307,6 +307,35 @@ namespace PicklePlay.Web.Migrations
                     b.ToTable("schedule");
                 });
 
+            modelBuilder.Entity("PicklePlay.Models.ScheduleParticipant", b =>
+                {
+                    b.Property<int>("SP_Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("SP_Id"));
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SP_Id");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ScheduleParticipants");
+                });
+
             modelBuilder.Entity("PicklePlay.Models.Transaction", b =>
                 {
                     b.Property<int>("TransactionId")
@@ -424,6 +453,11 @@ namespace PicklePlay.Web.Migrations
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_login");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("location");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -554,6 +588,25 @@ namespace PicklePlay.Web.Migrations
                     b.Navigation("RaisedByUser");
                 });
 
+            modelBuilder.Entity("PicklePlay.Models.ScheduleParticipant", b =>
+                {
+                    b.HasOne("PicklePlay.Models.Schedule", "Schedule")
+                        .WithMany("Participants")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PicklePlay.Models.User", "User")
+                        .WithMany("ScheduleParticipations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Schedule");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PicklePlay.Models.Transaction", b =>
                 {
                     b.HasOne("PicklePlay.Models.Escrow", "Escrow")
@@ -592,6 +645,13 @@ namespace PicklePlay.Web.Migrations
             modelBuilder.Entity("PicklePlay.Models.Schedule", b =>
                 {
                     b.Navigation("Competition");
+
+                    b.Navigation("Participants");
+                });
+
+            modelBuilder.Entity("PicklePlay.Models.User", b =>
+                {
+                    b.Navigation("ScheduleParticipations");
                 });
 
             modelBuilder.Entity("PicklePlay.Models.Wallet", b =>

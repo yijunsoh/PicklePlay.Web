@@ -21,8 +21,8 @@ namespace PicklePlay.Controllers
             _httpClient = httpClient;
             _httpContextAccessor = httpContextAccessor;
             _context = context;
-            
-            
+
+
         }
 
         // GET: /Auth/Login
@@ -596,6 +596,56 @@ namespace PicklePlay.Controllers
             }
 
             return RedirectToAction("Login");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(string email, string currentPassword, string newPassword)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword))
+            {
+                TempData["ErrorMessage"] = "Please fill in all password fields.";
+                return RedirectToAction("EditProfile", "Home");
+            }
+
+            try
+            {
+                // Verify current password
+                var authResult = await _authService.AuthenticateAsync(email, currentPassword);
+                if (!authResult.Success)
+                {
+                    TempData["ErrorMessage"] = "Current password is incorrect.";
+                    return RedirectToAction("EditProfile", "Home");
+                }
+
+                // Change password
+                var user = await _authService.GetUserByEmailAsync(email);
+                if (user == null)
+                {
+                    TempData["ErrorMessage"] = "User not found.";
+                    return RedirectToAction("EditProfile", "Home");
+                }
+
+                var success = await _authService.ResetPasswordAsync(user.UserId, newPassword);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "Password changed successfully!";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to change password. Please try again.";
+                }
+            }
+            catch (Exception)
+            {
+                // Simplified - just show generic error without logging
+                TempData["ErrorMessage"] = "An error occurred while changing your password.";
+
+                // Optional: If you want to see the error during development, you can use:
+                // TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+            }
+
+            return RedirectToAction("EditProfile", "Home");
         }
 
     }
