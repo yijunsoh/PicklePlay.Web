@@ -333,7 +333,7 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
     return RedirectToAction("Details", "Schedule", new { id = scheduleId });
 }
 
-        [HttpPost]
+       [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelJoin(int scheduleId)
         {
@@ -344,45 +344,47 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
                 return Unauthorized(); // Not logged in
             }
 
-            // Find the user's participation record as a Player
-            // This will find OnHold, PendingPayment, OR Confirmed statuses
             var participant = await _context.ScheduleParticipants
                 .FirstOrDefaultAsync(p => p.ScheduleId == scheduleId &&
                                           p.UserId == currentUserId.Value &&
-                                          p.Role == ParticipantRole.Player && // Ensure we only get the player record
+                                          p.Role == ParticipantRole.Player &&
                                           (p.Status == ParticipantStatus.OnHold ||
                                            p.Status == ParticipantStatus.PendingPayment ||
                                            p.Status == ParticipantStatus.Confirmed));
 
             if (participant != null)
             {
-                // Store status before deleting
-                var oldStatus = participant.Status;
-
-                // Remove the participant
-                _context.ScheduleParticipants.Remove(participant);
+                // *** THIS IS THE NEW LOGIC FOR THE "HIDDEN" TAB ***
+                if (participant.Status == ParticipantStatus.Confirmed)
+                {
+                    // User was CONFIRMED, so mark as "Cancelled" to show in Hidden tab
+                    participant.Status = ParticipantStatus.Cancelled;
+                    _context.ScheduleParticipants.Update(participant);
+                    TempData["SuccessMessage"] = "You have successfully left the game. This will be moved to your 'Hidden' games list.";
+                }
+                else
+                {
+                    // User was OnHold or Pending, so just delete the record.
+                    // It will NOT appear in the "Hidden" tab.
+                    _context.ScheduleParticipants.Remove(participant);
+                    
+                    if (participant.Status == ParticipantStatus.OnHold)
+                    {
+                        TempData["SuccessMessage"] = "Your request to join has been cancelled.";
+                    }
+                    else if (participant.Status == ParticipantStatus.PendingPayment)
+                    {
+                        TempData["SuccessMessage"] = "Your spot has been cancelled.";
+                    }
+                }
+                
                 await _context.SaveChangesAsync();
-
-                // Set a specific success message
-                if (oldStatus == ParticipantStatus.OnHold)
-                {
-                    TempData["SuccessMessage"] = "Your request to join has been cancelled.";
-                }
-                else if (oldStatus == ParticipantStatus.PendingPayment)
-                {
-                    TempData["SuccessMessage"] = "Your spot has been cancelled.";
-                }
-                else if (oldStatus == ParticipantStatus.Confirmed)
-                {
-                    TempData["SuccessMessage"] = "You have successfully left the game.";
-                }
             }
             else
             {
                 TempData["ErrorMessage"] = "Could not find your participation record to cancel.";
             }
 
-            // Redirect back to the details page
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
 

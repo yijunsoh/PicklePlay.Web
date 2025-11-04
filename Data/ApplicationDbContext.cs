@@ -17,6 +17,7 @@ namespace PicklePlay.Data
         public DbSet<Competition> Competitions { get; set; }
         
         public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
+        public virtual DbSet<Bookmark> Bookmarks { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

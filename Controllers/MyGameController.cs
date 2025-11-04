@@ -4,8 +4,8 @@ using PicklePlay.Data;
 using PicklePlay.Models;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http; // Required for session
-using System.Collections.Generic; // Required for List<T>
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
 
 namespace PicklePlay.Controllers
 {
@@ -22,7 +22,6 @@ namespace PicklePlay.Controllers
 
         private int? GetCurrentUserId()
         {
-            // Helper method to safely get the current user's ID from session
             return _httpContextAccessor.HttpContext?.Session.GetInt32("UserId");
         }
 
@@ -31,26 +30,28 @@ namespace PicklePlay.Controllers
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
             {
-                // If user isn't logged in, send them to the login page
                 return RedirectToAction("Login", "Auth"); 
             }
 
             var now = DateTime.Now;
 
-            // Get all player participations for the current user
-            // We include the Schedule, and for each Schedule, we also include its Participants list
-            // to be able to show the player count (e.g., "2/8")
+            // Get ALL player participations for the user, including Cancelled ones
             var userParticipations = await _context.ScheduleParticipants
                 .Where(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player)
                 .Include(p => p.Schedule)
                     .ThenInclude(s => s!.Participants) 
                 .ToListAsync();
 
+            // *** FIX: Get ALL bookmarks for the user ***
+            var userBookmarks = await _context.Bookmarks
+                .Where(b => b.UserId == currentUserId.Value)
+                .Include(b => b.Schedule)
+                    .ThenInclude(s => s!.Participants)
+                .ToListAsync();
+
             var viewModel = new MyGameViewModel
             {
-                // Active Games:
-                // Games that are not null, have an end time, AND haven't ended yet
-                // AND the user is in one of the active statuses.
+                // Active Games (Correct)
                 ActiveGames = userParticipations
                     .Where(p => p.Schedule != null &&                          
                                 p.Schedule.EndTime.HasValue &&                
@@ -58,26 +59,37 @@ namespace PicklePlay.Controllers
                                 (p.Status == ParticipantStatus.Confirmed ||
                                  p.Status == ParticipantStatus.PendingPayment ||
                                  p.Status == ParticipantStatus.OnHold))
-                    .Select(p => p.Schedule!) // Use ! to tell the compiler we know it's not null
+                    .Select(p => p.Schedule!)
                     .OrderBy(s => s.StartTime)
                     .ToList(),
 
-                // History Games:
-                // Games that are not null, have an end time, AND have already ended
-                // AND the user was confirmed for that game.
+                // History Games (Correct)
                 HistoryGames = userParticipations
                     .Where(p => p.Schedule != null &&                          
                                 p.Schedule.EndTime.HasValue &&                
                                 p.Schedule.EndTime.Value < now &&
                                 p.Status == ParticipantStatus.Confirmed)
-                    .Select(p => p.Schedule!) // Use ! to tell the compiler we know it's not null
+                    .Select(p => p.Schedule!)
                     .OrderByDescending(s => s.StartTime)
+                    .ToList(),
+
+                // *** FIX: Add logic for Hidden Games ***
+                HiddenGames = userParticipations
+                    .Where(p => p.Schedule != null &&
+                                p.Status == ParticipantStatus.Cancelled) // Filter by the "Cancelled" status
+                    .Select(p => p.Schedule!)
+                    .OrderByDescending(s => s.StartTime)
+                    .ToList(),
+
+                // *** FIX: Add logic for Bookmarked Games ***
+                BookmarkedGames = userBookmarks
+                    .Where(b => b.Schedule != null) // Filter out any bookmarks for deleted schedules
+                    .Select(b => b.Schedule!)
+                    .OrderBy(s => s.StartTime)
                     .ToList()
             };
 
-            // Return the specific view path you requested
             return View("~/Views/Schedule/MyGame.cshtml", viewModel);
         }
     }
 }
-
