@@ -18,6 +18,8 @@ namespace PicklePlay.Data
         
         public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
         public virtual DbSet<Bookmark> Bookmarks { get; set; }
+        public virtual DbSet<Team> Teams { get; set; }
+    public virtual DbSet<TeamMember> TeamMembers { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +43,19 @@ namespace PicklePlay.Data
 
             // --- Existing Enum Conversions for Schedule (keep these) ---
             // modelBuilder.Entity<Schedule>()...
+
+            // Add this to prevent issues when a Team and TeamMember reference each other
+        modelBuilder.Entity<TeamMember>()
+            .HasOne(tm => tm.Team)
+            .WithMany(t => t.TeamMembers)
+            .HasForeignKey(tm => tm.TeamId)
+            .OnDelete(DeleteBehavior.Cascade); // or DeleteBehavior.Restrict
+
+        modelBuilder.Entity<TeamMember>()
+            .HasOne(tm => tm.User)
+            .WithMany() // Assuming User doesn't have a direct ICollection<TeamMember>
+            .HasForeignKey(tm => tm.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
         }
         // Add other DbSets for your 25+ tables later
     }
