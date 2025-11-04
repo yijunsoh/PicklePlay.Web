@@ -381,14 +381,14 @@
                             </form>
                         }
                         
-                        @if (currentUserParticipation == null && 
-                             organizers.Any(o => o.UserId == currentUserId) &&
-                             Model.HostRole == HostRole.HostOnly)
-                        {
-                             <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
-                                <i class="bi bi-person-plus-fill"></i> Host and Play
-                            </button>
-                        }
+                        @if ((currentUserParticipation == null || currentUserParticipation.Status == ParticipantStatus.Cancelled) && 
+     organizers.Any(o => o.UserId == currentUserId) &&
+     Model.HostRole == HostRole.HostOnly)
+{
+     <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+        <i class="bi bi-person-plus-fill"></i> Host and Play
+    </button>
+}
                         
                         @if (!currentUserId.HasValue)
                         {

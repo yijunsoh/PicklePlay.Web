@@ -266,7 +266,9 @@ namespace PicklePlay.Controllers
             return RedirectToAction("Activity", "Community");
         }
 
-        [HttpPost]
+        // REPLACE this entire action in CommunityController.cs
+
+[HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> JoinIndividually(int scheduleId)
 {
@@ -286,28 +288,23 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
         return NotFound();
     }
 
-    // *** CHANGE 1: Be more specific. Check if they are already a PLAYER. ***
-    bool isAlreadyPlayer = schedule.Participants.Any(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+    // *** FIX: Find the *specific* participation record ***
+    var existingParticipation = schedule.Participants
+        .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
 
-    if (!isAlreadyPlayer) // Use the new variable here
+    if (existingParticipation == null)
     {
-        // *** CHANGE 2: Add a check to see if the user is an organizer ***
+        // --- This is a brand new participant ---
         bool isOrganizer = schedule.Participants.Any(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Organizer);
         
-        var newStatus = ParticipantStatus.OnHold; // Default
+        var newStatus = ParticipantStatus.OnHold; 
         
-        // If it's free OR if the person joining is already an organizer, confirm them immediately.
         if(schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None || isOrganizer)
         {
             newStatus = ParticipantStatus.Confirmed;
-            if (isOrganizer)
-            {
-                TempData["SuccessMessage"] = "You have successfully joined as a player!";
-            }
-            else
-            {
-                TempData["SuccessMessage"] = "You have successfully joined this free game!";
-            }
+            TempData["SuccessMessage"] = isOrganizer ? 
+                "You have successfully joined as a player!" : 
+                "You have successfully joined this free game!";
         }
         else
         {
@@ -320,14 +317,24 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
             ScheduleId = scheduleId,
             UserId = currentUserId.Value,
             Role = ParticipantRole.Player,
-            Status = newStatus // Use the newStatus variable
+            Status = newStatus
         };
         _context.ScheduleParticipants.Add(participant);
         await _context.SaveChangesAsync();
     }
+    else if (existingParticipation.Status == ParticipantStatus.Cancelled)
+    {
+        // --- FIX: This is an organizer (or player) re-joining ---
+        // Just update their status back to Confirmed
+        existingParticipation.Status = ParticipantStatus.Confirmed;
+        _context.ScheduleParticipants.Update(existingParticipation);
+        await _context.SaveChangesAsync();
+        TempData["SuccessMessage"] = "You have successfully re-joined the game!";
+    }
     else
     {
-        TempData["ErrorMessage"] = "You are already in this game as a player."; // Made this message more specific
+        // --- User is already OnHold, Pending, or Confirmed ---
+        TempData["ErrorMessage"] = "You are already in this game.";
     }
 
     return RedirectToAction("Details", "Schedule", new { id = scheduleId });
