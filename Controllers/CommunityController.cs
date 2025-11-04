@@ -471,12 +471,30 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
             newSchedule.Competition = newCompetition;
 
             // 5. Add the Schedule to the database
-            try
-            {
-                _scheduleRepository.Add(newSchedule);
-                TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
-                return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
-            }
+           try
+{
+    _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
+
+    // *** THIS IS THE FIX ***
+    // Add the creator as the "Organizer" participant
+    var currentUserId = GetCurrentUserId();
+    if (currentUserId.HasValue)
+    {
+        var organizer = new ScheduleParticipant
+        {
+            ScheduleId = newSchedule.ScheduleId,
+            UserId = currentUserId.Value,
+            Role = ParticipantRole.Organizer,
+            Status = ParticipantStatus.Confirmed
+        };
+        _context.ScheduleParticipants.Add(organizer);
+        await _context.SaveChangesAsync(); // Save the new organizer
+    }
+    // *** END OF FIX ***
+
+    TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
+    return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
+}
             catch (Exception ex)
             {
                 ModelState.AddModelError("", $"An error occurred creating the competition: {ex.Message}");

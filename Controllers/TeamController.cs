@@ -105,6 +105,64 @@ namespace PicklePlay.Controllers
             TempData["SuccessMessage"] = "Team registered successfully! Your team is pending approval.";
             return RedirectToAction("CompDetails", "Competition", new { id = vm.ScheduleId });
         }
+// *** ADD THIS NEW ACTION ***
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditTeam(EditTeamViewModel vm)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Team name is required to edit.";
+                // Need ScheduleId to redirect back
+                var teamForSchedId = await _context.Teams.AsNoTracking().FirstOrDefaultAsync(t => t.TeamId == vm.TeamId);
+                if (teamForSchedId == null) return NotFound();
+                return RedirectToAction("CompDetails", "Competition", new { id = teamForSchedId.ScheduleId });
+            }
+
+            var teamToUpdate = await _context.Teams.FindAsync(vm.TeamId);
+            if (teamToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // *** CRITICAL: Security check ***
+            if (teamToUpdate.CreatedByUserId != currentUserId.Value)
+            {
+                TempData["ErrorMessage"] = "You are not authorized to edit this team.";
+                return RedirectToAction("CompDetails", "Competition", new { id = teamToUpdate.ScheduleId });
+            }
+
+            // Handle new file upload
+            if (vm.TeamIconFile != null && vm.TeamIconFile.Length > 0)
+            {
+                // Delete old icon if it exists
+                if (!string.IsNullOrEmpty(teamToUpdate.TeamIconUrl))
+                {
+                    var oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, teamToUpdate.TeamIconUrl.TrimStart('/'));
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                    }
+                }
+                // Save new icon
+                teamToUpdate.TeamIconUrl = await ProcessUploadedImage(vm.TeamIconFile);
+            }
+
+            // Update name
+            teamToUpdate.TeamName = vm.TeamName!;
+
+            _context.Teams.Update(teamToUpdate);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Team updated successfully.";
+            return RedirectToAction("CompDetails", "Competition", new { id = teamToUpdate.ScheduleId });
+        }
 
         private async Task<string?> ProcessUploadedImage(IFormFile imageFile)
         {
@@ -124,3 +182,4 @@ namespace PicklePlay.Controllers
         }
     }
 }
+        
