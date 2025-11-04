@@ -20,6 +20,9 @@ namespace PicklePlay.Data
         public virtual DbSet<Bookmark> Bookmarks { get; set; }
         public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamMember> TeamMembers { get; set; }
+
+    public virtual DbSet<TeamInvitation> TeamInvitations { get; set; }
+public virtual DbSet<Friendship> Friendships { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -45,17 +48,51 @@ namespace PicklePlay.Data
             // modelBuilder.Entity<Schedule>()...
 
             // Add this to prevent issues when a Team and TeamMember reference each other
-        modelBuilder.Entity<TeamMember>()
-            .HasOne(tm => tm.Team)
-            .WithMany(t => t.TeamMembers)
-            .HasForeignKey(tm => tm.TeamId)
-            .OnDelete(DeleteBehavior.Cascade); // or DeleteBehavior.Restrict
+        // --- TeamMember relationships ---
+            modelBuilder.Entity<TeamMember>()
+                .HasOne(tm => tm.Team)
+                .WithMany(t => t.TeamMembers)
+                .HasForeignKey(tm => tm.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<TeamMember>()
-            .HasOne(tm => tm.User)
-            .WithMany() // Assuming User doesn't have a direct ICollection<TeamMember>
-            .HasForeignKey(tm => tm.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<TeamMember>()
+                .HasOne(tm => tm.User)
+                .WithMany() // Assuming User doesn't have a direct ICollection<TeamMember>
+                .HasForeignKey(tm => tm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // --- Friendship relationships (This fixes the warning) ---
+            modelBuilder.Entity<Friendship>()
+                .HasOne(f => f.UserOne)
+                .WithMany(u => u.FriendshipsSent) // Maps to User.FriendshipsSent
+                .HasForeignKey(f => f.UserOneId)
+                .OnDelete(DeleteBehavior.Restrict); 
+
+            modelBuilder.Entity<Friendship>()
+                .HasOne(f => f.UserTwo)
+                .WithMany(u => u.FriendshipsReceived) // Maps to User.FriendshipsReceived
+                .HasForeignKey(f => f.UserTwoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // --- TeamInvitation relationships (This fixes the warning) ---
+            modelBuilder.Entity<TeamInvitation>()
+                .HasOne(ti => ti.Inviter)
+                .WithMany(u => u.SentTeamInvitations) // Maps to User.SentTeamInvitations
+                .HasForeignKey(ti => ti.InviterUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TeamInvitation>()
+                .HasOne(ti => ti.Invitee)
+                .WithMany(u => u.ReceivedTeamInvitations) // Maps to User.ReceivedTeamInvitations
+                .HasForeignKey(ti => ti.InviteeUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // This maps the invitation back to the team
+            modelBuilder.Entity<TeamInvitation>()
+                .HasOne(ti => ti.Team)
+                .WithMany(t => t.Invitations) // Maps to Team.Invitations
+                .HasForeignKey(ti => ti.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
         // Add other DbSets for your 25+ tables later
     }

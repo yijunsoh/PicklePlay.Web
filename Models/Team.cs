@@ -33,6 +33,9 @@ namespace PicklePlay.Models
 
         // Navigation property for all members in this team
         public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
+
+        // --- ADD THIS NEW NAVIGATION PROPERTY ---
+        public virtual ICollection<TeamInvitation> Invitations { get; set; } = new List<TeamInvitation>();
     }
 
     public enum TeamStatus
@@ -41,4 +44,6 @@ namespace PicklePlay.Models
         Confirmed,
         Cancelled
     }
+
+    
 }

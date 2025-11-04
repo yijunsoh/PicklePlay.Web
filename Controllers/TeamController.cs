@@ -180,6 +180,191 @@ namespace PicklePlay.Controllers
 
             return $"/{uploadsFolderRelative}/{uniqueFileName}";
         }
+[HttpGet]
+        public async Task<IActionResult> SearchUsersForInvite(int teamId, string query)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+            var team = await _context.Teams
+                .Include(t => t.TeamMembers)
+                .Include(t => t.Invitations)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TeamId == teamId);
+
+            if (team == null || team.CreatedByUserId != currentUserId.Value)
+            {
+                return Forbid(); // Not the captain
+            }
+
+            // Get IDs of users already on the team or already invited
+            var existingMemberIds = team.TeamMembers.Select(tm => tm.UserId).ToList();
+            var pendingInviteIds = team.Invitations.Where(inv => inv.Status == InvitationStatus.Pending).Select(inv => inv.InviteeUserId).ToList();
+            var allExcludedIds = existingMemberIds.Concat(pendingInviteIds).Distinct();
+
+            // Find users matching the query who are not excluded
+            var users = await _context.Users
+                .Where(u => u.Username.Contains(query) && !allExcludedIds.Contains(u.UserId))
+                .Select(u => new { u.UserId, u.Username, u.ProfilePicture }) // Select only safe data
+                .Take(10)
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendInvite(int teamId, int inviteeUserId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+            // *** FIX: Fetch the required objects ***
+            var inviter = await _context.Users.FindAsync(currentUserId.Value);
+            var invitee = await _context.Users.FindAsync(inviteeUserId);
+            var team = await _context.Teams
+                .Include(t => t.TeamMembers)
+                .Include(t => t.Invitations)
+                .FirstOrDefaultAsync(t => t.TeamId == teamId);
+                
+            if (team == null || inviter == null || invitee == null)
+            {
+                return BadRequest(new { message = "Invalid data." });
+            }
+
+            if (team.CreatedByUserId != currentUserId.Value)
+            {
+                return Forbid(); // Not the captain
+            }
+
+            if (team.TeamMembers.Count >= 2) 
+            {
+                return BadRequest(new { message = "Your team is already full." });
+            }
+
+            if (team.TeamMembers.Any(tm => tm.UserId == inviteeUserId))
+            {
+                return BadRequest(new { message = "This user is already on your team." });
+            }
+
+            if (team.Invitations.Any(inv => inv.InviteeUserId == inviteeUserId && inv.Status == InvitationStatus.Pending))
+            {
+                return BadRequest(new { message = "This user already has a pending invitation." });
+            }
+
+            var newInvitation = new TeamInvitation
+            {
+                // *** FIX: Assign full objects ***
+                Team = team,
+                Inviter = inviter,
+                Invitee = invitee,
+                Status = InvitationStatus.Pending
+            };
+
+            _context.TeamInvitations.Add(newInvitation);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Invitation sent!" });
+        }
+
+        // --- *** MODIFIED ACTION *** ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AcceptInvite(int invitationId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            // *** FIX: Fetch the current user object ***
+            var currentUser = await _context.Users.FindAsync(currentUserId.Value);
+            if (currentUser == null)
+            {
+                return RedirectToAction("Login", "Auth"); // User not found
+            }
+
+            var invitation = await _context.TeamInvitations
+                .Include(inv => inv.Team)
+                    .ThenInclude(t => t!.TeamMembers)
+                .FirstOrDefaultAsync(inv => inv.InvitationId == invitationId);
+
+            if (invitation == null || invitation.InviteeUserId != currentUserId.Value)
+            {
+                TempData["ErrorMessage"] = "Invitation not found or you are not authorized.";
+                return RedirectToAction("Index", "Communication");
+            }
+
+            if (invitation.Status != InvitationStatus.Pending)
+            {
+                TempData["ErrorMessage"] = "This invitation is no longer active.";
+                return RedirectToAction("Index", "Communication");
+            }
+
+            if (invitation.Team?.TeamMembers.Count >= 2)
+            {
+                invitation.Status = InvitationStatus.Declined; 
+                _context.TeamInvitations.Update(invitation);
+                await _context.SaveChangesAsync();
+                TempData["ErrorMessage"] = "Could not join team: the team is now full.";
+                return RedirectToAction("Index", "Communication");
+            }
+
+            // 1. Add user to TeamMembers
+            var newTeamMember = new TeamMember
+            {
+                // *** FIX: Assign full objects ***
+                Team = invitation.Team!,
+                User = currentUser,
+                Status = TeamMemberStatus.Joined
+            };
+            _context.TeamMembers.Add(newTeamMember);
+
+            // 2. Update invitation status
+            invitation.Status = InvitationStatus.Accepted;
+            _context.TeamInvitations.Update(invitation);
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"You have successfully joined {invitation.Team?.TeamName}!";
+            return RedirectToAction("Index", "Communication");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeclineInvite(int invitationId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var invitation = await _context.TeamInvitations
+                .FirstOrDefaultAsync(inv => inv.InvitationId == invitationId);
+
+            if (invitation == null || invitation.InviteeUserId != currentUserId.Value)
+            {
+                TempData["ErrorMessage"] = "Invitation not found or you are not authorized.";
+                return RedirectToAction("Index", "Communication");
+            }
+
+            invitation.Status = InvitationStatus.Declined;
+            _context.TeamInvitations.Update(invitation);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Invitation declined.";
+            return RedirectToAction("Index", "Communication");
+        }
+
+        
     }
 }
         

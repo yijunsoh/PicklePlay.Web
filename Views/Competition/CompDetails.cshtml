@@ -112,6 +112,28 @@
         font-size: 1.5rem;
         color: #ced4da;
     }
+    /* --- NEW STYLES FOR INVITE MODAL --- */
+    #invite-search-results {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    .user-search-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
+    }
+    .user-search-item:hover {
+        background-color: #f8f9fa;
+    }
+    .user-search-item img {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 10px;
+    }
 </style>
 
 <div class="container mt-4">
@@ -383,12 +405,20 @@
                                                     <span class="player-name">@member.User?.Username</span>
                                                 </div>
                                             }
-                                            <div class="player-slot-wrapper">
-                                                <div class="empty-slot">
-                                                    <i class="bi bi-person-plus"></i>
+                                            <!-- *** MODIFIED: Invite Slot *** -->
+                                            @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) // Assuming 2 players max
+                                            {
+                                                <div class="player-slot-wrapper">
+                                                    <div class="empty-slot" 
+                                                         data-bs-toggle="modal" 
+                                                         data-bs-target="#invitePlayerModal" 
+                                                         data-team-id="@team.TeamId"
+                                                         title="Invite Player">
+                                                        <i class="bi bi-person-plus"></i>
+                                                    </div>
+                                                    <span class="player-name text-muted">Invite</span>
                                                 </div>
-                                                <span class="player-name text-muted">Invite</span>
-                                            </div>
+                                            }                         
                                         </div>
                                     </div>
                                 }
@@ -428,6 +458,20 @@
                                                         <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)" alt="Profile"/>
                                                     </div>
                                                     <span class="player-name">@member.User?.Username</span>
+                                                </div>
+                                            }
+                                            <!-- *** MODIFIED: Invite Slot (for confirmed teams) *** -->
+                                            @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2)
+                                            {
+                                                <div class="player-slot-wrapper">
+                                                    <div class="empty-slot" 
+                                                         data-bs-toggle="modal" 
+                                                         data-bs-target="#invitePlayerModal" 
+                                                         data-team-id="@team.TeamId"
+                                                         title="Invite Player">
+                                                        <i class="bi bi-person-plus"></i>
+                                                    </div>
+                                                    <span class="player-name text-muted">Invite</span>
                                                 </div>
                                             }
                                         </div>
@@ -611,6 +655,33 @@
     </div>
 </div>
 
+<!-- *** NEW: Invite Player Modal *** -->
+<div class="modal fade" id="invitePlayerModal" tabindex="-1" aria-labelledby="invitePlayerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invitePlayerModalLabel">Invite Player</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="inviteTeamId" value="0" />
+                <div class="mb-3">
+                    <label for="userSearchInput" class="form-label">Search by username:</label>
+                    <input type="text" id="userSearchInput" class="form-control" placeholder="Enter username..." />
+                </div>
+                <div id="invite-search-spinner" class="text-center d-none">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="invite-search-results">
+                    <!-- Search results will be injected here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         // Enable tooltips
@@ -635,6 +706,126 @@
                 modal.querySelector('#editTeamId').value = teamId;
                 modal.querySelector('#editTeamName').value = teamName;
                 modal.querySelector('#currentTeamIcon').src = teamIconUrl;
+            });
+        }
+
+        // --- *** NEW SCRIPT for Invite Player modal *** ---
+        var invitePlayerModal = document.getElementById('invitePlayerModal');
+        var userSearchInput = document.getElementById('userSearchInput');
+        var searchResultsContainer = document.getElementById('invite-search-results');
+        var spinner = document.getElementById('invite-search-spinner');
+        var inviteTeamIdInput = document.getElementById('inviteTeamId');
+        var searchTimeout;
+
+        if (invitePlayerModal) {
+            // 1. When modal opens, get the teamId from the '+' button
+            invitePlayerModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var teamId = button.getAttribute('data-team-id');
+                inviteTeamIdInput.value = teamId;
+                // Clear old results
+                userSearchInput.value = '';
+                searchResultsContainer.innerHTML = '';
+            });
+
+            // 2. When user types in search box
+            userSearchInput.addEventListener('keyup', function () {
+                clearTimeout(searchTimeout);
+                var query = userSearchInput.value;
+                var teamId = inviteTeamIdInput.value;
+
+                if (query.length < 2) {
+                    searchResultsContainer.innerHTML = '';
+                    return;
+                }
+
+                spinner.classList.remove('d-none'); // Show spinner
+
+                // Debounce search to avoid spamming server
+                searchTimeout = setTimeout(function () {
+                    fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
+                        .then(response => {
+                            spinner.classList.add('d-none');
+                            if (!response.ok) {
+                                throw new Error('Search failed');
+                            }
+                            return response.json();
+                        })
+                        .then(users => {
+                            renderSearchResults(users, teamId);
+                        })
+                        .catch(error => {
+                            searchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                        });
+                }, 500);
+            });
+        }
+
+        // 3. Render the search results
+        function renderSearchResults(users, teamId) {
+            searchResultsContainer.innerHTML = ''; // Clear
+            if (users.length === 0) {
+                searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                var userHtml = `
+                    <div class="user-search-item">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        <button class="btn btn-sm btn-primary send-invite-btn" 
+                                data-team-id="${teamId}" 
+                                data-invitee-id="${user.userId}">
+                            Invite
+                        </button>
+                    </div>`;
+                searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+            });
+
+            // 4. Add click listeners to the new "Invite" buttons
+            document.querySelectorAll('.send-invite-btn').forEach(button => {
+                button.addEventListener('click', sendInvite);
+            });
+        }
+
+        // 5. Send the invite
+        function sendInvite(event) {
+            var button = event.target;
+            var teamId = button.getAttribute('data-team-id');
+            var inviteeId = button.getAttribute('data-invitee-id');
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch('/Team/SendInvite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `teamId=${teamId}&inviteeUserId=${inviteeId}`
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to send invite') });
+                }
+                return response.json();
+            })
+            .then(data => {
+                button.innerHTML = 'Sent!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-secondary');
+            })
+            .catch(error => {
+                button.innerHTML = 'Error';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+                alert('Error: ' + error.message);
             });
         }
     </script>

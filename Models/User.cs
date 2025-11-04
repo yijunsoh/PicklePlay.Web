@@ -103,5 +103,10 @@ namespace PicklePlay.Models
 
 
         public virtual ICollection<ScheduleParticipant> ScheduleParticipations { get; set; } = new List<ScheduleParticipant>();
+
+        public virtual ICollection<TeamInvitation> SentTeamInvitations { get; set; } = new List<TeamInvitation>();
+        public virtual ICollection<TeamInvitation> ReceivedTeamInvitations { get; set; } = new List<TeamInvitation>();
+        public virtual ICollection<Friendship> FriendshipsSent { get; set; } = new List<Friendship>();
+        public virtual ICollection<Friendship> FriendshipsReceived { get; set; } = new List<Friendship>();
     }
 }
