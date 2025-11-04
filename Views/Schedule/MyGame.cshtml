@@ -1,0 +1,173 @@
+@model PicklePlay.Models.MyGameViewModel
+@using PicklePlay.Models
+
+@{
+    ViewData["Title"] = "My Games";
+
+    // Helper to render the game card. This avoids duplicating code.
+    void RenderGameCard(Schedule game)
+    {
+        <div class="card mb-3 shadow-sm game-card"
+             onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
+             style="cursor:pointer;">
+            
+            <div class="card-body d-flex justify-content-between align-items-center">
+                
+                <!-- Left Side -->
+                <div>
+                    <h5 class="card-title mb-1">@game.GameName</h5>
+                    <p class="mb-0">
+                        <i class="bi bi-calendar-event"></i>
+                        @game.StartTime?.ToString("ddd, dd MMM yyyy - hh:mm tt")
+                    </p>
+                    <p class="mb-0">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        @game.Location
+                    </p>
+                    <p class="mb-0 text-muted">
+                        @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
+                        {
+                            <span class="badge bg-primary">@game.EventTag.ToString()</span>
+                        }
+                    </p>
+                </div>
+
+                <!-- Right Side -->
+                <div class="text-end">
+                    @{
+                        var confirmedCount = game.Participants?.Count(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed) ?? 0;
+                    }
+
+                    @if (game.NumPlayer.HasValue && game.NumPlayer > 0)
+                    {
+                        <h5 class="mb-0">
+                            <i class="bi bi-people-fill text-success"></i>
+                            <span class="ms-1">@confirmedCount / @game.NumPlayer</span>
+                        </h5>
+                    }
+                    else
+                    {
+                        <h5 class="mb-0">
+                            <i class="bi bi-people-fill text-success"></i>
+                            <span class="ms-1">@confirmedCount</span>
+                        </h5>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .game-card:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: 0.2s;
+    }
+
+    /* Custom styles for nav tabs */
+    .nav-tabs .nav-link {
+        color: #007bff;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container mt-4 page-wrapper">
+    <h2 class="mb-4">My Games</h2>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs" id="myGameTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab" aria-controls="active-pane" aria-selected="true">
+                Active
+                <span class="badge bg-primary ms-1">@Model.ActiveGames.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button" role="tab" aria-controls="history-pane" aria-selected="false">
+                History
+                <span class="badge bg-secondary ms-1">@Model.HistoryGames.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="hidden-tab" data-bs-toggle="tab" data-bs-target="#hidden-pane" type="button" role="tab" aria-controls="hidden-pane" aria-selected="false">Hidden (Future)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="bookmarked-tab" data-bs-toggle="tab" data-bs-target="#bookmarked-pane" type="button" role="tab" aria-controls="bookmarked-pane" aria-selected="false">Bookmarked (Future)</button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="myGameTabsContent">
+        
+        <!-- Active Pane -->
+        <div class="tab-pane fade show active" id="active-pane" role="tabpanel" aria-labelledby="active-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.ActiveGames.Any())
+                {
+                    <p class="text-muted">You have no upcoming active games. <a asp-action="GameListing" asp-controller="Schedule">Find a game to join!</a></p>
+                }
+                else
+                {
+                    @foreach (var game in Model.ActiveGames)
+                    {
+                        RenderGameCard(game);
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- History Pane -->
+        <div class="tab-pane fade" id="history-pane" role="tabpanel" aria-labelledby="history-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.HistoryGames.Any())
+                {
+                    <p class="text-muted">You have no confirmed game history.</p>
+                }
+                else
+                {
+                    @foreach (var game in Model.HistoryGames)
+                    {
+                        RenderGameCard(game);
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Hidden Pane (Placeholder) -->
+        <div class="tab-pane fade" id="hidden-pane" role="tabpanel" aria-labelledby="hidden-tab" tabindex="0">
+            <div class="pt-4">
+                <p class="text-muted">This tab will show games you were confirmed for but later cancelled.</p>
+            </div>
+        </div>
+
+        <!-- Bookmarked Pane (Placeholder) -->
+        <div class="tab-pane fade" id="bookmarked-pane" role="tabpanel" aria-labelledby="bookmarked-tab" tabindex="0">
+            <div class="pt-4">
+                <p class="text-muted">This tab will show games you have bookmarked.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-5" role="alert">
+        <h4 class="alert-heading"><i class="bi bi-info-circle-fill"></i> A Note on Future Tabs</h4>
+        <p>
+            The **"Hidden"** and **"Bookmarked"** tabs are planned for a future update! They require a few changes to how data is stored:
+        </p>
+        <hr>
+        <ul>
+            <li>
+                <strong>For "Hidden":</strong> The "Leave Game" button currently deletes your participation record. To show a "hidden" list, this will be updated to mark your record as "Cancelled" instead.
+            </li>
+            <li>
+                <strong>For "Bookmarked":</strong> A new feature will be added to allow you to save your favorite games, which will then appear in the "Bookmarked" tab.
+            </li>
+        </ul>
+    </div>
+</div>

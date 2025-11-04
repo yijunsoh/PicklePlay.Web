@@ -3,6 +3,8 @@ using PicklePlay.Data;
 using PicklePlay.Models;
 using System;
 using System.Linq; // Needed for Select
+using Microsoft.EntityFrameworkCore; // *** ADD THIS ***
+using System.Threading.Tasks; // *** ADD THIS ***
 
 namespace PicklePlay.Controllers
 {
@@ -22,15 +24,26 @@ namespace PicklePlay.Controllers
     }
 
        
-        public IActionResult GameListing()
+        // *** MODIFIED THIS ACTION ***
+        public async Task<IActionResult> GameListing()
         {
-            var schedules = _scheduleRepository.All();
+            // We use _context directly to be able to use .Include()
+            // This pulls in the Participants list for each schedule
+            var schedules = await _context.Schedules
+                                          .Include(s => s.Participants)
+                                          .ToListAsync();
             return View(schedules);
         }
 
-        public IActionResult Details(int id)
+        // *** ALSO MODIFIED THIS ACTION (to fix the Details page) ***
+        public async Task<IActionResult> Details(int id)
         {
-            var schedule = _scheduleRepository.GetById(id);
+            // We must use .Include() here as well, or the Details page won't see any participants
+            var schedule = await _context.Schedules
+                                         .Include(s => s.Participants)
+                                             .ThenInclude(p => p.User) // This gets the User info (name, pic) for each participant
+                                         .FirstOrDefaultAsync(s => s.ScheduleId == id);
+
             if (schedule == null)
             {
                 return NotFound(); // Or return a specific "Not Found" view
