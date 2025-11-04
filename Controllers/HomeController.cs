@@ -59,107 +59,109 @@ public class HomeController : Controller
 
     // POST: /Home/UpdateProfile
     [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UpdateProfile(EditProfileModel model)
-{
-    // Client-side validation should prevent this, but as a backup
-    if (!ModelState.IsValid)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile(EditProfileModel model)
     {
-        // Return to the form with validation errors - DON'T redirect
-        TempData["ErrorMessage"] = "Please check your input and fix all validation errors.";
-        
-        // Re-populate the model and return the view directly
-        var userEmail = HttpContext.Session.GetString("UserEmail");
-        if (!string.IsNullOrEmpty(userEmail))
+        // Client-side validation should prevent this, but as a backup
+        if (!ModelState.IsValid)
         {
-            var currentUser = await _authService.GetUserByEmailAsync(userEmail);
-            if (currentUser != null)
+            // Return to the form with validation errors - DON'T redirect
+            TempData["ErrorMessage"] = "Please check your input and fix all validation errors.";
+
+            // Re-populate the model and return the view directly
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (!string.IsNullOrEmpty(userEmail))
             {
-                // Re-populate any missing data
-                model.UserId = currentUser.UserId;
-                model.CurrentProfileImagePath = currentUser.ProfilePicture;
-                model.Email = currentUser.Email;// Ensure email is set
-                model.Location = currentUser.Location;
+                var currentUser = await _authService.GetUserByEmailAsync(userEmail);
+                if (currentUser != null)
+                {
+                    // Re-populate any missing data
+                    model.UserId = currentUser.UserId;
+                    model.CurrentProfileImagePath = currentUser.ProfilePicture;
+                    model.Email = currentUser.Email;// Ensure email is set
+                    model.Location = currentUser.Location;
+                }
             }
-        }
-        
-        return View("EditProfile", model);
-    }
 
-    try
-    {
-        var userEmail = HttpContext.Session.GetString("UserEmail");
-        if (string.IsNullOrEmpty(userEmail))
-        {
-            TempData["ErrorMessage"] = "Please login first.";
-            return RedirectToAction("Login", "Auth");
-        }
-
-        var currentUser = await _authService.GetUserByEmailAsync(userEmail);
-        if (currentUser == null)
-        {
-            TempData["ErrorMessage"] = "User not found.";
-            return RedirectToAction("Login", "Auth");
-        }
-
-        // Additional server-side validation
-        if (string.IsNullOrEmpty(model.FullName?.Trim()))
-        {
-            ModelState.AddModelError("FullName", "Full name is required.");
             return View("EditProfile", model);
         }
 
-        if (model.DateOfBirth.HasValue)
+        try
         {
-            var age = DateTime.Today.Year - model.DateOfBirth.Value.Year;
-            if (model.DateOfBirth.Value.Date > DateTime.Today.AddYears(-age)) 
-                age--;
-
-            if (age < 18)
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (string.IsNullOrEmpty(userEmail))
             {
-                ModelState.AddModelError("DateOfBirth", "You must be at least 18 years old.");
+                TempData["ErrorMessage"] = "Please login first.";
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var currentUser = await _authService.GetUserByEmailAsync(userEmail);
+            if (currentUser == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction("Login", "Auth");
+            }
+
+            // Additional server-side validation
+            if (string.IsNullOrEmpty(model.FullName?.Trim()))
+            {
+                ModelState.AddModelError("FullName", "Full name is required.");
                 return View("EditProfile", model);
             }
+
+            if (model.DateOfBirth.HasValue)
+            {
+                var age = DateTime.Today.Year - model.DateOfBirth.Value.Year;
+                if (model.DateOfBirth.Value.Date > DateTime.Today.AddYears(-age))
+                    age--;
+
+                if (age < 18)
+                {
+                    ModelState.AddModelError("DateOfBirth", "You must be at least 18 years old.");
+                    return View("EditProfile", model);
+                }
+            }
+
+            string? profileImagePath = model.CurrentProfileImagePath;
+
+            // Handle profile image upload
+            if (model.ProfileImage != null && model.ProfileImage.Length > 0)
+            {
+                profileImagePath = await SaveProfileImageAsync(model.ProfileImage, currentUser.UserId);
+            }
+
+            // Update user profile
+            var success = await _authService.UpdateUserProfileAsync(
+                currentUser.UserId,
+                model.FullName.Trim(), // Ensure trimmed
+                currentUser.Email, // Always use original email
+                model.PhoneNumber ?? currentUser.PhoneNo,
+                model.Gender ?? currentUser.Gender,
+                model.DateOfBirth ?? currentUser.DateOfBirth,
+                model.Bio ?? currentUser.Bio,
+                profileImagePath,
+                model.Location
+            );
+
+            if (success)
+            {
+                HttpContext.Session.SetString("UserName", model.FullName.Trim());
+                HttpContext.Session.SetString("ProfileImagePath", profileImagePath ?? "");
+                TempData["SuccessMessage"] = "Profile updated successfully!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Failed to update profile. Please try again.";
+            }
         }
-
-        string? profileImagePath = model.CurrentProfileImagePath;
-
-        // Handle profile image upload
-        if (model.ProfileImage != null && model.ProfileImage.Length > 0)
+        catch (Exception ex)
         {
-            profileImagePath = await SaveProfileImageAsync(model.ProfileImage, currentUser.UserId);
+            _logger.LogError(ex, "Error updating profile");
+            TempData["ErrorMessage"] = "An error occurred while updating your profile.";
         }
 
-        // Update user profile
-        var success = await _authService.UpdateUserProfileAsync(
-            currentUser.UserId,
-            model.FullName.Trim(), // Ensure trimmed
-            currentUser.Email, // Always use original email
-            model.PhoneNumber ?? currentUser.PhoneNo,
-            model.Gender ?? currentUser.Gender,
-            model.DateOfBirth ?? currentUser.DateOfBirth,
-            model.Bio ?? currentUser.Bio,
-            profileImagePath,
-            model.Location
-        );
-
-        if (success)
-        {
-            TempData["SuccessMessage"] = "Profile updated successfully!";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = "Failed to update profile. Please try again.";
-        }
+        return RedirectToAction("EditProfile");
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error updating profile");
-        TempData["ErrorMessage"] = "An error occurred while updating your profile.";
-    }
-
-    return RedirectToAction("EditProfile");
-}
 
     // REMOVE or COMMENT OUT this entire method:
     // private async Task SendEmailChangeVerification(int userId, string newEmail)

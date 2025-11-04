@@ -68,6 +68,7 @@ namespace PicklePlay.Controllers
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserName", user.Username);
                     _httpContextAccessor.HttpContext?.Session?.SetInt32("UserId", user.UserId);
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserRole", user.Role);
+                    _httpContextAccessor.HttpContext?.Session?.SetString("ProfileImagePath", user.ProfilePicture ?? "");
 
                     if (user.Role == "Admin")
                     {
