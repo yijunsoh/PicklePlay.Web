@@ -96,5 +96,8 @@ namespace PicklePlay.Models
             // Set expiry time to 1 minute
             PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1);
         }
+
+        // Add this line
+public virtual ICollection<ScheduleParticipant> ScheduleParticipations { get; set; } = new List<ScheduleParticipant>();
     }
 }

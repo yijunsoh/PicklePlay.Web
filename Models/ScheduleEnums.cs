@@ -51,9 +51,10 @@ namespace PicklePlay.Models
 
     public enum AgeGroupRestriction
     {
-        Junior = 0, // (Under 18)
-        Adult = 1,  // (18-55)
-        Senior = 2  // (Above 55)
+        None = 0,
+        Junior = 1, // (Under 18)
+        Adult = 2,  // (18-55)
+        Senior = 3  // (Above 55)
     }
 
     public enum FeeType
@@ -142,5 +143,20 @@ namespace PicklePlay.Models
         Quit = 3,
         Cancelled = 4,
         PendingSetup = 5
+    }
+
+    // Add these to the end of the file
+public enum ParticipantRole
+{
+    Organizer,
+    Player
+}
+
+    public enum ParticipantStatus
+    {
+        Confirmed,
+        PendingPayment,
+        OnHold,
+        Cancelled
     }
 }

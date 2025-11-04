@@ -18,9 +18,12 @@ namespace PicklePlay.Data
         }
 
         public Schedule? GetById(int id)
-        {
-            return _context.Schedules.FirstOrDefault(s => s.ScheduleId == id);
-        }
+{
+    return _context.Schedules
+                   .Include(s => s.Participants)
+                   .ThenInclude(p => p.User)
+                   .FirstOrDefault(s => s.ScheduleId == id);
+}
 
         public void Add(Schedule schedule)
         {

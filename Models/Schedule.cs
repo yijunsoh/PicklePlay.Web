@@ -61,7 +61,7 @@ namespace PicklePlay.Models
         public GenderRestriction? GenderRestriction { get; set; } = Models.GenderRestriction.None;
 
         [Column("ageGroupRestriction")] // Removed TypeName
-        public AgeGroupRestriction? AgeGroupRestriction { get; set; } = Models.AgeGroupRestriction.Adult;
+        public AgeGroupRestriction? AgeGroupRestriction { get; set; } = Models.AgeGroupRestriction.None;
         
         [Column("feeType")] // Removed TypeName
         public FeeType? FeeType { get; set; } = Models.FeeType.PerPerson;
@@ -113,5 +113,8 @@ namespace PicklePlay.Models
         // This will hold the related Competition data if ScheduleType is Competition
         public virtual Competition? Competition { get; set; }
         // --- END ADD ---
+
+        // Add this line
+public virtual ICollection<ScheduleParticipant> Participants { get; set; } = new List<ScheduleParticipant>();
     }
 }
