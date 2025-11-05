@@ -5,7 +5,7 @@ namespace PicklePlay.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) 
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options) { }
 
         public DbSet<User> Users { get; set; }
@@ -13,17 +13,26 @@ namespace PicklePlay.Data
         public DbSet<Escrow> Escrows { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<EscrowDispute> EscrowDisputes { get; set; }
+        public DbSet<Community> Communities { get; set; }
+        public DbSet<CommunityRequest> CommunityRequests { get; set; }
+        public DbSet<CommunityMember> CommunityMembers { get; set; }
+        public DbSet<CommunityBlockList> CommunityBlockLists { get; set; }
+        public DbSet<CommunityAnnouncement> CommunityAnnouncements { get; set; } = null!;
+
+
+
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Competition> Competitions { get; set; }
-        
+
         public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
         public virtual DbSet<Bookmark> Bookmarks { get; set; }
         public virtual DbSet<Team> Teams { get; set; }
-    public virtual DbSet<TeamMember> TeamMembers { get; set; }
+        public virtual DbSet<TeamMember> TeamMembers { get; set; }
 
-    public virtual DbSet<TeamInvitation> TeamInvitations { get; set; }
-public virtual DbSet<Friendship> Friendships { get; set; }
-        
+        public virtual DbSet<TeamInvitation> TeamInvitations { get; set; }
+        public virtual DbSet<Friendship> Friendships { get; set; }
+        public virtual DbSet<Pool> Pools { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -48,7 +57,7 @@ public virtual DbSet<Friendship> Friendships { get; set; }
             // modelBuilder.Entity<Schedule>()...
 
             // Add this to prevent issues when a Team and TeamMember reference each other
-        // --- TeamMember relationships ---
+            // --- TeamMember relationships ---
             modelBuilder.Entity<TeamMember>()
                 .HasOne(tm => tm.Team)
                 .WithMany(t => t.TeamMembers)
@@ -66,7 +75,7 @@ public virtual DbSet<Friendship> Friendships { get; set; }
                 .HasOne(f => f.UserOne)
                 .WithMany(u => u.FriendshipsSent) // Maps to User.FriendshipsSent
                 .HasForeignKey(f => f.UserOneId)
-                .OnDelete(DeleteBehavior.Restrict); 
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Friendship>()
                 .HasOne(f => f.UserTwo)
@@ -86,15 +95,21 @@ public virtual DbSet<Friendship> Friendships { get; set; }
                 .WithMany(u => u.ReceivedTeamInvitations) // Maps to User.ReceivedTeamInvitations
                 .HasForeignKey(ti => ti.InviteeUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             // This maps the invitation back to the team
             modelBuilder.Entity<TeamInvitation>()
                 .HasOne(ti => ti.Team)
                 .WithMany(t => t.Invitations) // Maps to Team.Invitations
                 .HasForeignKey(ti => ti.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
+                // --- *** NEWLY ADDED RULES FOR POOLS *** ---
+            modelBuilder.Entity<Team>()
+                .HasOne(t => t.Pool)
+                .WithMany(p => p.Teams)
+                .HasForeignKey(t => t.PoolId)
+                .OnDelete(DeleteBehavior.SetNull); 
         }
         // Add other DbSets for your 25+ tables later
     }
-    
+
 }

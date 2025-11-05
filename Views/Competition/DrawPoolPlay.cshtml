@@ -1,0 +1,72 @@
+@using PicklePlay.Models.ViewModels
+@model DrawPoolPlayViewModel
+@{
+    ViewData["Title"] = "Pool Play Draw";
+}
+
+<div class="container mt-4">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>@ViewData["Title"]</h2>
+            <h5 class="text-muted">@Model.CompetitionName</h5>
+        </div>
+        <div>
+            <a asp-action="CompDetails" asp-controller="Competition" asp-route-id="@Model.ScheduleId" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Details
+            </a>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('saveDrawForm').submit();">
+                <i class="bi bi-save"></i> Save Draw
+            </button>
+        </div>
+    </div>
+    <p>Teams have been randomly assigned to pools. You can adjust the pools using the dropdowns and click "Save Draw".</p>
+    <hr />
+
+    <!-- Form for Saving Changes -->
+    <form id="saveDrawForm" asp-action="SavePoolDraw" asp-controller="Draw" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ScheduleId" />
+
+        <div class="row">
+            @foreach (var pool in Model.Pools)
+            {
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">@pool.PoolName</h5>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var team in Model.Pools.SelectMany(p => p.Teams).Where(t => t.PoolId == pool.PoolId))
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px;" />
+                                        @team.TeamName
+                                    </span>
+                                    
+                                    <!-- *** MODIFIED THIS LINE *** -->
+                                    <select name="TeamPoolSelections[@team.TeamId]" class="form-select form-select-sm" style="width: 120px;">
+                                        @foreach (var p in Model.Pools)
+                                        {
+                                            <option value="@p.PoolId" selected="@(p.PoolId == team.PoolId)">@p.PoolName</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </form>
+</div>

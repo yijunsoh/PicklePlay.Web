@@ -1,0 +1,91 @@
+@using PicklePlay.Models.ViewModels
+@model DrawEliminationViewModel
+@{
+    ViewData["Title"] = "Elimination Draw";
+}
+
+<div class="container mt-4">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>@ViewData["Title"]</h2>
+            <h5 class="text-muted">@Model.CompetitionName</h5>
+        </div>
+        <div>
+            <a asp-action="CompDetails" asp-controller="Competition" asp-route-id="@Model.ScheduleId" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Details
+            </a>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('saveBracketForm').submit();">
+                <i class="bi bi-save"></i> Save Bracket
+            </button>
+        </div>
+    </div>
+    <p>Teams have been randomly assigned to seeds. You can adjust the bracket using the dropdowns and click "Save Bracket".</p>
+    <hr />
+
+    <div class="row">
+        <!-- Column 1: Seeding Form -->
+        <div class="col-lg-6">
+            <h5>Seed Assignments</h5>
+            <p class="text-muted">Assign a team to each seed. Make sure each team is used only once.</p>
+            
+            <form id="saveBracketForm" asp-action="SaveEliminationDraw" asp-controller="Draw" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ScheduleId" />
+
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Seed</th>
+                            <th>Team</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 1; i <= Model.TotalSeeds; i++)
+                        {
+                            var teamInThisSlot = Model.Teams.FirstOrDefault(t => t.BracketSeed == i);
+                            <tr>
+                                <td><strong>@i</strong></td>
+                                <td>
+                                    <!-- *** MODIFIED THIS LINE *** -->
+                                    <select name="SeedAssignments[@i]" class="form-select form-select-sm">
+                                        <option value="0">-- Unassigned --</option>
+                                        @foreach (var team in Model.Teams.OrderBy(t => t.TeamName))
+                                        {
+                                            <option value="@team.TeamId" selected="@(teamInThisSlot?.TeamId == team.TeamId)">
+                                                @team.TeamName
+                                            </option>
+                                        }
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
+        </div>
+        
+        <!-- Column 2: Bracket Visual -->
+        <div class="col-lg-6">
+            <h5>Bracket Visual (16 Team)</h5>
+            <p>This is a static visual to help you plan your seeds.</p>
+            <img src="https://i.imgur.com/gajqV0s.png" alt="16-team elimination bracket" style="width: 100%;" />
+            <small class="text-muted">Standard seeding: 1 vs 16, 8 vs 9, 5 vs 12, 4 vs 13, 6 vs 11, 3 vs 14, 7 vs 10, 2 vs 15.</small>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Optional: Add JavaScript here to warn user if they assign the same team to two seeds
+</script>
+}
