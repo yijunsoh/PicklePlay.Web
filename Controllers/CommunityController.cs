@@ -266,7 +266,9 @@ namespace PicklePlay.Controllers
             return RedirectToAction("Activity", "Community");
         }
 
-        [HttpPost]
+        // REPLACE this entire action in CommunityController.cs
+
+[HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> JoinIndividually(int scheduleId)
 {
@@ -286,28 +288,23 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
         return NotFound();
     }
 
-    // *** CHANGE 1: Be more specific. Check if they are already a PLAYER. ***
-    bool isAlreadyPlayer = schedule.Participants.Any(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+    // *** FIX: Find the *specific* participation record ***
+    var existingParticipation = schedule.Participants
+        .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
 
-    if (!isAlreadyPlayer) // Use the new variable here
+    if (existingParticipation == null)
     {
-        // *** CHANGE 2: Add a check to see if the user is an organizer ***
+        // --- This is a brand new participant ---
         bool isOrganizer = schedule.Participants.Any(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Organizer);
         
-        var newStatus = ParticipantStatus.OnHold; // Default
+        var newStatus = ParticipantStatus.OnHold; 
         
-        // If it's free OR if the person joining is already an organizer, confirm them immediately.
         if(schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None || isOrganizer)
         {
             newStatus = ParticipantStatus.Confirmed;
-            if (isOrganizer)
-            {
-                TempData["SuccessMessage"] = "You have successfully joined as a player!";
-            }
-            else
-            {
-                TempData["SuccessMessage"] = "You have successfully joined this free game!";
-            }
+            TempData["SuccessMessage"] = isOrganizer ? 
+                "You have successfully joined as a player!" : 
+                "You have successfully joined this free game!";
         }
         else
         {
@@ -320,20 +317,30 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
             ScheduleId = scheduleId,
             UserId = currentUserId.Value,
             Role = ParticipantRole.Player,
-            Status = newStatus // Use the newStatus variable
+            Status = newStatus
         };
         _context.ScheduleParticipants.Add(participant);
         await _context.SaveChangesAsync();
     }
+    else if (existingParticipation.Status == ParticipantStatus.Cancelled)
+    {
+        // --- FIX: This is an organizer (or player) re-joining ---
+        // Just update their status back to Confirmed
+        existingParticipation.Status = ParticipantStatus.Confirmed;
+        _context.ScheduleParticipants.Update(existingParticipation);
+        await _context.SaveChangesAsync();
+        TempData["SuccessMessage"] = "You have successfully re-joined the game!";
+    }
     else
     {
-        TempData["ErrorMessage"] = "You are already in this game as a player."; // Made this message more specific
+        // --- User is already OnHold, Pending, or Confirmed ---
+        TempData["ErrorMessage"] = "You are already in this game.";
     }
 
     return RedirectToAction("Details", "Schedule", new { id = scheduleId });
 }
 
-        [HttpPost]
+       [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelJoin(int scheduleId)
         {
@@ -344,45 +351,47 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
                 return Unauthorized(); // Not logged in
             }
 
-            // Find the user's participation record as a Player
-            // This will find OnHold, PendingPayment, OR Confirmed statuses
             var participant = await _context.ScheduleParticipants
                 .FirstOrDefaultAsync(p => p.ScheduleId == scheduleId &&
                                           p.UserId == currentUserId.Value &&
-                                          p.Role == ParticipantRole.Player && // Ensure we only get the player record
+                                          p.Role == ParticipantRole.Player &&
                                           (p.Status == ParticipantStatus.OnHold ||
                                            p.Status == ParticipantStatus.PendingPayment ||
                                            p.Status == ParticipantStatus.Confirmed));
 
             if (participant != null)
             {
-                // Store status before deleting
-                var oldStatus = participant.Status;
-
-                // Remove the participant
-                _context.ScheduleParticipants.Remove(participant);
+                // *** THIS IS THE NEW LOGIC FOR THE "HIDDEN" TAB ***
+                if (participant.Status == ParticipantStatus.Confirmed)
+                {
+                    // User was CONFIRMED, so mark as "Cancelled" to show in Hidden tab
+                    participant.Status = ParticipantStatus.Cancelled;
+                    _context.ScheduleParticipants.Update(participant);
+                    TempData["SuccessMessage"] = "You have successfully left the game. This will be moved to your 'Hidden' games list.";
+                }
+                else
+                {
+                    // User was OnHold or Pending, so just delete the record.
+                    // It will NOT appear in the "Hidden" tab.
+                    _context.ScheduleParticipants.Remove(participant);
+                    
+                    if (participant.Status == ParticipantStatus.OnHold)
+                    {
+                        TempData["SuccessMessage"] = "Your request to join has been cancelled.";
+                    }
+                    else if (participant.Status == ParticipantStatus.PendingPayment)
+                    {
+                        TempData["SuccessMessage"] = "Your spot has been cancelled.";
+                    }
+                }
+                
                 await _context.SaveChangesAsync();
-
-                // Set a specific success message
-                if (oldStatus == ParticipantStatus.OnHold)
-                {
-                    TempData["SuccessMessage"] = "Your request to join has been cancelled.";
-                }
-                else if (oldStatus == ParticipantStatus.PendingPayment)
-                {
-                    TempData["SuccessMessage"] = "Your spot has been cancelled.";
-                }
-                else if (oldStatus == ParticipantStatus.Confirmed)
-                {
-                    TempData["SuccessMessage"] = "You have successfully left the game.";
-                }
             }
             else
             {
                 TempData["ErrorMessage"] = "Could not find your participation record to cancel.";
             }
 
-            // Redirect back to the details page
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
 
@@ -462,12 +471,30 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
             newSchedule.Competition = newCompetition;
 
             // 5. Add the Schedule to the database
-            try
-            {
-                _scheduleRepository.Add(newSchedule);
-                TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
-                return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
-            }
+           try
+{
+    _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
+
+    // *** THIS IS THE FIX ***
+    // Add the creator as the "Organizer" participant
+    var currentUserId = GetCurrentUserId();
+    if (currentUserId.HasValue)
+    {
+        var organizer = new ScheduleParticipant
+        {
+            ScheduleId = newSchedule.ScheduleId,
+            UserId = currentUserId.Value,
+            Role = ParticipantRole.Organizer,
+            Status = ParticipantStatus.Confirmed
+        };
+        _context.ScheduleParticipants.Add(organizer);
+        await _context.SaveChangesAsync(); // Save the new organizer
+    }
+    // *** END OF FIX ***
+
+    TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
+    return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
+}
             catch (Exception ex)
             {
                 ModelState.AddModelError("", $"An error occurred creating the competition: {ex.Message}");

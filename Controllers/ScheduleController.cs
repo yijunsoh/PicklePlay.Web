@@ -3,6 +3,8 @@ using PicklePlay.Data;
 using PicklePlay.Models;
 using System;
 using System.Linq; // Needed for Select
+using Microsoft.EntityFrameworkCore; // *** ADD THIS ***
+using System.Threading.Tasks; // *** ADD THIS ***
 
 namespace PicklePlay.Controllers
 {
@@ -21,22 +23,53 @@ namespace PicklePlay.Controllers
         _authService = authService; // Add this
     }
 
-       
-        public IActionResult GameListing()
+
+        // *** MODIFIED THIS ACTION ***
+        public async Task<IActionResult> GameListing()
         {
-            var schedules = _scheduleRepository.All();
+            // We use _context directly to be able to use .Include()
+            // This pulls in the Participants list for each schedule
+            var schedules = await _context.Schedules
+                                          .Include(s => s.Participants)
+                                          .ToListAsync();
             return View(schedules);
         }
-
-        public IActionResult Details(int id)
+                private int? GetCurrentUserId()
         {
-            var schedule = _scheduleRepository.GetById(id);
-            if (schedule == null)
-            {
-                return NotFound(); // Or return a specific "Not Found" view
-            }
-            return View(schedule);
+            // Use GetInt32 instead of GetString
+            return HttpContext.Session.GetInt32("UserId");
         }
+
+        // *** ALSO MODIFIED THIS ACTION (to fix the Details page) ***
+public async Task<IActionResult> Details(int id)
+{
+    // You were missing the .Include(p => p.User) here
+    var schedule = await _context.Schedules
+                                 .Include(s => s.Participants)
+                                     .ThenInclude(p => p.User) 
+                                 .FirstOrDefaultAsync(s => s.ScheduleId == id);
+
+    if (schedule == null)
+    {
+        return NotFound();
+    }
+
+    // --- FIX: This logic sets the ViewBag variable ---
+    var currentUserId = GetCurrentUserId();
+    bool isBookmarked = false;
+    if (currentUserId.HasValue)
+    {
+        // Check the database to see if a bookmark exists
+        isBookmarked = await _context.Bookmarks
+            .AnyAsync(b => b.ScheduleId == id && b.UserId == currentUserId.Value);
+    }
+    
+    // This passes the true/false value to the Details.cshtml view
+    ViewBag.IsBookmarked = isBookmarked;
+    // --- END OF FIX ---
+
+    return View(schedule);
+}
 
         public IActionResult MyGames()
         {

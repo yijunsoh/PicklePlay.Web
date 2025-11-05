@@ -1,0 +1,182 @@
+@model PicklePlay.Models.ViewModels.CommunicationHubViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "Communication Hub";
+    int? currentUserId = Context.Session.GetInt32("UserId");
+}
+
+<style>
+    .notification-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        margin-bottom: 0.75rem;
+        background-color: #fff;
+    }
+    .notification-content {
+        display: flex;
+        align-items: center;
+    }
+    .notification-content img {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 12px;
+    }
+    .notification-actions .btn {
+        margin-left: 0.5rem;
+    }
+    .friend-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #eee;
+    }
+    .friend-list-item:last-child {
+        border-bottom: 0;
+    }
+</style>
+
+<div class="container mt-4">
+    <h2 class="mb-4">@ViewData["Title"]</h2>
+
+    <!-- Main Hub Tabs -->
+    <ul class="nav nav-tabs" id="hubTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications-pane" type="button" role="tab" aria-controls="notifications-pane" aria-selected="true">
+                Notifications
+                @{
+                    int notificationCount = Model.PendingTeamInvitations.Count + Model.PendingFriendRequests.Count;
+                    if (notificationCount > 0)
+                    {
+                        <span class="badge bg-danger ms-1">@notificationCount</span>
+                    }
+                }
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="friends-tab" data-bs-toggle="tab" data-bs-target="#friends-pane" type="button" role="tab" aria-controls="friends-pane" aria-selected="false">
+                Friends
+                <span class="badge bg-secondary ms-1">@Model.Friends.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane" type="button" role="tab" aria-controls="chat-pane" aria-selected="false">
+                Chat (Future)
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="hubTabsContent">
+        
+        <!-- Notifications Pane -->
+        <div class="tab-pane fade show active" id="notifications-pane" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
+            <div class="pt-4">
+                @if (notificationCount == 0)
+                {
+                    <p class="text-muted">Your notification mailbox is empty.</p>
+                }
+
+                <!-- Team Invitations -->
+                @if (Model.PendingTeamInvitations.Any())
+                {
+                    <h5 class="mb-3">Team Invitations</h5>
+                    @foreach (var inv in Model.PendingTeamInvitations)
+                    {
+                        <div class="notification-list-item shadow-sm">
+                            <div class="notification-content">
+                                <img src="@(string.IsNullOrEmpty(inv.Inviter?.ProfilePicture) ? "/images/profile_image.jpg" : inv.Inviter.ProfilePicture)" alt="@inv.Inviter?.Username profile" />
+                                <div>
+                                    <strong>@inv.Inviter?.Username</strong> has invited you to join
+                                    <strong>@inv.Team?.TeamName</strong>.
+                                </div>
+                            </div>
+                            <div class="notification-actions">
+                                <form asp-controller="Team" asp-action="AcceptInvite" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="invitationId" value="@inv.InvitationId" />
+                                    <button type="submit" class="btn btn-sm btn-success">Accept</button>
+                                </form>
+                                <form asp-controller="Team" asp-action="DeclineInvite" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="invitationId" value="@inv.InvitationId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                }
+
+                <!-- Friend Requests -->
+                @if (Model.PendingFriendRequests.Any())
+                {
+                    <h5 class="my-3">Friend Requests</h5>
+                    @foreach (var req in Model.PendingFriendRequests)
+                    {
+                        <div class="notification-list-item shadow-sm">
+                            <div class="notification-content">
+                                <img src="@(string.IsNullOrEmpty(req.UserOne?.ProfilePicture) ? "/images/profile_image.jpg" : req.UserOne.ProfilePicture)" alt="@req.UserOne?.Username profile" />
+                                <div>
+                                    <strong>@req.UserOne?.Username</strong> sent you a friend request.
+                                </div>
+                            </div>
+                            <div class="notification-actions">
+                                <!-- Add Accept/Decline Friend Request forms here -->
+                                <button class="btn btn-sm btn-success" disabled>Accept</button>
+                                <button class="btn btn-sm btn-outline-danger" disabled>Decline</button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Friends Pane -->
+        <div class="tab-pane fade" id="friends-pane" role="tabpanel" aria-labelledby="friends-tab" tabindex="0">
+            <div class="pt-4">
+                <button class="btn btn-primary mb-3" disabled>Add Friend (Future)</button>
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        @if (!Model.Friends.Any())
+                        {
+                            <p class="text-muted p-3">Your friend list is empty.</p>
+                        }
+                        else
+                        {
+                            @foreach (var friend in Model.Friends)
+                            {
+                                // Determine who is the "friend" (not the current user)
+                                var friendUser = friend.UserOneId == currentUserId ? friend.UserTwo : friend.UserOne;
+
+                                <div class="friend-list-item">
+                                    <div class="notification-content">
+                                        <img src="@(string.IsNullOrEmpty(friendUser?.ProfilePicture) ? "/images/profile_image.jpg" : friendUser.ProfilePicture)" alt="@friendUser?.Username profile" />
+                                        <div>
+                                            <strong>@friendUser?.Username</strong>
+                                        </div>
+                                    </div>
+                                    <div class="notification-actions">
+                                        <button class="btn btn-sm btn-outline-primary" disabled>Chat</button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Pane -->
+        <div class="tab-pane fade" id="chat-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
+            <div class="pt-4">
+                <p class="text-muted">Chat functionality is coming soon!</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,288 @@
+@model PicklePlay.Models.MyGameViewModel
+@using PicklePlay.Models
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    ViewData["Title"] = "My Games";
+    var today = DateTime.Today;
+    var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
+
+    // --- Helper function to make date headers user-friendly ---
+    string GetFriendlyDateString(DateTime date)
+    {
+        if (date == today) return "Today";
+        if (date == today.AddDays(1)) return "Tomorrow";
+        return date.ToString("dd/MM/yyyy (dddd)");
+    }
+
+    // --- Helper function to get status text and CSS class ---
+    (string, string) GetStatusInfo(Schedule game)
+    {
+        if (currentUserId == null || game.Participants == null) return ("", "");
+        
+        var p = game.Participants.FirstOrDefault(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player);
+
+        if (p == null) return ("", ""); // Should not happen in My Games, but safe to check
+        
+        return p.Status switch
+        {
+            ParticipantStatus.Confirmed => ("Confirmed", "status-confirmed"),
+            ParticipantStatus.PendingPayment => ("Pending", "status-pending"),
+            ParticipantStatus.OnHold => ("On Hold", "status-onhold"),
+            ParticipantStatus.Cancelled => ("Quit", "status-cancelled"),
+            _ => ("", "")
+        };
+    }
+
+    // --- Helper to render the game card ---
+    void RenderGameCard(Schedule game)
+    {
+        var (statusText, statusClass) = GetStatusInfo(game);
+
+        <div class="card mb-3 shadow-sm game-card"
+             onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
+             style="cursor:pointer;">
+            
+            <!-- *** NEW: STATUS BADGE *** -->
+            @if (!string.IsNullOrEmpty(statusText))
+            {
+                <div class="status-badge @statusClass">@statusText</div>
+            }
+
+            <div class="card-body d-flex justify-content-between align-items-center">
+                
+                <!-- Left Side -->
+                <div>
+                    <h5 class="card-title mb-1">@game.GameName</h5>
+                    <p class="mb-0">
+                        <i class="bi bi-clock"></i>
+                        <!-- *** MODIFIED: Only show time *** -->
+                        @game.StartTime?.ToString("hh:mm tt")
+                    </p>
+                    <p class="mb-0">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        @game.Location
+                    </p>
+                    <p class="mb-0 text-muted">
+                        @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
+                        {
+                            <span class="badge bg-primary">@game.EventTag.ToString()</span>
+                        }
+                    </p>
+                </div>
+
+                <!-- Right Side -->
+                <div class="text-end">
+                    @{
+                        var confirmedCount = 0;
+                        if (game.Participants != null)
+                        {
+                            confirmedCount = game.Participants.Count(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed);
+                        }
+                    }
+
+                    @if (game.NumPlayer.HasValue && game.NumPlayer > 0)
+                    {
+                        <h5 class="mb-0">
+                            <i class="bi bi-people-fill text-success"></i>
+                            <span class="ms-1">@confirmedCount / @game.NumPlayer</span>
+                        </h5>
+                    }
+                    else
+                    {
+                        <h5 class="mb-0">
+                            <i class="bi bi-people-fill text-success"></i>
+                            <span class="ms-1">@confirmedCount</span>
+                        </h5>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    /* === NEW STYLES === */
+    .date-header {
+        border-bottom: 2px solid #eee; 
+        padding-bottom: 5px;
+    }
+    .game-card {
+        position: relative;
+        overflow: hidden;
+    }
+    .status-badge {
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        padding: 0.3em 0.6em;
+        border-bottom-left-radius: 0.375rem;
+    }
+    .status-confirmed {
+        background-color: #d1e7dd;
+        color: #0a3622;
+        border: 1px solid #a3cfbb;
+    }
+    .status-pending {
+        background-color: #cff4fc;
+        color: #055160;
+        border: 1px solid #9eeaf9;
+    }
+    .status-onhold {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffe69c;
+    }
+    .status-cancelled {
+        background-color: #f8d7da;
+        color: #58151c;
+        border: 1px solid #f1aeb5;
+    }
+    /* === END NEW STYLES === */
+
+    .game-card:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: 0.2s;
+    }
+    .nav-tabs .nav-link {
+        color: #007bff;
+    }
+    .nav-tabs .nav-link.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: bold;
+    }
+    .nav-tabs .nav-link:not(.active) {
+        color: #0d6efd;
+    }
+</style>
+
+<div class="container mt-4 page-wrapper">
+    <h2 class="mb-4">My Games</h2>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs" id="myGameTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab" aria-controls="active-pane" aria-selected="true">
+                Active
+                <span class="badge bg-primary ms-1">@Model.ActiveGames.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button" role="tab" aria-controls="history-pane" aria-selected="false">
+                History
+                <span class="badge bg-secondary ms-1">@Model.HistoryGames.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="hidden-tab" data-bs-toggle="tab" data-bs-target="#hidden-pane" type="button" role="tab" aria-controls="hidden-pane" aria-selected="false">
+                Hidden
+                <span class="badge bg-warning ms-1">@Model.HiddenGames.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bookmarked-tab" data-bs-toggle="tab" data-bs-target="#bookmarked-pane" type="button" role="tab" aria-controls="bookmarked-pane" aria-selected="false">
+                Bookmarked
+                <span class="badge bg-info ms-1">@Model.BookmarkedGames.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="myGameTabsContent">
+        
+        <!-- === MODIFIED: Active Pane === -->
+        <div class="tab-pane fade show active" id="active-pane" role="tabpanel" aria-labelledby="active-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.ActiveGames.Any())
+                {
+                    <p class="text-muted">You have no upcoming active games. <a asp-action="GameListing" asp-controller="Schedule">Find a game to join!</a></p>
+                }
+                else
+                {
+                    var groupedByDay = Model.ActiveGames.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+                    foreach (var dayGroup in groupedByDay)
+                    {
+                        <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
+                        foreach (var game in dayGroup)
+                        {
+                            RenderGameCard(game);
+                        }
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- === MODIFIED: History Pane === -->
+        <div class="tab-pane fade" id="history-pane" role="tabpanel" aria-labelledby="history-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.HistoryGames.Any())
+                {
+                    <p class="text-muted">You have no confirmed game history.</p>
+                }
+                else
+                {
+                    var groupedByDay = Model.HistoryGames.GroupBy(g => g.StartTime!.Value.Date).OrderByDescending(g => g.Key);
+                    foreach (var dayGroup in groupedByDay)
+                    {
+                        <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
+                        foreach (var game in dayGroup)
+                        {
+                            RenderGameCard(game);
+                        }
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- === MODIFIED: Hidden Pane === -->
+        <div class="tab-pane fade" id="hidden-pane" role="tabpanel" aria-labelledby="hidden-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.HiddenGames.Any())
+                {
+                    <p class="text-muted">You have no hidden games. Games you leave while "Confirmed" will appear here.</p>
+                }
+                else
+                {
+                    var groupedByDay = Model.HiddenGames.GroupBy(g => g.StartTime!.Value.Date).OrderByDescending(g => g.Key);
+                    foreach (var dayGroup in groupedByDay)
+                    {
+                        <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
+                        foreach (var game in dayGroup)
+                        {
+                            RenderGameCard(game);
+                        }
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- === MODIFIED: Bookmarked Pane === -->
+        <div class="tab-pane fade" id="bookmarked-pane" role="tabpanel" aria-labelledby="bookmarked-tab" tabindex="0">
+            <div class="pt-4">
+                @if (!Model.BookmarkedGames.Any())
+                {
+                    <p class="text-muted">You have not bookmarked any games. Click the <i class="bi bi-bookmark"></i> icon on a game's detail page to save it here.</p>
+                }
+                else
+                {
+                    var groupedByDay = Model.BookmarkedGames.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+                    foreach (var dayGroup in groupedByDay)
+                    {
+                        <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
+                        foreach (var game in dayGroup)
+                        {
+                            RenderGameCard(game);
+                        }
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+

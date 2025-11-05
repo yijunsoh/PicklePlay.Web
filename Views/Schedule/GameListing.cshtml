@@ -1,9 +1,12 @@
 @model IEnumerable<PicklePlay.Models.Schedule>
 @using PicklePlay.Models
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
 
 @{
     ViewData["Title"] = "Game Schedule";
     var today = DateTime.Today;
+    var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
 
     // Helper function to make date headers user-friendly
     string GetFriendlyDateString(DateTime date)
@@ -13,15 +16,76 @@
         return date.ToString("dd/MM/yyyy (dddd)");
     }
 
+    // Get status text and CSS class
+    (string, string) GetStatusInfo(ScheduleParticipant? p)
+    {
+        if (p == null) return ("", "");
+        return p.Status switch
+        {
+            ParticipantStatus.Confirmed => ("Confirmed", "status-confirmed"),
+            ParticipantStatus.PendingPayment => ("Pending", "status-pending"),
+            ParticipantStatus.OnHold => ("On Hold", "status-onhold"),
+            ParticipantStatus.Cancelled => ("Quit", "status-cancelled"),
+            _ => ("", "")
+        };
+    }
+
     // Filter by OneOff, StartTime.HasValue, and future games
     var games = Model.Where(s => s.ScheduleType == ScheduleType.OneOff &&
                                  s.StartTime.HasValue &&
                                  s.StartTime.Value.Date >= today)
                      .OrderBy(s => s.StartTime);
 
-    // Group by Date
     var groupedByDay = games.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
 }
+
+<style>
+    .game-card {
+        position: relative; /* Needed for the status badge */
+        overflow: hidden; /* Ensures badge corners look clean */
+    }
+    .game-card:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: 0.2s;
+    }
+    
+    /* === NEW STATUS BADGE STYLES === */
+    .status-badge {
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        padding: 0.3em 0.6em;
+        border-bottom-left-radius: 0.375rem; /* Equivalent to 'rounded-bottom-start' */
+    }
+
+    .status-confirmed {
+        background-color: #d1e7dd; /* success-subtle */
+        color: #0a3622; /* success-emphasis */
+        border: 1px solid #a3cfbb;
+    }
+
+    .status-pending {
+        background-color: #cff4fc; /* info-subtle */
+        color: #055160; /* info-emphasis */
+        border: 1px solid #9eeaf9;
+    }
+
+    .status-onhold {
+        background-color: #fff3cd; /* warning-subtle */
+        color: #664d03; /* warning-emphasis */
+        border: 1px solid #ffe69c;
+    }
+
+    .status-cancelled {
+        background-color: #f8d7da; /* danger-subtle */
+        color: #58151c; /* danger-emphasis */
+        border: 1px solid #f1aeb5;
+    }
+    /* === END NEW STYLES === */
+</style>
 
 <div class="container mt-4 page-wrapper">
     <h2 class="mb-4">Games Schedule</h2>
@@ -33,36 +97,67 @@
 
     @foreach (var dayGroup in groupedByDay)
     {
-        // Use the helper for the main date title
         <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
             @GetFriendlyDateString(dayGroup.Key)
         </h4>
 
-        // Group this day's games by the specific time
         var groupedByTime = dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key);
 
         @foreach (var timeGroup in groupedByTime)
         {
-            // Time subtitle
             <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
 
-            // Loop through all games at this specific time
             @foreach (var game in timeGroup)
             {
+                // --- Find user's status for this game ---
+                var userParticipation = currentUserId.HasValue ? 
+                    game.Participants?.FirstOrDefault(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player) : 
+                    null;
+                
+                var (statusText, statusClass) = GetStatusInfo(userParticipation);
+                
                 <div class="card mb-3 shadow-sm game-card"
                      onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
                      style="cursor:pointer;">
-                    <div class="card-body d-flex align-items-center">
+                    
+                    <!-- *** NEW: STATUS BADGE *** -->
+                    @if (!string.IsNullOrEmpty(statusText))
+                    {
+                        <div class="status-badge @statusClass">@statusText</div>
+                    }
+                    
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        
                         <div>
                             <h5 class="card-title mb-1">@game.GameName</h5>
                             <p class="mb-0"><strong>Location:</strong> @game.Location</p>
                             <p class="mb-0 text-muted">
                                 @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
                                 {
-                                    <span class="badge bg-primary fs-6">@game.EventTag.ToString()</span>
+                                    <span class="badge bg-primary">@game.EventTag.ToString()</span>
                                 }
-                                <span class="ms-2">Players: @game.NumPlayer</span>
                             </p>
+                        </div>
+
+                        <div class="text-end">
+                            @{
+                                var confirmedCount = game.Participants?.Count(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed) ?? 0;
+                            }
+
+                            @if (game.NumPlayer.HasValue && game.NumPlayer > 0)
+                            {
+                                <h5 class="mb-0">
+                                    <i class="bi bi-people-fill text-success"></i>
+                                    <span class="ms-1">@confirmedCount / @game.NumPlayer</span>
+                                </h5>
+                            }
+                            else
+                            {
+                                <h5 class="mb-0">
+                                    <i class="bi bi-people-fill text-success"></i>
+                                    <span class="ms-1">@confirmedCount</span>
+                                </h5>
+                            }
                         </div>
                     </div>
                 </div>
@@ -71,10 +166,3 @@
     }
 </div>
 
-<style>
-    .game-card:hover {
-        background-color: #f8f9fa;
-        transform: scale(1.01);
-        transition: 0.2s;
-    }
-</style>

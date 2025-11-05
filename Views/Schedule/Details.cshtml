@@ -3,15 +3,12 @@
 @using Microsoft.AspNetCore.Http
 @inject IHttpContextAccessor HttpContextAccessor
 
+
 @{
     ViewData["Title"] = Model.GameName ?? "Game Details";
 
     // --- 1. SETUP BLOCK ---
-    // Get current user's ID from session
     var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
-    
-    // Find the current user's participation status
-    // *** MODIFICATION ***: Check for player role specifically
     var currentUserParticipation = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
 
     // --- Requirement 1: Check if any restrictions exist ---
@@ -25,7 +22,6 @@
     var organizers = Model.Participants.Where(p => p.Role == ParticipantRole.Organizer).ToList();
     var confirmedPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed).ToList();
     var onHoldPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.OnHold).ToList();
-    // *** NEW ***
     var pendingPaymentPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.PendingPayment).ToList();
 
 
@@ -33,14 +29,18 @@
     int maxPlayers = Model.NumPlayer ?? 0;
     int emptySlots = 0;
 
-if (maxPlayers > 0)
-{
-    emptySlots = maxPlayers - confirmedPlayers.Count;
-    if (emptySlots < 0) emptySlots = 0; // Safety check
-}
+    if (maxPlayers > 0)
+    {
+        emptySlots = maxPlayers - confirmedPlayers.Count;
+        if (emptySlots < 0) emptySlots = 0; // Safety check
+    }
+
+     // *** Get bookmark status from ViewBag (set in ScheduleController) ***
+    bool isBookmarked = ViewBag.IsBookmarked ?? false;
 }
 
 <style>
+    /* ... Your existing styles ... */
     .participant-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
@@ -64,7 +64,7 @@ if (maxPlayers > 0)
         height: 100%;
         object-fit: cover;
         border-radius: 50%;
-        border: 2px solid #198754; /* Green border for confirmed */
+        border: 2px solid #198754;
     }
     
     .player-slot .player-name {
@@ -107,7 +107,7 @@ if (maxPlayers > 0)
         height: 60px;
         object-fit: cover;
         border-radius: 50%;
-        border: 2px solid #0d6efd; /* Blue border for organizer */
+        border: 2px solid #0d6efd;
     }
     
     .organizer-item .player-name {
@@ -121,13 +121,20 @@ if (maxPlayers > 0)
     }
 
     .toggle-icon {
-    transition: transform 0.2s ease-in-out;
-    display: inline-block; /* Ensures the transform works */
-}
+        transition: transform 0.2s ease-in-out;
+        display: inline-block;
+    }
 
-.toggle-icon.rotated {
-    transform: rotate(180deg);
-}
+    .toggle-icon.rotated {
+        transform: rotate(180deg);
+    }
+
+    .bookmark-icon.bi-bookmark-fill {
+        color: #0d6efd;
+    }
+    .bookmark-icon:hover {
+        opacity: 0.7;
+    }
 </style>
 
 <div class="container mt-4">
@@ -157,40 +164,44 @@ if (maxPlayers > 0)
                         <span class="badge bg-primary fs-6">@Model.EventTag.ToString()</span>
                     }
                 </div>
-                <!-- *** ADD THIS ENTIRE BLOCK BACK *** -->
-<div>
-    <!-- This bookmark icon will be visible to everyone -->
-    <a href="#" class="text-secondary me-2 fs-4"><i class="bi bi-bookmark"></i></a>
-
+               
+                <div>
+                    <!-- *** FIX: Added 'text-decoration-none' to remove the underline *** -->
+                    <a href="#" class="text-secondary me-2 fs-4 text-decoration-none" 
+                       id="bookmark-toggle" 
+                       data-schedule-id="@Model.ScheduleId"
+                       title="@(isBookmarked ? "Remove bookmark" : "Add bookmark")">
+                        
+                        <i class="bookmark-icon bi @(isBookmarked ? "bi-bookmark-fill" : "bi-bookmark")"></i>
+                    </a>
     
-    @if (organizers.Any(o => o.UserId == currentUserId))
-    {
-        <div class="dropdown d-inline-block">
-            <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-gear"></i>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
-                <li>
-                    <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                        <i class="bi bi-pencil-square me-2"></i>Edit
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                        <i class="bi bi-trash me-2"></i>Delete
-                    </a>
-                </li>
-            </ul>
-        </div>
-    }
-</div>
+                    @if (organizers.Any(o => o.UserId == currentUserId))
+                    {
+                        <div class="dropdown d-inline-block">
+                            <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-gear"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
+                                <li>
+                                    <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                        <i class="bi bi-pencil-square me-2"></i>Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <!-- Changed this to a simple link to the GET Delete page for safety -->
+                                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                        <i class="bi bi-trash me-2"></i>Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                </div>
             </div>
 
             <hr />
 
             <p>@Model.Description</p>
-
-            <!-- *** RESTRICTIONS SECTION REMOVED FROM HERE *** -->
 
             <hr />
             <h4>Participants</h4>
@@ -249,7 +260,6 @@ if (maxPlayers > 0)
                 }
             </div>
 
-            <!-- *** NEW SECTION: PENDING PAYMENT *** -->
             @if (pendingPaymentPlayers.Any())
             {
                 <h5 class="mt-4"><i class="bi bi-credit-card text-info"></i> Pending Payment (@pendingPaymentPlayers.Count())</h5>
@@ -324,138 +334,123 @@ if (maxPlayers > 0)
                     </p>
                     
                     <div class="d-grid gap-2 mt-4">
-    @if (currentUserParticipation == null && currentUserId.HasValue && 
-         !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
-    {
-        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
-            <i class="bi bi-person-plus-fill"></i> Join Game
-        </button>
-    }
-    else if (currentUserParticipation?.Status == ParticipantStatus.OnHold)
-    {
-        <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid">
-            <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-            <button type="submit" class="btn btn-outline-danger btn-lg">
-                <i class="bi bi-x-circle"></i> Cancel Join
-            </button>
-        </form>
-        <small class="text-muted text-center">Pending approval</small>
-    }
-    else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
-    {
-        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#paymentModal">
-            <i class="bi bi-credit-card-fill"></i> Make Payment
-        </button>
-        <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
-            <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-            <button type="submit" class="btn btn-sm btn-outline-danger">
-                Cancel Spot
-            </button>
-        </form>
-        <small class="text-muted text-center">Your spot is reserved. Please complete payment.</small>
-    }
-    else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
-    {
-        <button type="button" class="btn btn-success btn-lg" disabled>
-            <i class="bi bi-check-circle-fill"></i> Joined
-        </button>
-        
-        <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2" onsubmit="return confirm('Are you sure you want to leave this game?');">
-            <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-            <button type="submit" class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-box-arrow-left"></i> Leave Game
-            </button>
-        </form>
-    }
-    
-    @if (currentUserParticipation == null && 
-         organizers.Any(o => o.UserId == currentUserId) &&
-         Model.HostRole == HostRole.HostOnly)
-    {
-         <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
-            <i class="bi bi-person-plus-fill"></i> Host and Play
-        </button>
-    }
-    
-    @if (!currentUserId.HasValue)
-    {
-         <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-success btn-lg">
-            <i class="bi bi-box-arrow-in-right"></i> Log in to Join
-        </a>
-    }
+                        @if (currentUserParticipation == null && currentUserId.HasValue && 
+                             !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
+                        {
+                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                                <i class="bi bi-person-plus-fill"></i> Join Game
+                            </button>
+                        }
+                        else if (currentUserParticipation?.Status == ParticipantStatus.OnHold)
+                        {
+                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid">
+                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
+                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                                <button type="submit" class="btn btn-outline-danger btn-lg">
+                                    <i class="bi bi-x-circle"></i> Cancel Join
+                                </button>
+                            </form>
+                            <small class="text-muted text-center">Pending approval</small>
+                        }
+                        else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
+                        {
+                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                                <i class="bi bi-credit-card-fill"></i> Make Payment
+                            </button>
+                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
+                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
+                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Cancel Spot
+                                </button>
+                            </form>
+                            <small class="text-muted text-center">Your spot is reserved. Please complete payment.</small>
+                        }
+                        else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
+                        {
+                            <button type="button" class="btn btn-success btn-lg" disabled>
+                                <i class="bi bi-check-circle-fill"></i> Joined
+                            </button>
+                            
+                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2" onsubmit="return confirm('Are you sure you want to leave this game?');">
+                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
+                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-box-arrow-left"></i> Leave Game
+                                </button>
+                            </form>
+                        }
+                        
+                        @if ((currentUserParticipation == null || currentUserParticipation.Status == ParticipantStatus.Cancelled) && 
+     organizers.Any(o => o.UserId == currentUserId) &&
+     Model.HostRole == HostRole.HostOnly)
+{
+     <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+        <i class="bi bi-person-plus-fill"></i> Host and Play
+    </button>
+}
+                        
+                        @if (!currentUserId.HasValue)
+                        {
+                             <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-success btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Log in to Join
+                            </a>
+                        }
 
-    <a href="#" class="btn btn-outline-secondary">Contact Host</a>
-</div>
+                        <a href="#" class="btn btn-outline-secondary">Contact Host</a>
+                    </div>
                 </div>
             </div>
 
-            <!-- *** RESTRICTIONS SECTION MOVED AND STYLED HERE *** -->
-            <!-- *** RESTRICTIONS SECTION - NEW TOGGLE METHOD *** -->
-@if (hasRestrictions)
-{
-    <div class="card shadow-sm mt-3">
-        <div class="card-body">
-            <!-- 
-                CHANGES:
-                1. Make the <h5> the toggle trigger by adding data-bs-toggle and data-bs-target.
-                2. Add `style="cursor: pointer;"` to show it's clickable.
-                3. The <a> tag is now just a visual container for the icon.
-            -->
-            <h5 class="card-title d-flex justify-content-between align-items-center mb-0"
-    data-bs-toggle="collapse"
-    data-bs-target="#restrictionsCollapse"
-    aria-expanded="false"
-    aria-controls="restrictionsCollapse"
-    style="cursor: pointer;">
+            @if (hasRestrictions)
+            {
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex justify-content-between align-items-center mb-0"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#restrictionsCollapse"
+                            aria-expanded="false"
+                            aria-controls="restrictionsCollapse"
+                            style="cursor: pointer;">
 
-    <span>Restrictions</span>
+                            <span>Restrictions</span>
+                            <a class="text-decoration-none text-secondary">
+                                <span class="toggle-icon small">▼</span>
+                            </a>
+                        </h5>
 
-    <!-- This <a> tag no longer controls the collapse -->
-    <a class="text-decoration-none text-secondary">
-        <!-- 
-            HERE IS THE FIX: 
-            We are using a simple Unicode arrow that will always be visible.
-            The `toggle-icon` class is for the rotation.
-        -->
-        <span class="toggle-icon small">▼</span>
-    </a>
-</h5>
-
-            <div class="collapse" id="restrictionsCollapse">
-                <hr />
-                <dl class="row mt-3 mb-0">
-                    @if (Model.AgeGroupRestriction != AgeGroupRestriction.None)
-                    {
-                        <dt class = "col-sm-4"><i class="bi bi-person-badge me-1"></i> Age</dt>
-                        <dd class = "col-sm-8">@Model.AgeGroupRestriction.ToString()</dd>
-                    }
-                    @if (Model.GenderRestriction != GenderRestriction.None)
-                    {
-                        <dt class = "col-sm-4"><i class="bi bi-gender-ambiguous me-1"></i> Gender</dt>
-                        <dd class = "col-sm-8">@Model.GenderRestriction.ToString()</dd>
-                    }
-                    @if (Model.MinRankRestriction.HasValue || Model.MaxRankRestriction.HasValue)
-                    {
-                        <dt class = "col-sm-4"><i class="bi bi-bar-chart-line me-1"></i> Skill</dt>
-                        <dd class = "col-sm-8">
-                            @(Model.MinRankRestriction.HasValue ? Model.MinRankRestriction.Value.ToString("0.0") : "Any")
-                            -
-                            @(Model.MaxRankRestriction.HasValue ? Model.MaxRankRestriction.Value.ToString("0.0") : "Any")
-                        </dd>
-                    }
-                    @if (Model.CancellationFreeze != CancellationFreeze.None)
-                    {
-                        <dt class = "col-sm-4"><i class="bi bi-calendar-x me-1"></i> Cancel</dt>
-                        <!-- This assumes you have fixed the </Check> typo and it is now </dd> -->
-                        <dd class = "col-sm-8">@Model.CancellationFreeze.ToString()</dd>
-                    }
-                </dl>
-            </div>
-        </div>
-    </div>
-}
-            
-            
+                        <div class="collapse" id="restrictionsCollapse">
+                            <hr />
+                            <dl class="row mt-3 mb-0">
+                                @if (Model.AgeGroupRestriction != AgeGroupRestriction.None)
+                                {
+                                    <dt class = "col-sm-4"><i class="bi bi-person-badge me-1"></i> Age</dt>
+                                    <dd class = "col-sm-8">@Model.AgeGroupRestriction.ToString()</dd>
+                                }
+                                @if (Model.GenderRestriction != GenderRestriction.None)
+                                {
+                                    <dt class = "col-sm-4"><i class="bi bi-gender-ambiguous me-1"></i> Gender</dt>
+                                    <dd class = "col-sm-8">@Model.GenderRestriction.ToString()</dd>
+                                }
+                                @if (Model.MinRankRestriction.HasValue || Model.MaxRankRestriction.HasValue)
+                                {
+                                    <dt class = "col-sm-4"><i class="bi bi-bar-chart-line me-1"></i> Skill</dt>
+                                    <dd class = "col-sm-8">
+                                        @(Model.MinRankRestriction.HasValue ? Model.MinRankRestriction.Value.ToString("0.0") : "Any")
+                                        -
+                                        @(Model.MaxRankRestriction.HasValue ? Model.MaxRankRestriction.Value.ToString("0.0") : "Any")
+                                    </dd>
+                                }
+                                @if (Model.CancellationFreeze != CancellationFreeze.None)
+                                {
+                                    <dt class = "col-sm-4"><i class="bi bi-calendar-x me-1"></i> Cancel</dt>
+                                    <dd class = "col-sm-8">@Model.CancellationFreeze.ToString()</dd>
+                                }
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -474,6 +469,7 @@ if (maxPlayers > 0)
             <div class="modal-footer d-flex justify-content-center">
                 
                 <form asp-controller="Community" asp-action="JoinIndividually" method="post" class="me-2">
+                    @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
                     <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
                     <button type="submit" class="btn btn-primary">Join Individually</button>
                 </form>
@@ -484,7 +480,6 @@ if (maxPlayers > 0)
     </div>
 </div>
 
-<!-- *** NEW: MAKE PAYMENT MODAL *** -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -495,15 +490,13 @@ if (maxPlayers > 0)
             <div class="modal-body">
                 <p>Please complete your payment to confirm your spot.</p>
                 <p><strong>Fee:</strong> RM @Model.FeeAmount?.ToString("0.00")</p>
-                <!-- Payment integration would go here -->
                 <div class="alert alert-info">
                     <i class="bi bi-tools"></i> Payment gateway integration is pending.
                 </div>
                 <p>Once the payment system is connected, this button will link to the payment provider.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <!-- This button would eventually trigger payment -->
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <button type="button" class="btn btn-primary" disabled>Pay Now (Not Implemented)</button>
             </div>
         </div>
@@ -520,26 +513,72 @@ if (maxPlayers > 0)
             return new bootstrap.Tooltip(tooltipTriggerEl)
         })
 
-        // *** ADD THIS NEW SCRIPT FOR THE ICON ROTATION ***
+        // Your existing icon rotation script
         var collapseElement = document.getElementById('restrictionsCollapse');
         var triggerElement = document.querySelector('[data-bs-target="#restrictionsCollapse"]');
         
-        // Check if both the toggle and the content exist
         if (collapseElement && triggerElement) {
             var icon = triggerElement.querySelector('.toggle-icon');
 
-            // Check if the icon exists
             if (icon) {
-                // Add 'rotated' class when the panel opens
                 collapseElement.addEventListener('show.bs.collapse', function () {
                     icon.classList.add('rotated');
                 });
                 
-                // Remove 'rotated' class when the panel closes
                 collapseElement.addEventListener('hide.bs.collapse', function () {
                     icon.classList.remove('rotated');
                 });
             }
         }
+
+        // *** FIX: Added Bookmark Toggle Script Back ***
+        document.getElementById('bookmark-toggle').addEventListener('click', function(e) {
+            e.preventDefault(); 
+
+            var button = this;
+            var scheduleId = button.dataset.scheduleId;
+            var icon = button.querySelector('.bookmark-icon');
+            
+            // Find the token from one of the forms on the page
+            var tokenInput = document.querySelector('form input[name="__RequestVerificationToken"]');
+            var token = tokenInput ? tokenInput.value : ''; 
+
+            if (!token) {
+                console.error('Anti-forgery token not found!');
+                alert('An error occurred. Please refresh the page and try again.');
+                return;
+            }
+
+            fetch('/Bookmark/ToggleBookmark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token // Send the token
+                },
+                body: 'scheduleId=' + scheduleId
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.isBookmarked) {
+                    icon.classList.remove('bi-bookmark');
+                    icon.classList.add('bi-bookmark-fill');
+                    button.setAttribute('title', 'Remove bookmark');
+                } else {
+                    icon.classList.remove('bi-bookmark-fill');
+                    icon.classList.add('bi-bookmark');
+                    button.setAttribute('title', 'Add bookmark');
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling bookmark:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
     </script>
 }
+
