@@ -22,13 +22,30 @@ namespace PicklePlay.Controllers
         [HttpGet]
         public async Task<IActionResult> GenerateDraw(int id)
         {
+            // --- *** THIS IS THE FINAL FIX *** ---
+
+            // 1. Load schedule (NO tracking, NO competition)
             var schedule = await _context.Schedules
-                .Include(s => s.Competition)
+                .AsNoTracking() // <--- Force fresh read
                 .Include(s => s.Teams.Where(t => t.Status == TeamStatus.Confirmed))
                 .Include(s => s.Pools)
                 .FirstOrDefaultAsync(s => s.ScheduleId == id);
 
             if (schedule == null) return NotFound();
+
+            // 2. Load Competition in a *separate, non-tracked query*
+            //    to guarantee it is fresh from the database.
+            var competition = await _context.Competitions
+                .AsNoTracking() // <--- Force fresh read
+                .FirstOrDefaultAsync(c => c.ScheduleId == id);
+            
+            // 3. Manually attach the fresh competition data
+            schedule.Competition = competition;
+
+            // --- *** END OF FIX *** ---
+
+
+            // 4. The rest of your method's logic now uses the fresh data
             if (schedule.Competition == null || schedule.Status == ScheduleStatus.PendingSetup)
             {
                 TempData["ErrorMessage"] = "Please complete the 'Match Setup & Format' before generating a draw.";
@@ -41,11 +58,36 @@ namespace PicklePlay.Controllers
             switch (schedule.Competition.Format)
             {
                 case CompetitionFormat.PoolPlay:
-                    // Auto-create pools if they don't exist
-                    if (!schedule.Pools.Any())
+                    
+                    // *** FIX FOR POOL PLAY ***
+                    // Check if the number of pools in the DB matches the competition settings
+                    int requiredPools = schedule.Competition.NumPool;
+                    if (schedule.Pools.Count != requiredPools)
                     {
+                        // Mismatch found! Delete old pools and reset teams.
+                        
+                        // 1. Reset all teams in this competition
+                        foreach (var team in confirmedTeams)
+                        {
+                            team.PoolId = null;
+                        }
+                        _context.Teams.UpdateRange(confirmedTeams);
+
+                        // 2. Delete all existing pools for this schedule
+                        _context.Pools.RemoveRange(schedule.Pools);
+                        
+                        await _context.SaveChangesAsync();
+                        
+                        // 3. Re-create pools and re-assign teams
                         await CreatePoolsAsync(schedule, confirmedTeams);
+                        
+                        // 4. Reload schedule data with new pools
+                        schedule.Pools = await _context.Pools
+                                               .Where(p => p.ScheduleId == id)
+                                               .ToListAsync();
                     }
+                    // *** END OF FIX ***
+
                     var poolViewModel = new DrawPoolPlayViewModel
                     {
                         ScheduleId = schedule.ScheduleId,
@@ -54,7 +96,7 @@ namespace PicklePlay.Controllers
                                       .Where(p => p.ScheduleId == id)
                                       .Include(p => p.Teams)
                                       .ThenInclude(t => t.Captain)
-                                      .ToListAsync(),
+                                      .ToListAsync(), // Load fresh data
                         UnassignedTeams = confirmedTeams.Where(t => !t.PoolId.HasValue).ToList()
                     };
                     
@@ -66,13 +108,23 @@ namespace PicklePlay.Controllers
                     {
                         await AssignSeedsAsync(confirmedTeams);
                     }
+                      // *** ADD THESE DEBUG LINES ***
+    Console.WriteLine($"DEBUG: Competition.ThirdPlaceMatch = {schedule.Competition.ThirdPlaceMatch}");
+
+
                     var elimViewModel = new DrawEliminationViewModel
                     {
                         ScheduleId = schedule.ScheduleId,
                         CompetitionName = schedule.GameName,
                         Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
-                        TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count
+                        TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count,
+
+                        // This will now use the fresh data from step 2
+                        HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch
                     };
+                    
+                    // *** ADD THIS DEBUG LINE ***
+    Console.WriteLine($"DEBUG: ViewModel.HasThirdPlaceMatch = {elimViewModel.HasThirdPlaceMatch}");
                     
                     return View("~/Views/Competition/DrawElimination.cshtml", elimViewModel);
 
@@ -133,25 +185,20 @@ namespace PicklePlay.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SavePoolDraw(DrawPoolPlayViewModel vm)
         {
-            // The form posts a Dictionary<int, int>
             if (vm.TeamPoolSelections == null)
             {
                 TempData["ErrorMessage"] = "No changes were submitted.";
                 return RedirectToAction("GenerateDraw", new { id = vm.ScheduleId });
             }
 
-            // *** THIS IS THE FIX ***
-            // Loop through the KeyValuePair
             foreach (var selection in vm.TeamPoolSelections)
             {
-                // Use .Key for TeamId and .Value for PoolId
                 var teamId = selection.Key;
                 var poolId = selection.Value;
 
                 var team = await _context.Teams.FindAsync(teamId);
                 if (team != null)
                 {
-                    // Assign 0 as null for "Unassigned"
                     team.PoolId = (poolId == 0) ? (int?)null : poolId;
                     _context.Teams.Update(team);
                 }
@@ -169,7 +216,7 @@ namespace PicklePlay.Controllers
             var shuffledTeams = teams.OrderBy(t => Guid.NewGuid()).ToList();
             for (int i = 0; i < shuffledTeams.Count; i++)
             {
-                shuffledTeams[i].BracketSeed = i + 1; // Assign seed 1, 2, 3...
+                shuffledTeams[i].BracketSeed = i + 1;
                 _context.Teams.Update(shuffledTeams[i]);
             }
             await _context.SaveChangesAsync();
@@ -179,7 +226,6 @@ namespace PicklePlay.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveEliminationDraw(DrawEliminationViewModel vm)
         {
-            // The form posts a Dictionary<int, int>
             if (vm.SeedAssignments == null)
             {
                 TempData["ErrorMessage"] = "No changes were submitted.";
@@ -190,21 +236,17 @@ namespace PicklePlay.Controllers
                                  .Where(t => t.ScheduleId == vm.ScheduleId && t.Status == TeamStatus.Confirmed)
                                  .ToListAsync();
             
-            // Clear existing seeds
             foreach (var team in allTeams)
             {
                 team.BracketSeed = null;
             }
             
-            // *** THIS IS THE FIX ***
-            // Loop through the KeyValuePair
             foreach (var assignment in vm.SeedAssignments)
             {
-                // Use .Key for Seed and .Value for TeamId
                 var seed = assignment.Key;
                 var teamId = assignment.Value;
 
-                if (teamId == 0) continue; // Skip "Unassigned"
+                if (teamId == 0) continue; 
 
                 var team = allTeams.FirstOrDefault(t => t.TeamId == teamId);
                 if (team != null)

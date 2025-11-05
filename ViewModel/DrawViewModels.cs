@@ -23,6 +23,9 @@ namespace PicklePlay.Models.ViewModels
         public List<Team> Teams { get; set; } = new List<Team>();
         public int TotalSeeds { get; set; }
 
+        // *** This property was added ***
+        public bool HasThirdPlaceMatch { get; set; }
+
         // This property will be populated by the form post
         // The key will be the Seed number (1, 2, 3...), the value will be the selected TeamId
         public Dictionary<int, int>? SeedAssignments { get; set; }

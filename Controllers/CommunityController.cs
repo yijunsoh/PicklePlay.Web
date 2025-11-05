@@ -682,38 +682,27 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
 
             scheduleToUpdate.Competition.Format = vm.Format;
             scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
+            
+            // --- NEW LOGIC ---
+            // Save settings based on the selected format
+            // We save ALL values, and the UI can just hide/show what's relevant.
+            
+            // Pool Play Settings
+            scheduleToUpdate.Competition.NumPool = vm.NumPool;
+            scheduleToUpdate.Competition.WinnersPerPool = vm.WinnersPerPool;
+            scheduleToUpdate.Competition.StandingCalculation = vm.StandingCalculation;
+            scheduleToUpdate.Competition.StandardWin = vm.StandardWin;
+            scheduleToUpdate.Competition.StandardLoss = vm.StandardLoss;
+            scheduleToUpdate.Competition.TieBreakWin = vm.TieBreakWin;
+            scheduleToUpdate.Competition.TieBreakLoss = vm.TieBreakLoss;
+            scheduleToUpdate.Competition.Draw = vm.Draw;
+            
+            // Elimination Settings
+            scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch; // <-- THIS IS THE FIX
 
-            if (vm.Format == CompetitionFormat.PoolPlay)
-            {
-                scheduleToUpdate.Competition.NumPool = vm.NumPool;
-                scheduleToUpdate.Competition.WinnersPerPool = vm.WinnersPerPool;
-                scheduleToUpdate.Competition.StandingCalculation = vm.StandingCalculation;
-                if (vm.StandingCalculation == StandingCalculation.WinLossPoints)
-                {
-                    scheduleToUpdate.Competition.StandardWin = vm.StandardWin;
-                    scheduleToUpdate.Competition.StandardLoss = vm.StandardLoss;
-                    scheduleToUpdate.Competition.TieBreakWin = vm.TieBreakWin;
-                    scheduleToUpdate.Competition.TieBreakLoss = vm.TieBreakLoss;
-                    scheduleToUpdate.Competition.Draw = vm.Draw;
-                }
-                scheduleToUpdate.Competition.ThirdPlaceMatch = true;
-                scheduleToUpdate.Competition.DoublePool = false;
-
-            }
-            else if (vm.Format == CompetitionFormat.Elimination)
-            {
-                scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch;
-                scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
-                scheduleToUpdate.Competition.NumPool = 4;
-                scheduleToUpdate.Competition.DoublePool = false;
-            }
-            else if (vm.Format == CompetitionFormat.RoundRobin)
-            {
-                scheduleToUpdate.Competition.DoublePool = vm.DoublePool;
-                scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
-                scheduleToUpdate.Competition.NumPool = 4;
-                scheduleToUpdate.Competition.ThirdPlaceMatch = true;
-            }
+            // Round Robin Settings
+            scheduleToUpdate.Competition.DoublePool = vm.DoublePool;
+            // --- END OF NEW LOGIC ---
 
             scheduleToUpdate.Status = ScheduleStatus.Active;
 

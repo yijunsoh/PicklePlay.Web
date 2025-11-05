@@ -1,8 +1,195 @@
+@using PicklePlay.Data
 @using PicklePlay.Models.ViewModels
+@using PicklePlay.Models
+@using System.Text
+@using Microsoft.AspNetCore.Html
+@using Microsoft.EntityFrameworkCore
 @model DrawEliminationViewModel
+@inject ApplicationDbContext DbContext
 @{
     ViewData["Title"] = "Elimination Draw";
+   
+    
+    // --- Determine bracket size (next power of 2) ---
+    int bracketSize = 8;
+    if (Model.TotalSeeds > 32) bracketSize = 64;
+    else if (Model.TotalSeeds > 16) bracketSize = 32;
+    else if (Model.TotalSeeds > 8) bracketSize = 16;
+    
+    // --- Create team lookup dictionary ---
+    var teamLookup = Model.Teams.ToDictionary(t => t.BracketSeed ?? 0, t => t);
+    
+    // --- List for drag-and-drop ---
+    var seededSlots = new List<Team?>(bracketSize + 1);
+    for (int i = 0; i <= bracketSize; i++)
+    {
+        seededSlots.Add(teamLookup.GetValueOrDefault(i));
+    }
+
+    // --- Standard seeding orders ---
+    Dictionary<int, int[]> seeding = new Dictionary<int, int[]>
+    {
+        { 8, new[] { 1, 8, 4, 5, 3, 6, 2, 7 } },
+        { 16, new[] { 1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15 } },
+        { 32, new[] { 1, 32, 17, 16, 9, 24, 25, 8, 5, 28, 21, 12, 13, 20, 
+             29, 4, 3, 30, 19, 14, 11, 22, 27, 6, 7, 26, 23, 10, 15, 18, 31, 2 } },
+        { 64, new int[64] }
+    };
+    var seeds = seeding.GetValueOrDefault(bracketSize) ?? new int[bracketSize];
+    if (bracketSize == 64 && seeds[0] == 0)
+    {
+        for(int i = 0; i < 32; i++) { seeds[i*2] = i+1; seeds[i*2+1] = 64-i; }
+    }
+
+    // --- Build JSON string manually for bracket data ---
+    var teamPairs = new List<string>();
+    for (int i = 0; i < seeds.Length; i += 2)
+    {
+        var team1 = teamLookup.GetValueOrDefault(seeds[i]);
+        var team2 = teamLookup.GetValueOrDefault(seeds[i + 1]);
+        
+        // Build team1 JSON
+        string team1Json;
+        if (team1 != null)
+        {
+            var escapedName = team1.TeamName.Replace("\"", "\\\"");
+            team1Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
+        }
+        else if (seeds[i] <= Model.TotalSeeds)
+        {
+            team1Json = $"\"Seed {seeds[i]}\""; // FIX: Just the seed name as a string
+        }
+        else
+        {
+            team1Json = "\"BYE\""; // FIX: Just the BYE as a string
+        }
+        
+        // Build team2 JSON
+        string team2Json;
+        if (team2 != null)
+        {
+            var escapedName = team2.TeamName.Replace("\"", "\\\"");
+team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
+        }
+        else if (seeds[i + 1] <= Model.TotalSeeds)
+        {
+            team2Json = $"\"Seed {seeds[i + 1]}\"";
+// FIX: Just the seed name as a string
+        }
+        else
+        {
+            team2Json = "\"BYE\"";
+// FIX: Just the BYE as a string
+        }
+
+        // --- *** ADD THIS LINE *** ---
+        teamPairs.Add($"[{team1Json},{team2Json}]");
+        
+    } // <--- LOOP ENDS HERE
+    
+    // Create an empty "[]" for each match in the first round
+    var firstRoundResults = string.Join(",", Enumerable.Repeat("[]", teamPairs.Count));
+    
+    // Now, build the JSON with the correctly structured results
+    string bracketDataJson = $"{{\"teams\":[{string.Join(",", teamPairs)}], \"results\":[[{firstRoundResults}]]}}";
+
+    // --- *** FIX 2: Correct Round Header Logic *** ---
+    int rounds = (int)Math.Log(bracketSize, 2);
+    var roundHeaders = new List<string>();
+    for (int r = 0; r < rounds; r++)
+    {
+        int teamsInRound = (int)Math.Pow(2, rounds - r);
+        if (teamsInRound == 2) roundHeaders.Add("Final");
+        else if (teamsInRound == 4) roundHeaders.Add("Semi-Finals");
+        else if (teamsInRound == 8) roundHeaders.Add("Quarter-Finals");
+        else roundHeaders.Add("Round of " + teamsInRound);
+    }
+    // --- *** END OF FIX 2 *** ---
+    
+    var jsonOptions = new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = false
+    };
+    string roundHeadersJson = System.Text.Json.JsonSerializer.Serialize(roundHeaders, jsonOptions);
 }
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
+
+<style>
+    .seed-list, .unseeded-list {
+        list-style-type: none;
+        padding: 0;
+        border: 1px solid #ddd;
+        background-color: #fdfdfd;
+        border-radius: 8px;
+        min-height: 100px;
+    }
+    .seed-slots {
+        max-height: 800px;
+        overflow-y: auto;
+    }
+    .team-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: #fff;
+        border-bottom: 1px solid #eee;
+        cursor: grab;
+    }
+    .team-item:last-child {
+        border-bottom: 0;
+    }
+    .team-item.sortable-ghost {
+        opacity: 0.4;
+        background-color: #d1e7dd;
+    }
+    .seed-slot {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+    .seed-label {
+        font-weight: bold;
+        width: 60px;
+        flex-shrink: 0;
+        color: #333;
+        font-size: 0.9rem;
+    }
+    .drop-zone {
+        flex-grow: 1;
+        border: 1px dashed #ccc;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        padding-left: 10px;
+    }
+    .drop-zone.sortable-chosen {
+        background-color: #e6f7ff;
+        border-color: #0d6efd;
+    }
+    .drop-zone .team-item {
+        border-bottom: 0;
+        padding: 4px 8px;
+        flex-grow: 1;
+    }
+    .drop-zone:empty::after {
+        content: 'Drop team here';
+        color: #999;
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+    /* Style for round headers */
+    .round-header {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+        color: #333;
+    }
+</style>
 
 <div class="container mt-4">
 
@@ -14,7 +201,6 @@
         </div>
     }
 
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2>@ViewData["Title"]</h2>
@@ -29,63 +215,156 @@
             </button>
         </div>
     </div>
-    <p>Teams have been randomly assigned to seeds. You can adjust the bracket using the dropdowns and click "Save Bracket".</p>
+    <p>Drag and drop teams between the "Seed Slots" to set the draw. Teams will swap places.</p>
     <hr />
 
     <div class="row">
-        <!-- Column 1: Seeding Form -->
-        <div class="col-lg-6">
-            <h5>Seed Assignments</h5>
-            <p class="text-muted">Assign a team to each seed. Make sure each team is used only once.</p>
-            
+        <div class="col-lg-5">
             <form id="saveBracketForm" asp-action="SaveEliminationDraw" asp-controller="Draw" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="ScheduleId" />
-
-                <table class="table table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Seed</th>
-                            <th>Team</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                
+                <div id="hiddenInputsContainer">
+                    @* JavaScript will create inputs here *@
+                </div>
+            
+                <h5 class="mt-4">Seed Slots</h5>
+                <div class="seed-slots">
+                    <ul class="seed-list">
                         @for (int i = 1; i <= Model.TotalSeeds; i++)
                         {
-                            var teamInThisSlot = Model.Teams.FirstOrDefault(t => t.BracketSeed == i);
-                            <tr>
-                                <td><strong>@i</strong></td>
-                                <td>
-                                    <!-- *** MODIFIED THIS LINE *** -->
-                                    <select name="SeedAssignments[@i]" class="form-select form-select-sm">
-                                        <option value="0">-- Unassigned --</option>
-                                        @foreach (var team in Model.Teams.OrderBy(t => t.TeamName))
-                                        {
-                                            <option value="@team.TeamId" selected="@(teamInThisSlot?.TeamId == team.TeamId)">
-                                                @team.TeamName
-                                            </option>
-                                        }
-                                    </select>
-                                </td>
-                            </tr>
+                            var team = seededSlots[i];
+                            <li class="seed-slot" data-seed-number="@i">
+                                <span class="seed-label">Seed @i</span>
+                                <div class="drop-zone group-list">
+                                    @if (team != null)
+                                    {
+                                        <div class="team-item" data-team-id="@team.TeamId">
+                                            <i class="bi bi-grip-vertical me-2"></i>
+                                            <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; margin-right: 8px;" />
+                                            @team.TeamName
+                                        </div>
+                                    }
+                                </div>
+                            </li>
                         }
-                    </tbody>
-                </table>
+                    </ul>
+                </div>
             </form>
         </div>
         
-        <!-- Column 2: Bracket Visual -->
-        <div class="col-lg-6">
-            <h5>Bracket Visual (16 Team)</h5>
-            <p>This is a static visual to help you plan your seeds.</p>
-            <img src="https://i.imgur.com/gajqV0s.png" alt="16-team elimination bracket" style="width: 100%;" />
-            <small class="text-muted">Standard seeding: 1 vs 16, 8 vs 9, 5 vs 12, 4 vs 13, 6 vs 11, 3 vs 14, 7 vs 10, 2 vs 15.</small>
-        </div>
+        <div class="col-lg-7">
+            <h5>Bracket Visual (@bracketSize Teams)</h5>
+            <p>This is a visual representation of your draw. It will not update live.</p>
+
+            <div id="bracketVisual"></div>
+            </div>
     </div>
 </div>
 
 @section Scripts {
-<script>
-    // Optional: Add JavaScript here to warn user if they assign the same team to two seeds
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.js"></script>
+
+    <script>
+        // Drag-and-Drop functionality (This code is correct)
+        const hiddenInputsContainer = document.getElementById('hiddenInputsContainer');
+        const dropZones = document.querySelectorAll('.drop-zone');
+        
+        dropZones.forEach(zone => {
+            new Sortable(zone, {
+                group: 'shared-teams',
+                animation: 150,
+                onAdd: function (evt) {
+                    const item = evt.item;
+                    const toSlot = evt.to;
+                    const fromSlot = evt.from;
+                    const toSeedNumber = toSlot.closest('.seed-slot').dataset.seedNumber;
+                    const newTeamId = item.dataset.teamId;
+
+                    if (toSlot.children.length > 1) {
+                        const oldItem = toSlot.children[0] === item ? toSlot.children[1] : toSlot.children[0];
+                        const oldTeamId = oldItem.dataset.teamId;
+                        const fromSeedNumber = fromSlot.closest('.seed-slot').dataset.seedNumber;
+                        
+                        fromSlot.appendChild(oldItem);
+                        updateHiddenInput(toSeedNumber, newTeamId);
+                        updateHiddenInput(fromSeedNumber, oldTeamId);
+                    } else {
+                        updateHiddenInput(toSeedNumber, newTeamId);
+                    }
+                },
+                onRemove: function (evt) {
+                    const fromSlot = evt.from;
+                    const fromSeedNumber = fromSlot.closest('.seed-slot').dataset.seedNumber;
+                    if (fromSlot.children.length === 0) {
+                        updateHiddenInput(fromSeedNumber, 0);
+                    }
+                }
+            });
+        });
+        
+        function updateHiddenInput(seedNumber, teamId) {
+            const inputName = `SeedAssignments[${seedNumber}]`;
+            let input = document.querySelector(`input[name="${inputName}"]`);
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = inputName;
+                hiddenInputsContainer.appendChild(input);
+            }
+            input.value = teamId;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Populate drag-and-drop inputs (This code is correct)
+            document.querySelectorAll('.seed-slot').forEach(slot => {
+                const seedNumber = slot.dataset.seedNumber;
+                const teamItem = slot.querySelector('.team-item');
+                const teamId = teamItem ? teamItem.dataset.teamId : 0;
+                updateHiddenInput(seedNumber, teamId);
+            });
+
+            // --- *** FIX 4: Corrected JavaScript Initialization *** ---
+            try {
+                // Parse the JSON data from C#
+                var bracketData = @Html.Raw(bracketDataJson);
+                var roundHeaders = @Html.Raw(roundHeadersJson);
+                // Correctly check the boolean value
+                
+               var hasThirdPlaceMatch = @(Model.HasThirdPlaceMatch ? "true" : "false");
+                
+                console.log('Bracket Data:', bracketData);
+                console.log('Round Headers:', roundHeaders);
+                console.log('Has Third Place:', hasThirdPlaceMatch);
+
+                // Initialize the bracket WITH roundHeaders
+                $('#bracketVisual').bracket({
+                    init: bracketData,          // Data now includes "results":[]
+                    roundHeaders: roundHeaders, // Pass the correct headers
+                    teamWidth: 170,
+                    scoreWidth: 30,
+                    roundMargin: 40,
+                    skipConsolationRound: !hasThirdPlaceMatch
+                });
+                
+                // This manual add is still a good fallback for the plugin
+                $('#bracketVisual .round').each(function(index) {
+                    if (roundHeaders[index]) {
+                        // Check if header already exists to avoid duplicates
+                        if ($(this).find('.round-header').length === 0) {
+                            $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Failed to initialize bracket:", e);
+                $('#bracketVisual').html('<div class="alert alert-danger">Error: Could not load bracket visual. Check console for details.</div>');
+            }
+            // --- *** END OF FIX 4 *** ---
+        });
+    </script>
 }
