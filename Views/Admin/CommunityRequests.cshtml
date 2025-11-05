@@ -1,75 +1,54 @@
+@model List<PicklePlay.ViewModels.CommunityRequestAdminViewModel>
 @{
     ViewData["Title"] = "Community Requests";
     Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
 }
 
+@* Add Anti-Forgery Token for POST calls *@
+@Html.AntiForgeryToken()
+
 <div class="p-4">
-    <h3>Community Requests</h3>
-    <table class="table table-bordered">
+    <h3>Community Requests <span class="badge bg-danger">@(Model?.Count ?? 0)</span></h3>
+    <table class="table table-bordered table-striped">
         <thead>
             <tr>
                 <th>Community Name</th>
+                <th>Type</th>
                 <th>Requested By</th>
                 <th>Date</th>
+                <th>Location</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>Pickle Lovers</td>
-                <td>Alice</td>
-                <td>2025-08-01</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Pickle Lovers','Alice','A group for all pickleball enthusiasts who love to share tips and organize games.')">View</button>
-                    <button class="btn btn-success btn-sm">Accept</button>
-                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Pickle Lovers')">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Squash Squad</td>
-                <td>Bob</td>
-                <td>2025-08-02</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Squash Squad','Bob','Community for squash players to find matches, tournaments, and practice partners.')">View</button>
-                    <button class="btn btn-success btn-sm">Accept</button>
-                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Squash Squad')">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Smash Bros</td>
-                <td>Charlie</td>
-                <td>2025-08-03</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Smash Bros','Charlie','Fans of competitive pickleball and other racket sports who enjoy fast-paced games.')">View</button>
-                    <button class="btn btn-success btn-sm">Accept</button>
-                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Smash Bros')">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Pickle Champs</td>
-                <td>Diana</td>
-                <td>2025-08-04</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Pickle Champs','Diana','A group dedicated to training and mentoring new pickleball players to become champions.')">View</button>
-                    <button class="btn btn-success btn-sm">Accept</button>
-                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Pickle Champs')">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Weekend Warriors</td>
-                <td>Eric</td>
-                <td>2025-08-05</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewCommunity('Weekend Warriors','Eric','For casual players who meet every weekend for fun matches and social gatherings.')">View</button>
-                    <button class="btn btn-success btn-sm">Accept</button>
-                    <button class="btn btn-danger btn-sm" onclick="openRejectModal('Weekend Warriors')">Reject</button>
-                </td>
-            </tr>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var request in Model)
+                {
+                    <tr id="row-@request.RequestId">
+                        <td>@request.CommunityName</td>
+                        <td>@request.CommunityType</td>
+                        <td>@request.RequesterUsername</td>
+                        <td>@request.RequestDate.ToShortDateString()</td>
+                        <td>@(request.CommunityLocation ?? "N/A")</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="viewCommunity(@request.RequestId, '@request.CommunityName', '@request.RequesterUsername', '@(request.Description?.Replace("'", "\\'") ?? "No description provided.")')">View Details</button>
+                            <button class="btn btn-success btn-sm" onclick="acceptRequest(@request.RequestId)">Accept</button>
+                            <button class="btn btn-danger btn-sm" onclick="openRejectModal(@request.RequestId, '@request.CommunityName')">Reject</button>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No pending community requests at this time.</td>
+                </tr>
+            }
         </tbody>
     </table>
 </div>
 
-<!-- Reject Reason Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -90,7 +69,6 @@
     </div>
 </div>
 
-<!-- View Community Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -99,6 +77,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <p><strong>Request ID:</strong> <span id="communityRequestId"></span></p>
                 <p><strong>Community Name:</strong> <span id="communityName"></span></p>
                 <p><strong>Requested By:</strong> <span id="requestedBy"></span></p>
                 <p><strong>Description:</strong></p>
@@ -113,7 +92,14 @@
 
 @section Scripts {
     <script>
-        function viewCommunity(name, requester, desc) {
+        let currentRequestId = 0; // Global to hold the ID for rejection
+
+        function getAntiForgeryToken() {
+            return document.querySelector('input[name="__RequestVerificationToken"]').value;
+        }
+
+        function viewCommunity(requestId, name, requester, desc) {
+            document.getElementById("communityRequestId").innerText = requestId;
             document.getElementById("communityName").innerText = name;
             document.getElementById("requestedBy").innerText = requester;
             document.getElementById("communityDesc").innerText = desc;
@@ -122,14 +108,45 @@
             modal.show();
         }
 
-        function openRejectModal(communityName) {
+        function openRejectModal(requestId, communityName) {
+            currentRequestId = requestId;
             document.getElementById("rejectCommunityName").innerText = communityName;
             document.getElementById("rejectReason").value = "";
             let modal = new bootstrap.Modal(document.getElementById('rejectModal'));
             modal.show();
         }
 
-        function submitRejection() {
+        async function acceptRequest(requestId) {
+            if (!confirm('Are you sure you want to ACCEPT this community request? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/Admin/AcceptCommunityRequest?requestId=${requestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(data.message);
+                    // Remove the row from the table on success
+                    const row = document.getElementById(`row-${requestId}`);
+                    if (row) row.remove();
+                } else {
+                    const error = await response.json();
+                    alert('Error accepting request: ' + (error.message || response.statusText));
+                }
+            } catch (error) {
+                console.error('Accept Error:', error);
+                alert('A network error occurred while accepting the request.');
+            }
+        }
+
+        async function submitRejection() {
+            const requestId = currentRequestId;
             let community = document.getElementById("rejectCommunityName").innerText;
             let reason = document.getElementById("rejectReason").value;
 
@@ -137,11 +154,39 @@
                 alert("Please provide a reason for rejection.");
                 return;
             }
+            
+            // Prepare FormData for reason and CSRF token
+            const formData = new FormData();
+            formData.append('reason', reason);
+            formData.append('__RequestVerificationToken', getAntiForgeryToken());
 
-            alert("Community '" + community + "' rejected with reason: " + reason);
-            let modalEl = document.getElementById('rejectModal');
-            let modal = bootstrap.Modal.getInstance(modalEl);
-            modal.hide();
+
+            try {
+                const response = await fetch(`/Admin/RejectCommunityRequest?requestId=${requestId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(data.message);
+                    
+                    // Close modal
+                    let modalEl = document.getElementById('rejectModal');
+                    let modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+
+                    // Remove the row from the table on success
+                    const row = document.getElementById(`row-${requestId}`);
+                    if (row) row.remove();
+                } else {
+                    const error = await response.json();
+                    alert('Error rejecting request: ' + (error.message || response.statusText));
+                }
+            } catch (error) {
+                console.error('Reject Error:', error);
+                alert('A network error occurred while rejecting the request.');
+            }
         }
     </script>
 }

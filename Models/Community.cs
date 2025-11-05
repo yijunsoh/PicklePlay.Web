@@ -55,5 +55,6 @@ namespace PicklePlay.Models
 
         public virtual ICollection<CommunityMember> Memberships { get; set; } = new List<CommunityMember>();
         public virtual ICollection<CommunityBlockList> BlockedUsers { get; set; } = new List<CommunityBlockList>();
+        public virtual ICollection<CommunityAnnouncement> Announcements { get; set; } = new List<CommunityAnnouncement>();
     }
 }
