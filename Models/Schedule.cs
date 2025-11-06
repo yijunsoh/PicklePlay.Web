@@ -117,6 +117,8 @@ namespace PicklePlay.Models
         // Add this line
         public virtual ICollection<ScheduleParticipant> Participants { get; set; } = new List<ScheduleParticipant>();
         public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+        // --- *** THIS IS THE NEW LINE YOU MUST ADD *** ---
+        public virtual ICollection<Pool> Pools { get; set; } = new List<Pool>();
 
     }
 }

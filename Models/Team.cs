@@ -36,6 +36,15 @@ namespace PicklePlay.Models
 
         // --- ADD THIS NEW NAVIGATION PROPERTY ---
         public virtual ICollection<TeamInvitation> Invitations { get; set; } = new List<TeamInvitation>();
+        // --- *** ADD THESE NEW PROPERTIES *** ---
+
+        // For Pool Play: Stores which pool this team is in
+        public int? PoolId { get; set; }
+        [ForeignKey("PoolId")]
+        public virtual Pool? Pool { get; set; }
+
+        // For Elimination: Stores the seed (1-16)
+        public int? BracketSeed { get; set; }
     }
 
     public enum TeamStatus
