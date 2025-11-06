@@ -41,6 +41,9 @@ namespace PicklePlay.Models
         public int TieBreakLoss { get; set; } = 1;
         [Column("draw")]
         public int Draw { get; set; } = 1;
+        
+        [Column("drawPublished")]
+        public bool DrawPublished { get; set; } = false;
 
         [Column("matchRule")]
         [StringLength(255)]

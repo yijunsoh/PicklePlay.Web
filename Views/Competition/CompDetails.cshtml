@@ -555,12 +555,37 @@
              }
              else
              {
+                bool isDrawPublished = Model.Competition.DrawPublished;
+                bool isRoundRobin = Model.Competition.Format == CompetitionFormat.RoundRobin;
+                // This variable will control the tab
+                bool canViewDraw = isDrawPublished && !isRoundRobin;
+
                 @* --- Nested Match Tabs --- *@
                  <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
              
                <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="format-subtab" data-bs-toggle="tab" data-bs-target="#format-subtab-pane" type="button" role="tab" aria-controls="format-subtab-pane" aria-selected="true">Format</button>
                     </li>
+
+                    <li class="nav-item" role="presentation">
+    <button class="nav-link" 
+            id="draw-subtab" 
+            data-bs-toggle="tab" 
+            data-bs-target="#draw-subtab-pane" 
+            type="button" 
+            role="tab" 
+            aria-controls="draw-subtab-pane" 
+            aria-selected="false"
+            @(canViewDraw ? "" : "disabled")
+            title="@(canViewDraw ? "View Published Draw" : (isRoundRobin ? "Draw not applicable for Round Robin" : "Draw has not been published"))">
+        Draw
+        @if (!canViewDraw && !isRoundRobin)
+        {
+            <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
+        }
+    </button>
+</li>
+
                     <li class="nav-item" role="presentation">
                  <button class="nav-link disabled" id="listing-subtab" data-bs-toggle="tab" data-bs-target="#listing-subtab-pane" type="button" role="tab" aria-controls="listing-subtab-pane" aria-selected="false">Listing</button>
                     </li>
@@ -612,6 +637,26 @@
                             </div>
                         </div>
                     </div> @* End Format Sub-Tab Pane *@
+                     @* Draw Sub-Tab Pane *@
+                    <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab" tabindex="0">
+    @if (canViewDraw)
+    {
+        <div id="draw-visual-container">
+            <div class="text-center p-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading Draw...</span>
+                </div>
+                <p class="mt-2">Loading Draw...</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            The draw is not yet published or is not applicable for this competition format.
+        </div>
+    }
+</div>
 
                     @* --- Listing Sub-Tab Pane --- *@
                     <div class="tab-pane fade" id="listing-subtab-pane" role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
@@ -735,25 +780,27 @@
 </div>
 
 @section Scripts {
+    @* Make sure these scripts are loaded FIRST *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
+
     <script>
         // Enable tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl)
         })
-    // *** NEW SCRIPT: To populate the Edit Team modal ***
+        
+        // Edit Team modal script
         var editTeamModal = document.getElementById('editTeamModal');
         if (editTeamModal) {
             editTeamModal.addEventListener('show.bs.modal', function (event) {
-                // Button that triggered the modal
                 var button = event.relatedTarget;
-                
-                // Extract info from data-* attributes
                 var teamId = button.getAttribute('data-team-id');
                 var teamName = button.getAttribute('data-team-name');
                 var teamIconUrl = button.getAttribute('data-team-icon-url');
 
-                // Update the modal's content
                 var modal = this;
                 modal.querySelector('#editTeamId').value = teamId;
                 modal.querySelector('#editTeamName').value = teamName;
@@ -761,7 +808,7 @@
             });
         }
 
-        // --- *** NEW SCRIPT for Invite Player modal *** ---
+        // Invite Player modal scripts
         var invitePlayerModal = document.getElementById('invitePlayerModal');
         var userSearchInput = document.getElementById('userSearchInput');
         var searchResultsContainer = document.getElementById('invite-search-results');
@@ -770,17 +817,14 @@
         var searchTimeout;
 
         if (invitePlayerModal) {
-            // 1. When modal opens, get the teamId from the '+' button
             invitePlayerModal.addEventListener('show.bs.modal', function (event) {
                 var button = event.relatedTarget;
                 var teamId = button.getAttribute('data-team-id');
                 inviteTeamIdInput.value = teamId;
-                // Clear old results
                 userSearchInput.value = '';
                 searchResultsContainer.innerHTML = '';
             });
 
-            // 2. When user types in search box
             userSearchInput.addEventListener('keyup', function () {
                 clearTimeout(searchTimeout);
                 var query = userSearchInput.value;
@@ -791,9 +835,8 @@
                     return;
                 }
 
-                spinner.classList.remove('d-none'); // Show spinner
+                spinner.classList.remove('d-none');
 
-                // Debounce search to avoid spamming server
                 searchTimeout = setTimeout(function () {
                     fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
                         .then(response => {
@@ -813,9 +856,8 @@
             });
         }
 
-        // 3. Render the search results
         function renderSearchResults(users, teamId) {
-            searchResultsContainer.innerHTML = ''; // Clear
+            searchResultsContainer.innerHTML = '';
             if (users.length === 0) {
                 searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
                 return;
@@ -838,13 +880,11 @@
                 searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
-            // 4. Add click listeners to the new "Invite" buttons
             document.querySelectorAll('.send-invite-btn').forEach(button => {
                 button.addEventListener('click', sendInvite);
             });
         }
 
-        // 5. Send the invite
         function sendInvite(event) {
             var button = event.target;
             var teamId = button.getAttribute('data-team-id');
@@ -881,25 +921,172 @@
             });
         }
 
-        // --- Script for Competition Poster Toggle ---
-var posterCollapseElement = document.getElementById('posterCollapse');
-var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
+        // Competition Poster Toggle
+        var posterCollapseElement = document.getElementById('posterCollapse');
+        var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
 
-// Check if both elements exist on the page
-if (posterCollapseElement && posterTriggerElement) {
-    var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
+        if (posterCollapseElement && posterTriggerElement) {
+            var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
 
-    if (posterIcon) {
-        // When the panel is told to show
-        posterCollapseElement.addEventListener('show.bs.collapse', function () {
-            posterIcon.classList.add('rotated'); // Rotate the arrow
-        });
-        
-        // When the panel is told to hide
-        posterCollapseElement.addEventListener('hide.bs.collapse', function () {
-            posterIcon.classList.remove('rotated'); // Un-rotate the arrow
-        });
-    }
+            if (posterIcon) {
+                posterCollapseElement.addEventListener('show.bs.collapse', function () {
+                    posterIcon.classList.add('rotated');
+                });
+                
+                posterCollapseElement.addEventListener('hide.bs.collapse', function () {
+                    posterIcon.classList.remove('rotated');
+                });
+            }
+        }
+
+ // *** DRAW TAB LOADING - Replace the existing draw tab script with this ***
+var drawTab = document.getElementById('draw-subtab');
+if (drawTab) {
+    var drawContainer = document.getElementById('draw-visual-container');
+    var drawLoaded = false;
+
+    drawTab.addEventListener('show.bs.tab', function (event) {
+        if (drawContainer && !drawLoaded) {
+            drawLoaded = true;
+            
+            console.log('Loading draw visual...');
+            
+            drawContainer.innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading Draw...</span>
+                    </div>
+                    <p class="mt-2">Loading Draw...</p>
+                </div>
+            `;
+            
+            fetch('/Draw/ViewPublishedDraw/@Model.ScheduleId')
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('HTML received, length:', html.length);
+                    
+                    // Insert the HTML
+                    drawContainer.innerHTML = html;
+                    
+                    // *** KEY FIX: Manually execute scripts ***
+                    var scripts = drawContainer.querySelectorAll('script');
+                    console.log('Found ' + scripts.length + ' script tags to execute');
+                    
+                    scripts.forEach(function(oldScript) {
+                        var newScript = document.createElement('script');
+                        
+                        // Copy attributes
+                        Array.from(oldScript.attributes).forEach(function(attr) {
+                            newScript.setAttribute(attr.name, attr.value);
+                        });
+                        
+                        // Copy script content
+                        newScript.textContent = oldScript.textContent;
+                        
+                        // Replace old script with new one (this causes execution)
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                        
+                        console.log('Script executed');
+                    });
+                    
+                    // Give scripts time to set global variables
+                    setTimeout(function() {
+                        console.log('Checking for bracket data...');
+                        console.log('publishedBracketDataReady:', window.publishedBracketDataReady);
+                        console.log('publishedBracketData:', window.publishedBracketData);
+                        
+                        if (window.publishedBracketDataReady && window.publishedBracketData) {
+                            console.log('Initializing bracket with data:', window.publishedBracketData);
+                            
+                            try {
+                                // Make sure jQuery and bracket plugin are loaded
+                                if (typeof $ === 'undefined') {
+                                    throw new Error('jQuery is not loaded');
+                                }
+                                
+                                if (typeof $.fn.bracket === 'undefined') {
+                                    throw new Error('jQuery Bracket plugin is not loaded');
+                                }
+                                
+                                var bracketElement = $('#bracketVisual_Published');
+                                if (bracketElement.length === 0) {
+                                    throw new Error('Bracket container #bracketVisual_Published not found');
+                                }
+                                
+                                console.log('Initializing bracket...');
+                                
+                                bracketElement.bracket({
+                                    init: window.publishedBracketData.bracketData,
+                                    teamWidth: 170,
+                                    scoreWidth: 30,
+                                    roundMargin: 40,
+                                    skipConsolationRound: !window.publishedBracketData.hasThirdPlaceMatch
+                                });
+
+                                // Add round headers
+                                $('#bracketVisual_Published .round').each(function(index) {
+                                    var headers = window.publishedBracketData.roundHeaders;
+                                    if (headers && headers[index]) {
+                                        if ($(this).find('.round-header').length === 0) {
+                                            $(this).prepend('<div class="round-header">' + headers[index] + '</div>');
+                                        }
+                                    }
+                                });
+                                
+                                console.log('Bracket initialized successfully!');
+                                
+                                // Clean up
+                                window.publishedBracketDataReady = false;
+                                
+                            } catch (e) {
+                                console.error('Error initializing bracket:', e);
+                                console.error('Stack:', e.stack);
+                                drawContainer.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <strong>Error:</strong> Could not initialize bracket visualization.
+                                        <br><small>${e.message}</small>
+                                        <br><br>
+                                        <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                    </div>
+                                `;
+                            }
+                        } else if (window.publishedBracketDataReady === false && !window.publishedBracketData) {
+                            // Pool Play format - data is already displayed, no bracket needed
+                            console.log('Pool Play format detected - no bracket initialization needed');
+                        } else {
+                            console.error('Bracket data not ready');
+                            console.log('Full window object keys:', Object.keys(window));
+                            drawContainer.innerHTML = `
+                                <div class="alert alert-warning">
+                                    <strong>Warning:</strong> Draw data is not available.
+                                    <br><small>publishedBracketDataReady: ${window.publishedBracketDataReady}</small>
+                                    <br><small>publishedBracketData exists: ${!!window.publishedBracketData}</small>
+                                    <br><br>
+                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                </div>
+                            `;
+                        }
+                    }, 100);
+                })
+                .catch(error => {
+                    console.error('Failed to load draw visual:', error);
+                    drawContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> Could not load the draw.
+                            <br><small>${error.message}</small>
+                            <br><br>
+                            <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                        </div>
+                    `;
+                });
+        }
+    });
 }
     </script>
 }

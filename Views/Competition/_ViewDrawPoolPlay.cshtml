@@ -1,0 +1,73 @@
+@using PicklePlay.Models.ViewModels
+@model DrawPoolPlayViewModel
+
+<style>
+    .pool-list {
+        list-style-type: none;
+        padding: 10px;
+        border: 1px solid #ddd;
+        background-color: #fdfdfd;
+        border-radius: 8px;
+        min-height: 100px;
+    }
+    .team-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: #fff;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        margin-bottom: 5px;
+    }
+    .team-item:last-child {
+        margin-bottom: 0;
+    }
+    .team-item img {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 8px;
+    }
+</style>
+
+<h5 class="mb-3">Published Pool Assignments</h5>
+
+<div class="row">
+    @foreach (var pool in Model.Pools.OrderBy(p => p.PoolName))
+    {
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">@pool.PoolName</h5>
+                </div>
+                <div class="card-body">
+                    <div class="pool-list">
+                        @if (!pool.Teams.Any())
+                        {
+                            <p class="text-muted fst-italic p-2">No teams assigned to this pool.</p>
+                        }
+                        else
+                        {
+                            @foreach (var team in pool.Teams.OrderBy(t => t.TeamName))
+                            {
+                                <div class="team-item">
+                                    <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" />
+                                    <span>@team.TeamName</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+(function() {
+    console.log('_ViewDrawPoolPlay loaded - Pool Play format does not need bracket initialization');
+    // Pool Play doesn't use the bracket plugin, so we just set a flag
+    window.publishedBracketDataReady = false; // Not applicable for Pool Play
+})();
+</script>

@@ -4,17 +4,51 @@
     ViewData["Title"] = "Pool Play Draw";
 }
 
+<style>
+    .pool-list {
+        list-style-type: none;
+        padding: 10px;
+        border: 1px solid #ddd;
+        background-color: #fdfdfd;
+        border-radius: 8px;
+        min-height: 150px; /* Ensures empty pools are a drop target */
+    }
+    .team-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: #fff;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        cursor: grab;
+    }
+    .team-item:last-child {
+        margin-bottom: 0;
+    }
+    .team-item.sortable-ghost {
+        opacity: 0.4;
+        background-color: #d1e7dd;
+    }
+    .team-item img {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 8px;
+    }
+</style>
+
 <div class="container mt-4">
 
     @if (TempData["SuccessMessage"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type"button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2>@ViewData["Title"]</h2>
@@ -27,15 +61,24 @@
             <button type="button" class="btn btn-primary" onclick="document.getElementById('saveDrawForm').submit();">
                 <i class="bi bi-save"></i> Save Draw
             </button>
+
+            <form asp-action="PublishDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId" method="post" class="d-inline"
+                  onsubmit="return confirm('Are you sure you want to publish this draw? This will make it visible to all participants.');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send-check"></i> Publish Draw
+                </button>
+            </form>
         </div>
     </div>
-    <p>Teams have been randomly assigned to pools. You can adjust the pools using the dropdowns and click "Save Draw".</p>
+    <p>You can drag and drop teams between pools and click "Save Draw".</p>
     <hr />
 
-    <!-- Form for Saving Changes -->
     <form id="saveDrawForm" asp-action="SavePoolDraw" asp-controller="Draw" method="post">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="ScheduleId" />
+        
+        <div id="hiddenInputsContainer"></div>
 
         <div class="row">
             @foreach (var pool in Model.Pools)
@@ -45,24 +88,17 @@
                         <div class="card-header bg-primary text-white">
                             <h5 class="mb-0">@pool.PoolName</h5>
                         </div>
-                        <div class="list-group list-group-flush">
-                            @foreach (var team in Model.Pools.SelectMany(p => p.Teams).Where(t => t.PoolId == pool.PoolId))
-                            {
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>
-                                        <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px;" />
+                        <div class="card-body">
+                            <div class="pool-list" data-pool-id="@pool.PoolId">
+                                @foreach (var team in pool.Teams)
+                                {
+                                    <div class="team-item" data-team-id="@team.TeamId">
+                                        <i class="bi bi-grip-vertical me-2"></i>
+                                        <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" />
                                         @team.TeamName
-                                    </span>
-                                    
-                                    <!-- *** MODIFIED THIS LINE *** -->
-                                    <select name="TeamPoolSelections[@team.TeamId]" class="form-select form-select-sm" style="width: 120px;">
-                                        @foreach (var p in Model.Pools)
-                                        {
-                                            <option value="@p.PoolId" selected="@(p.PoolId == team.PoolId)">@p.PoolName</option>
-                                        }
-                                    </select>
-                                </div>
-                            }
+                                    </div>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -70,3 +106,54 @@
         </div>
     </form>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const hiddenInputsContainer = document.getElementById('hiddenInputsContainer');
+            const poolLists = document.querySelectorAll('.pool-list');
+
+            // --- 1. Initialize Sortable on all pool lists ---
+            poolLists.forEach(list => {
+                new Sortable(list, {
+                    group: 'shared-pools', // Allows dragging between lists
+                    animation: 150,
+                    onAdd: function (evt) {
+                        // When a team is added to this list
+                        const item = evt.item;
+                        const teamId = item.dataset.teamId;
+                        const newPoolId = evt.to.dataset.poolId;
+                        
+                        // Update the hidden input for this team
+                        updateHiddenInput(teamId, newPoolId);
+                    }
+                });
+            });
+
+            // --- 2. Helper function to create/update hidden inputs ---
+            function updateHiddenInput(teamId, poolId) {
+                // The name "TeamPoolSelections" matches your SavePoolDraw action
+                const inputName = `TeamPoolSelections[${teamId}]`;
+                let input = document.querySelector(`input[name="${inputName}"]`);
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = inputName;
+                    hiddenInputsContainer.appendChild(input);
+                }
+                input.value = poolId;
+            }
+
+            // --- 3. Initialize hidden inputs for all teams on page load ---
+            poolLists.forEach(list => {
+                const poolId = list.dataset.poolId;
+                list.querySelectorAll('.team-item').forEach(teamItem => {
+                    const teamId = teamItem.dataset.teamId;
+                    updateHiddenInput(teamId, poolId);
+                });
+            });
+        });
+    </script>
+}

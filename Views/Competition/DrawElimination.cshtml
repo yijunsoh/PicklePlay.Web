@@ -17,7 +17,10 @@
     else if (Model.TotalSeeds > 8) bracketSize = 16;
     
     // --- Create team lookup dictionary ---
-    var teamLookup = Model.Teams.ToDictionary(t => t.BracketSeed ?? 0, t => t);
+   // --- Create team lookup dictionary (safely ignoring null seeds) ---
+    var teamLookup = Model.Teams
+                          .Where(t => t.BracketSeed.HasValue)
+                          .ToDictionary(t => t.BracketSeed!.Value, t => t);
     
     // --- List for drag-and-drop ---
     var seededSlots = new List<Team?>(bracketSize + 1);
@@ -213,6 +216,13 @@ team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
             <button type="button" class="btn btn-primary" onclick="document.getElementById('saveBracketForm').submit();">
                 <i class="bi bi-save"></i> Save Bracket
             </button>
+            <form asp-action="PublishDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId" method="post" class="d-inline"
+                  onsubmit="return confirm('Are you sure you want to publish this draw? This will make it visible to all participants.');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send-check"></i> Publish Draw
+                </button>
+            </form>
         </div>
     </div>
     <p>Drag and drop teams between the "Seed Slots" to set the draw. Teams will swap places.</p>

@@ -138,6 +138,30 @@ namespace PicklePlay.Controllers
             }
         }
 
+        // --- *** START: NEW ACTION TO PUBLISH DRAW *** ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PublishDraw(int id)
+        {
+            var competition = await _context.Competitions.FirstOrDefaultAsync(c => c.ScheduleId == id);
+            if (competition != null)
+            {
+                // You will need to add this 'DrawPublished' property to your Competition.cs model file
+                // e.g., public bool DrawPublished { get; set; } = false;
+                competition.DrawPublished = true;
+                _context.Update(competition);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Draw has been published! It is now visible to participants.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Could not find competition to publish.";
+            }
+            return RedirectToAction("GenerateDraw", new { id = id });
+        }
+        // --- *** END: NEW ACTION *** ---
+
+
         // --- Pool Play Actions ---
         private async Task CreatePoolsAsync(Schedule schedule, List<Team> teams)
         {
@@ -235,18 +259,18 @@ namespace PicklePlay.Controllers
             var allTeams = await _context.Teams
                                  .Where(t => t.ScheduleId == vm.ScheduleId && t.Status == TeamStatus.Confirmed)
                                  .ToListAsync();
-            
+
             foreach (var team in allTeams)
             {
                 team.BracketSeed = null;
             }
-            
+
             foreach (var assignment in vm.SeedAssignments)
             {
                 var seed = assignment.Key;
                 var teamId = assignment.Value;
 
-                if (teamId == 0) continue; 
+                if (teamId == 0) continue;
 
                 var team = allTeams.FirstOrDefault(t => t.TeamId == teamId);
                 if (team != null)
@@ -254,12 +278,123 @@ namespace PicklePlay.Controllers
                     team.BracketSeed = seed;
                 }
             }
-            
+
             _context.Teams.UpdateRange(allTeams);
             await _context.SaveChangesAsync();
-            
+
             TempData["SuccessMessage"] = "Elimination draw has been saved!";
             return RedirectToAction("GenerateDraw", new { id = vm.ScheduleId });
         }
+
+        // Replace your ViewPublishedDraw action with this fixed version:
+
+[HttpGet]
+public async Task<IActionResult> ViewPublishedDraw(int id)
+{
+    try
+    {
+        Console.WriteLine($"ViewPublishedDraw called for Schedule ID: {id}");
+        
+        // 1. Load schedule
+        var schedule = await _context.Schedules
+            .AsNoTracking()
+            .Include(s => s.Teams.Where(t => t.Status == TeamStatus.Confirmed))
+            .ThenInclude(t => t.Captain)
+            .FirstOrDefaultAsync(s => s.ScheduleId == id);
+
+        if (schedule == null)
+        {
+            Console.WriteLine("ERROR: Schedule not found");
+            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Competition not found.");
+        }
+
+        // 2. Load Competition separately
+        var competition = await _context.Competitions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ScheduleId == id);
+            
+        schedule.Competition = competition;
+
+        if (schedule.Competition == null)
+        {
+            Console.WriteLine("ERROR: Competition details missing");
+            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Competition details are missing.");
+        }
+        
+        Console.WriteLine($"Competition Format: {schedule.Competition.Format}");
+        Console.WriteLine($"Draw Published: {schedule.Competition.DrawPublished}");
+        
+        if (!schedule.Competition.DrawPublished)
+        {
+            Console.WriteLine("ERROR: Draw not published");
+            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "The draw has not been published yet.");
+        }
+
+        var confirmedTeams = schedule.Teams.Where(t => t.Status == TeamStatus.Confirmed).ToList();
+        Console.WriteLine($"Confirmed Teams Count: {confirmedTeams.Count}");
+
+        switch (schedule.Competition.Format)
+        {
+            case CompetitionFormat.PoolPlay:
+                Console.WriteLine("Loading Pool Play draw...");
+                
+                var pools = await _context.Pools
+                    .AsNoTracking()
+                    .Where(p => p.ScheduleId == id)
+                    .Include(p => p.Teams)
+                    .ThenInclude(t => t.Captain)
+                    .ToListAsync();
+
+                Console.WriteLine($"Pools loaded: {pools.Count}");
+
+                var poolViewModel = new DrawPoolPlayViewModel
+                {
+                    ScheduleId = schedule.ScheduleId,
+                    CompetitionName = schedule.GameName,
+                    Pools = pools,
+                    UnassignedTeams = new List<Team>()
+                };
+                
+                return PartialView("~/Views/Competition/_ViewDrawPoolPlay.cshtml", poolViewModel);
+
+            case CompetitionFormat.Elimination:
+                Console.WriteLine("Loading Elimination draw...");
+                Console.WriteLine($"HasThirdPlaceMatch: {schedule.Competition.ThirdPlaceMatch}");
+                
+                var elimViewModel = new DrawEliminationViewModel
+                {
+                    ScheduleId = schedule.ScheduleId,
+                    CompetitionName = schedule.GameName,
+                    Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
+                    TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count,
+                    HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch
+                };
+                
+                Console.WriteLine($"ViewModel created with {elimViewModel.Teams.Count} teams");
+                
+                return PartialView("~/Views/Competition/_ViewDrawElimination.cshtml", elimViewModel);
+
+            case CompetitionFormat.RoundRobin:
+                Console.WriteLine("Round Robin - no draw needed");
+                return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Draws are not applicable for Round Robin format.");
+
+            default:
+                Console.WriteLine($"ERROR: Unknown format - {schedule.Competition.Format}");
+                return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Unknown competition format.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"EXCEPTION in ViewPublishedDraw: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+        }
+        
+        return PartialView("~/Views/Competition/_ViewDrawError.cshtml", $"An error occurred: {ex.Message}");
+    }
+}
     }
 }
