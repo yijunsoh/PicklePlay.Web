@@ -15,6 +15,12 @@ namespace PicklePlay.Data
         public DbSet<EscrowDispute> EscrowDisputes { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Competition> Competitions { get; set; }
+        public DbSet<Community> Communities { get; set; }
+        public DbSet<CommunityRequest> CommunityRequests { get; set; }
+        public DbSet<CommunityMember> CommunityMembers { get; set; }
+        public DbSet<CommunityBlockList> CommunityBlockLists { get; set; }
+        public DbSet<CommunityAnnouncement> CommunityAnnouncements { get; set; }
+        public DbSet<CommunityInvitation> CommunityInvitations{ get; set; }
         
         public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
         public virtual DbSet<Bookmark> Bookmarks { get; set; }
