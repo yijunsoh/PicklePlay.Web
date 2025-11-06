@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Collections.Generic;
 using System;
+using static PicklePlay.ViewModels.CommunityAdminDashboardViewModel;
 
 namespace PicklePlay.Controllers
 {
@@ -238,7 +239,6 @@ namespace PicklePlay.Controllers
         }
 
 
-        // POST: /Communities/SubmitCommunityRequest (No changes needed)
         // POST: /Communities/SubmitCommunityRequest
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -257,7 +257,6 @@ namespace PicklePlay.Controllers
                 return BadRequest(new { success = false, message = "Community name is required." });
 
             // 1) Block if same name already exists in Communities (accepted/active community)
-            //    (Your MySQL collation likely already compares case-insensitively; equality is fine.)
             var existsCommunity = await _context.Communities
                 .AnyAsync(c => c.CommunityName == name);
 
@@ -316,16 +315,6 @@ namespace PicklePlay.Controllers
             }
         }
 
-
-        // // GET: /Communities/CommunityAdminDashboard (New action to display the admin view)
-        // public IActionResult CommunityAdminDashboard(int communityId)
-        // {
-        //     // Note: In a production app, add an authorization check here 
-        //     // (e.g., check if current user is an 'Admin' role in this specific 'communityId')
-        //     ViewBag.CommunityId = communityId;
-        //     return View("~/Views/Community/CommunityAdminDashboard.cshtml");
-        // }
-
         // GET: /Communities/CommunityAdminDashboard
         [HttpGet]
         public async Task<IActionResult> CommunityAdminDashboard(int communityId)
@@ -340,8 +329,7 @@ namespace PicklePlay.Controllers
             if (c == null) return NotFound();
 
             // ---- Resolve current user id robustly (Session -> Claims -> Username lookup) ----
-            int currentUserId =
-                HttpContext.Session.GetInt32("UserId") ?? 0;
+            int currentUserId = HttpContext.Session.GetInt32("UserId") ?? 0;
 
             if (currentUserId == 0)
             {
@@ -351,11 +339,9 @@ namespace PicklePlay.Controllers
             }
             if (currentUserId == 0)
             {
-                // Optional: try username lookup if your session stores it or Identity.Name is set
                 var uname = HttpContext.Session.GetString("Username") ?? User?.Identity?.Name;
                 if (!string.IsNullOrWhiteSpace(uname))
                 {
-                    // Adjust entity/prop names if different
                     currentUserId = await _context.Users
                         .Where(u => u.Username == uname)
                         .Select(u => u.UserId)
@@ -391,6 +377,7 @@ namespace PicklePlay.Controllers
                     {
                         Id = a.AnnouncementId,
                         Title = a.Title,
+                        Content = a.Content, // ADDED THIS LINE
                         PostDate = a.PostDate,
                         PosterUserId = a.PosterUserId,
                         PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}"
@@ -427,7 +414,6 @@ namespace PicklePlay.Controllers
             }
             else if (currentUserId != 0 && c.CreateByUserId == currentUserId)
             {
-                // Community creator without an explicit membership row = Admin
                 vm.CurrentUserRole = "Admin";
             }
             else
@@ -435,7 +421,6 @@ namespace PicklePlay.Controllers
                 vm.CurrentUserRole = "Member";
             }
 
-            // Optional: provide a tiny "latest" subset if you need it somewhere else
             vm.LatestMembers = vm.Members
                 .OrderByDescending(m => m.JoinDate)
                 .Take(8)
@@ -444,11 +429,10 @@ namespace PicklePlay.Controllers
             return View("~/Views/Community/CommunityAdminDashboard.cshtml", vm);
         }
 
-
+        // GET: /Communities/GetCommunityAdminData
         [HttpGet]
         public async Task<IActionResult> GetCommunityAdminData(int communityId)
         {
-            // Optional: verify current user is an Admin/Moderator of this community before exposing details
             var community = await _context.Communities
                 .Include(c => c.Creator)
                 .Include(c => c.Memberships)
@@ -488,11 +472,26 @@ namespace PicklePlay.Controllers
                     {
                         Id = a.AnnouncementId,
                         Title = a.Title,
+                        Content = a.Content,
                         PostDate = a.PostDate,
                         PosterUserId = a.PosterUserId,
                         PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}"
                     })
                     .ToList(),
+
+                // --- AMENDED: Include the full Members list for client-side table refresh ---
+                Members = community.Memberships
+                    .OrderByDescending(m => m.JoinDate)
+                    .Select(m => new CommunityAdminDashboardViewModel.MemberItem
+                    {
+                        UserId = m.UserId,
+                        UserName = m.User?.Username ?? $"User #{m.UserId}",
+                        Role = m.CommunityRole,
+                        Status = m.Status,
+                        JoinDate = m.JoinDate
+                    })
+                    .ToList(),
+                // --------------------------------------------------------------------------
 
                 LatestMembers = community.Memberships
                     .OrderByDescending(m => m.JoinDate)
@@ -502,12 +501,606 @@ namespace PicklePlay.Controllers
                         UserId = m.UserId,
                         UserName = m.User?.Username ?? $"User #{m.UserId}",
                         Role = m.CommunityRole,
+                        Status = m.Status, // Added status for consistency
                         JoinDate = m.JoinDate
                     })
                     .ToList()
             };
 
             return Ok(new { success = true, data = vm });
+        }
+
+        // POST: /Communities/CreateAnnouncement
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateAnnouncement([FromForm] CommunityAdminDashboardViewModel.CreateAnnouncementViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { success = false, message = "Invalid data submitted.", errors = ModelState.Values.SelectMany(v => v.Errors) });
+            }
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
+
+                if (community == null)
+                {
+                    return NotFound(new { success = false, message = "Community not found." });
+                }
+
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+
+                var isCreator = community.CreateByUserId == userId;
+
+                if (userMembership == null && !isCreator)
+                {
+                    return Forbid("You don't have permission to create announcements in this community.");
+                }
+
+                // Set Malaysia timezone (UTC+8)
+                var malaysiaTime = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kuala_Lumpur");
+                var malaysiaNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, malaysiaTime);
+
+                var announcement = new CommunityAnnouncement
+                {
+                    CommunityId = model.CommunityId,
+                    PosterUserId = userId,
+                    Title = model.Title.Trim(),
+                    Content = model.Content.Trim(),
+                    PostDate = malaysiaNow,
+                    ExpiryDate = model.ExpiryDate?.ToUniversalTime() // Store expiry date in UTC
+                };
+
+                _context.CommunityAnnouncements.Add(announcement);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Announcement created successfully!",
+                    announcementId = announcement.AnnouncementId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error creating announcement: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while creating the announcement."
+                });
+            }
+        }
+
+        // POST: /Communities/AssignRole
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            // Validate role
+            if (string.IsNullOrWhiteSpace(request.NewRole) || (request.NewRole != "Admin" && request.NewRole != "Member"))
+            {
+                return BadRequest(new { success = false, message = "Invalid role specified. Must be Admin or Member." });
+            }
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to assign roles in this community.");
+                }
+
+                // Find the target membership
+                var targetMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == request.UserId &&
+                                             cm.Status == "Active");
+
+                if (targetMembership == null)
+                {
+                    return NotFound(new { success = false, message = "Member not found or inactive." });
+                }
+
+                // Prevent role changes on community creator
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
+
+                if (community != null && targetMembership.UserId == community.CreateByUserId)
+                {
+                    return BadRequest(new { success = false, message = "Cannot change the role of the community creator." });
+                }
+
+                // ALLOW self-role changes (admin can demote themselves to member)
+                // Update the role
+                string oldRole = targetMembership.CommunityRole;
+                targetMembership.CommunityRole = request.NewRole;
+                _context.CommunityMembers.Update(targetMembership);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Member role has been successfully changed from {oldRole} to {request.NewRole}.",
+                    userId = request.UserId,
+                    newRole = request.NewRole
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error assigning role: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating the member role."
+                });
+            }
+        }
+
+
+
+
+        // POST: /Communities/KickMember
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> KickMember([FromBody] KickMemberRequest request)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to kick members from this community.");
+                }
+
+                // Find the target membership
+                var targetMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == request.UserId &&
+                                             cm.Status == "Active");
+
+                if (targetMembership == null)
+                {
+                    return NotFound(new { success = false, message = "Member not found or already inactive." });
+                }
+
+                // Prevent kicking the community creator
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
+
+                if (community != null && targetMembership.UserId == community.CreateByUserId)
+                {
+                    return BadRequest(new { success = false, message = "Cannot kick the community creator." });
+                }
+
+                // ALLOW self-kicking (admin can remove themselves)
+                // Update status to Inactive (soft delete)
+                targetMembership.Status = "Inactive";
+                _context.CommunityMembers.Update(targetMembership);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Member has been successfully removed from the community.",
+                    userId = request.UserId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error kicking member: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while removing the member."
+                });
+            }
+        }
+
+
+
+        // POST: /Communities/BlockMember
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BlockMember(int communityId, int userId, string? blockReason = null)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to block members in this community.");
+                }
+
+                // Find the target membership
+                var targetMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active");
+
+                if (targetMembership == null)
+                {
+                    return NotFound(new { success = false, message = "Member not found or already inactive." });
+                }
+
+                // Prevent blocking yourself
+                if (targetMembership.UserId == currentUserId)
+                {
+                    return BadRequest(new { success = false, message = "You cannot block yourself." });
+                }
+
+                // Prevent blocking the community creator
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == communityId);
+
+                if (community != null && targetMembership.UserId == community.CreateByUserId)
+                {
+                    return BadRequest(new { success = false, message = "Cannot block the community creator." });
+                }
+
+                // Check if user is already blocked
+                var existingBlock = await _context.CommunityBlockLists
+                    .FirstOrDefaultAsync(b => b.CommunityId == communityId && b.UserId == userId);
+
+                if (existingBlock != null)
+                {
+                    return BadRequest(new { success = false, message = "This user is already blocked." });
+                }
+
+                // Add to blocked users table
+                var blockedUser = new CommunityBlockList
+                {
+                    CommunityId = communityId,
+                    UserId = userId,
+                    BlockByAdminId = currentUserId,
+                    BlockReason = blockReason ?? "Blocked by admin",
+                    BlockDate = DateTime.UtcNow
+                };
+                _context.CommunityBlockLists.Add(blockedUser);
+
+                // Also set membership to inactive
+                targetMembership.Status = "Inactive";
+                _context.CommunityMembers.Update(targetMembership);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Member has been successfully blocked and removed from the community.",
+                    userId = userId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error blocking member: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while blocking the member."
+                });
+            }
+        }
+
+        // POST: /Communities/UnblockMember
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UnblockMember(int communityId, int userId)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to unblock members in this community.");
+                }
+
+                // Find the block record
+                var blockRecord = await _context.CommunityBlockLists
+                    .FirstOrDefaultAsync(b => b.CommunityId == communityId && b.UserId == userId);
+
+                if (blockRecord == null)
+                {
+                    return NotFound(new { success = false, message = "User is not blocked in this community." });
+                }
+
+                // Remove from blocked users table
+                _context.CommunityBlockLists.Remove(blockRecord);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "User has been successfully unblocked and can now rejoin the community.",
+                    userId = userId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error unblocking member: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while unblocking the user."
+                });
+            }
+        }
+
+        // POST: /Communities/EditAnnouncement
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditAnnouncement([FromForm] CommunityAdminDashboardViewModel.EditAnnouncementViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
+            }
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var announcement = await _context.CommunityAnnouncements
+                    .FirstOrDefaultAsync(a => a.AnnouncementId == model.AnnouncementId && a.CommunityId == model.CommunityId);
+
+                if (announcement == null)
+                {
+                    return NotFound(new { success = false, message = "Announcement not found." });
+                }
+
+                // Verify user has permission to edit this announcement
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+
+                var isCreator = announcement.PosterUserId == userId;
+                var isCommunityCreator = await _context.Communities
+                    .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+
+                if (userMembership == null && !isCreator && !isCommunityCreator)
+                {
+                    return Forbid("You don't have permission to edit this announcement.");
+                }
+
+                // Update announcement
+                announcement.Title = model.Title.Trim();
+                announcement.Content = model.Content.Trim();
+                announcement.ExpiryDate = model.ExpiryDate?.ToUniversalTime();
+
+                _context.CommunityAnnouncements.Update(announcement);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Announcement updated successfully!",
+                    announcementId = announcement.AnnouncementId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error editing announcement: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating the announcement."
+                });
+            }
+        }
+
+        // POST: /Communities/DeleteAnnouncement
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAnnouncement([FromForm] CommunityAdminDashboardViewModel.DeleteAnnouncementViewModel model)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var announcement = await _context.CommunityAnnouncements
+                    .FirstOrDefaultAsync(a => a.AnnouncementId == model.AnnouncementId && a.CommunityId == model.CommunityId);
+
+                if (announcement == null)
+                {
+                    return NotFound(new { success = false, message = "Announcement not found." });
+                }
+
+                // Verify user has permission to delete this announcement
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+
+                var isCreator = announcement.PosterUserId == userId;
+                var isCommunityCreator = await _context.Communities
+                    .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+
+                if (userMembership == null && !isCreator && !isCommunityCreator)
+                {
+                    return Forbid("You don't have permission to delete this announcement.");
+                }
+
+                _context.CommunityAnnouncements.Remove(announcement);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Announcement deleted successfully!"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error deleting announcement: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while deleting the announcement."
+                });
+            }
+        }
+
+        // POST: /Communities/ToggleAnnouncementVisibility
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleAnnouncementVisibility(int announcementId, int communityId)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var announcement = await _context.CommunityAnnouncements
+                    .FirstOrDefaultAsync(a => a.AnnouncementId == announcementId && a.CommunityId == communityId);
+
+                if (announcement == null)
+                {
+                    return NotFound(new { success = false, message = "Announcement not found." });
+                }
+
+                // Verify user has permission to modify this announcement
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+
+                var isCreator = announcement.PosterUserId == userId;
+                var isCommunityCreator = await _context.Communities
+                    .AnyAsync(c => c.CommunityId == communityId && c.CreateByUserId == userId);
+
+                if (userMembership == null && !isCreator && !isCommunityCreator)
+                {
+                    return Forbid("You don't have permission to modify this announcement.");
+                }
+
+                // For simplicity, we'll use ExpiryDate to control visibility
+                // If ExpiryDate is in past, announcement is "hidden"
+                if (announcement.ExpiryDate.HasValue && announcement.ExpiryDate < DateTime.UtcNow)
+                {
+                    // Make visible by clearing expiry date
+                    announcement.ExpiryDate = null;
+                }
+                else
+                {
+                    // Hide by setting expiry to past
+                    announcement.ExpiryDate = DateTime.UtcNow.AddMinutes(-1);
+                }
+
+                _context.CommunityAnnouncements.Update(announcement);
+                await _context.SaveChangesAsync();
+
+                var isNowVisible = announcement.ExpiryDate == null || announcement.ExpiryDate > DateTime.UtcNow;
+
+                return Ok(new
+                {
+                    success = true,
+                    message = isNowVisible ? "Announcement is now visible!" : "Announcement is now hidden!",
+                    isVisible = isNowVisible
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error toggling announcement visibility: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating the announcement."
+                });
+            }
         }
     }
 }

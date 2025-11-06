@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace PicklePlay.ViewModels
 {
@@ -41,6 +42,7 @@ namespace PicklePlay.ViewModels
         {
             public int Id { get; set; }
             public string Title { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty; // ADD THIS PROPERTY
             public DateTime PostDate { get; set; }
             public int PosterUserId { get; set; }
             public string PosterName { get; set; } = string.Empty;
@@ -49,20 +51,78 @@ namespace PicklePlay.ViewModels
         public class MemberItem
         {
             public int UserId { get; set; }
-            public string UserName { get; set; } = string.Empty; // from User.FullName (or Username)
-            public string Role { get; set; } = "Member";          // CommunityMember.CommunityRole
-            public string Status { get; set; } = "Active";        // CommunityMember.Status
+            public string UserName { get; set; } = string.Empty;
+            public string Role { get; set; } = "Member";
+            public string Status { get; set; } = "Active";
             public DateTime JoinDate { get; set; }
         }
 
         public class JoinRequestItem
         {
-            // If requests live in CommunityMember with Status="Pending",
-            // map MemberId -> RequestId, JoinDate -> RequestedDate.
             public int RequestId { get; set; }
             public int UserId { get; set; }
             public string Username { get; set; } = string.Empty;
             public DateTime RequestedDate { get; set; }
+        }
+
+        // --- Create Announcement ViewModel ---
+        public class CreateAnnouncementViewModel
+        {
+            [Required]
+            public int CommunityId { get; set; }
+
+            [Required(ErrorMessage = "Title is required")]
+            [MaxLength(255, ErrorMessage = "Title cannot exceed 255 characters")]
+            public string Title { get; set; } = null!;
+
+            [Required(ErrorMessage = "Content is required")]
+            public string Content { get; set; } = null!;
+
+            public DateTime? ExpiryDate { get; set; }
+        }
+
+        // Add these to your existing ViewModel
+
+        public class EditAnnouncementViewModel
+        {
+            [Required]
+            public int AnnouncementId { get; set; }
+
+            [Required]
+            public int CommunityId { get; set; }
+
+            [Required(ErrorMessage = "Title is required")]
+            [MaxLength(255, ErrorMessage = "Title cannot exceed 255 characters")]
+            public string Title { get; set; } = null!;
+
+            [Required(ErrorMessage = "Content is required")]
+            public string Content { get; set; } = null!;
+
+            public DateTime? ExpiryDate { get; set; }
+
+            public bool IsActive { get; set; } = true;
+        }
+
+        public class DeleteAnnouncementViewModel
+        {
+            [Required]
+            public int AnnouncementId { get; set; }
+
+            [Required]
+            public int CommunityId { get; set; }
+        }
+
+        public class AssignRoleRequest
+        {
+            public int CommunityId { get; set; }
+            public int UserId { get; set; }
+            public string NewRole { get; set; } = null!;
+        }
+
+        public class KickMemberRequest
+        {
+            public int CommunityId { get; set; }
+            public int UserId { get; set; }
         }
     }
 }
