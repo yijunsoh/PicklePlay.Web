@@ -16,10 +16,12 @@
         margin-bottom: 0.75rem;
         background-color: #fff;
     }
+
     .notification-content {
         display: flex;
         align-items: center;
     }
+
     .notification-content img {
         width: 45px;
         height: 45px;
@@ -27,9 +29,11 @@
         object-fit: cover;
         margin-right: 12px;
     }
+
     .notification-actions .btn {
         margin-left: 0.5rem;
     }
+
     .friend-list-item {
         display: flex;
         align-items: center;
@@ -37,6 +41,7 @@
         padding: 0.75rem 1rem;
         border-bottom: 1px solid #eee;
     }
+
     .friend-list-item:last-child {
         border-bottom: 0;
     }
@@ -48,7 +53,9 @@
     <!-- Main Hub Tabs -->
     <ul class="nav nav-tabs" id="hubTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications-pane" type="button" role="tab" aria-controls="notifications-pane" aria-selected="true">
+            <button class="nav-link active" id="notifications-tab" data-bs-toggle="tab"
+                data-bs-target="#notifications-pane" type="button" role="tab" aria-controls="notifications-pane"
+                aria-selected="true">
                 Notifications
                 @{
                     int notificationCount = Model.PendingTeamInvitations.Count + Model.PendingFriendRequests.Count;
@@ -60,13 +67,15 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="friends-tab" data-bs-toggle="tab" data-bs-target="#friends-pane" type="button" role="tab" aria-controls="friends-pane" aria-selected="false">
+            <button class="nav-link" id="friends-tab" data-bs-toggle="tab" data-bs-target="#friends-pane" type="button"
+                role="tab" aria-controls="friends-pane" aria-selected="false">
                 Friends
                 <span class="badge bg-secondary ms-1">@Model.Friends.Count</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane" type="button" role="tab" aria-controls="chat-pane" aria-selected="false">
+            <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane"
+                type="button" role="tab" aria-controls="chat-pane" aria-selected="false">
                 Chat (Future)
             </button>
         </li>
@@ -74,9 +83,10 @@
 
     <!-- Tab Content -->
     <div class="tab-content" id="hubTabsContent">
-        
+
         <!-- Notifications Pane -->
-        <div class="tab-pane fade show active" id="notifications-pane" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
+        <div class="tab-pane fade show active" id="notifications-pane" role="tabpanel"
+            aria-labelledby="notifications-tab" tabindex="0">
             <div class="pt-4">
                 @if (notificationCount == 0)
                 {
@@ -91,7 +101,8 @@
                     {
                         <div class="notification-list-item shadow-sm">
                             <div class="notification-content">
-                                <img src="@(string.IsNullOrEmpty(inv.Inviter?.ProfilePicture) ? "/images/profile_image.jpg" : inv.Inviter.ProfilePicture)" alt="@inv.Inviter?.Username profile" />
+                                <img src="@(string.IsNullOrEmpty(inv.Inviter?.ProfilePicture) ? "/images/profile_image.jpg" : inv.Inviter.ProfilePicture)"
+                                    alt="@inv.Inviter?.Username profile" />
                                 <div>
                                     <strong>@inv.Inviter?.Username</strong> has invited you to join
                                     <strong>@inv.Team?.TeamName</strong>.
@@ -121,7 +132,8 @@
                     {
                         <div class="notification-list-item shadow-sm">
                             <div class="notification-content">
-                                <img src="@(string.IsNullOrEmpty(req.UserOne?.ProfilePicture) ? "/images/profile_image.jpg" : req.UserOne.ProfilePicture)" alt="@req.UserOne?.Username profile" />
+                                <img src="@(string.IsNullOrEmpty(req.UserOne?.ProfilePicture) ? "/images/profile_image.jpg" : req.UserOne.ProfilePicture)"
+                                    alt="@req.UserOne?.Username profile" />
                                 <div>
                                     <strong>@req.UserOne?.Username</strong> sent you a friend request.
                                 </div>
@@ -130,6 +142,41 @@
                                 <!-- Add Accept/Decline Friend Request forms here -->
                                 <button class="btn btn-sm btn-success" disabled>Accept</button>
                                 <button class="btn btn-sm btn-outline-danger" disabled>Decline</button>
+                            </div>
+                        </div>
+                    }
+                }
+
+                <!-- Community Invitations -->
+                @if (Model.PendingCommunityInvitations != null && Model.PendingCommunityInvitations.Any())
+                {
+                    <h5 class="my-3">Community Invitations</h5>
+                    @foreach (var invite in Model.PendingCommunityInvitations)
+                    {
+                        <div class="notification-list-item shadow-sm" id="invite-@invite.InvitationId">
+                            <div class="notification-content">
+                                <img src="@(string.IsNullOrEmpty(invite.Inviter?.ProfilePicture)
+                                                         ? "/images/profile_image.jpg"
+                                                         : invite.Inviter.ProfilePicture)" alt="@invite.Inviter?.Username profile" />
+                                <div>
+                                    <strong>@invite.Inviter?.Username</strong> invited you to join
+                                    <strong>@invite.Community?.CommunityName</strong>
+                                    as <span class="text-primary">@invite.Role</span>.
+                                    <div class="text-muted small">
+                                        @invite.DateSent.ToString("dd MMM yyyy, h:mm tt")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="notification-actions">
+                                @Html.AntiForgeryToken()
+                                <button type="button" class="btn btn-sm btn-success"
+                                    onclick="respondCommunityInvitation(@invite.InvitationId, 'Accept', this)">
+                                    Accept
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="respondCommunityInvitation(@invite.InvitationId, 'Decline', this)">
+                                    Decline
+                                </button>
                             </div>
                         </div>
                     }
@@ -156,7 +203,8 @@
 
                                 <div class="friend-list-item">
                                     <div class="notification-content">
-                                        <img src="@(string.IsNullOrEmpty(friendUser?.ProfilePicture) ? "/images/profile_image.jpg" : friendUser.ProfilePicture)" alt="@friendUser?.Username profile" />
+                                        <img src="@(string.IsNullOrEmpty(friendUser?.ProfilePicture) ? "/images/profile_image.jpg" : friendUser.ProfilePicture)"
+                                            alt="@friendUser?.Username profile" />
                                         <div>
                                             <strong>@friendUser?.Username</strong>
                                         </div>
@@ -180,3 +228,45 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    function getCsrfToken() {
+        const el = document.querySelector('input[name="__RequestVerificationToken"]');
+        return el ? el.value : null;
+    }
+
+    async function respondCommunityInvitation(invitationId, actionType, btn) {
+        const token = getCsrfToken();
+        if (!token) return alert('Missing token. Please refresh.');
+
+        btn.disabled = true;
+        btn.closest('.notification-actions')
+           ?.querySelectorAll('button').forEach(b => b.disabled = true);
+
+        try {
+            const res = await fetch('/Communities/RespondToInvitation', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({
+                    invitationId,
+                    actionType,
+                    __RequestVerificationToken: token
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                document.getElementById(`invite-${invitationId}`)?.remove();
+            } else {
+                alert(data.message || 'Action failed.');
+                btn.closest('.notification-actions')
+                   ?.querySelectorAll('button').forEach(b => b.disabled = false);
+            }
+        } catch {
+            alert('Network error.');
+            btn.closest('.notification-actions')
+               ?.querySelectorAll('button').forEach(b => b.disabled = false);
+        }
+    }
+</script>
+}

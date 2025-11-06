@@ -1,0 +1,256 @@
+@* Reusable Invite Modal
+   Usage in a page:
+   @await Html.PartialAsync("_InviteFriendModal", viewData: new ViewDataDictionary(ViewData)
+   {
+       ["InviteContext"] = "community",
+       ["InviteCommunityId"] = Model.CommunityId
+   })
+*@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    var context = (ViewData["InviteContext"] as string ?? "community").ToLowerInvariant();
+    var communityId = (int?)(ViewData["InviteCommunityId"]) ?? 0;   // used when context == "community"
+    var modalId = "_inviteMembersModal"; // stable id so JS can target it
+}
+
+@Html.AntiForgeryToken()
+
+<div class="modal fade" id="@modalId" tabindex="-1" aria-labelledby="inviteMembersLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="inviteMembersLabel">
+            Invite Players @(context == "community" ? "to Community" : "")
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Main invite form (AJAX handled; no page navigation) -->
+        <form id="_inviteForm">
+          @Html.AntiForgeryToken()
+          <input type="hidden" id="_inviteContext" value="@context" />
+          <input type="hidden" id="_inviteCommunityId" name="communityId" value="@(context=="community" ? communityId : 0)" />
+          <input type="hidden" id="_inviteTargetUserId" name="targetUserId" />
+
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label">Username or Email</label>
+              <input type="text" class="form-control" id="_inviteSearch" name="usernameOrEmail" placeholder="Type username or email..." />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Role</label>
+              <select id="_inviteRole" name="role" class="form-select">
+                <option value="Member" selected>Member</option>
+                <option value="Moderator">Moderator</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="submit" class="btn btn-success w-100">Invite</button>
+            </div>
+          </div>
+        </form>
+
+        <hr class="my-4" />
+
+        <!-- Suggestions -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Suggested Players (not already in this @(context))</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="_loadInviteSuggestions()">Refresh</button>
+        </div>
+
+        <div id="_inviteSuggestions" class="list-group"></div>
+        <div id="_inviteSuggestionsEmpty" class="text-muted" style="display:none;">No suggestions available.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- helpers ----
+  function _csrfToken() {
+    const el = document.querySelector('input[name="__RequestVerificationToken"]');
+    return el ? el.value : null;
+  }
+  function _escapeHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                      .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+                      .replace(/'/g,'&#39;');
+  }
+  function _showInfo(msg)  { alert(msg); }
+  function _showWarn(msg)  { alert('⚠️ ' + msg); }
+  function _showError(msg) { alert('❌ ' + msg); }
+
+  // ---- open modal from page button ----
+  window.openInviteModal = function(communityId) {
+    const ctx = (document.getElementById('_inviteContext')?.value || 'community').toLowerCase();
+    if (ctx === 'community' && communityId) {
+      document.getElementById('_inviteCommunityId').value = communityId;
+    }
+    // reset fields
+    document.getElementById('_inviteTargetUserId').value = '';
+    document.getElementById('_inviteSearch').value = '';
+    document.getElementById('_inviteRole').value = 'Member';
+
+    _loadInviteSuggestions();
+    new bootstrap.Modal(document.getElementById('@modalId')).show();
+  };
+
+  // ---- load random 5 suggestions (not in community & no pending invite) ----
+  async function _loadInviteSuggestions() {
+    const ctx = (document.getElementById('_inviteContext')?.value || 'community').toLowerCase();
+    const container = document.getElementById('_inviteSuggestions');
+    const empty = document.getElementById('_inviteSuggestionsEmpty');
+
+    container.innerHTML = '<div class="text-muted">Loading suggestions…</div>';
+    empty.style.display = 'none';
+
+    try {
+      if (ctx === 'community') {
+        const communityId = document.getElementById('_inviteCommunityId').value;
+        const res = await fetch(`/Communities/InviteSuggestions?communityId=${communityId}`);
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Failed');
+        const list = data.data || [];
+        if (list.length === 0) {
+          container.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        container.innerHTML = list.map(_renderSuggestion).join('');
+      } else {
+        container.innerHTML = '<div class="text-muted">Not implemented for this context.</div>';
+      }
+    } catch (e) {
+      console.error(e);
+      container.innerHTML = '<div class="text-danger">Failed to load suggestions.</div>';
+    }
+  }
+
+  function _renderSuggestion(u) {
+    const safeName = _escapeHtml(u.username);
+    const safeEmail = _escapeHtml(u.email);
+    return `
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <div><strong>${safeName || '(no username)'}</strong></div>
+          <div class="text-muted small">${safeEmail || ''}</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-primary"
+                  onclick="_useSuggestion(${u.userId}, '${safeName}', '${safeEmail}')">
+            Use
+          </button>
+          <button class="btn btn-sm btn-success"
+                  onclick="_quickInvite(${u.userId})">
+            Invite
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Fill form with suggestion (prevents empty-field issue)
+  window._useSuggestion = function(userId, username, email) {
+    document.getElementById('_inviteTargetUserId').value = userId;
+    document.getElementById('_inviteSearch').value = username || email || '';
+  };
+
+  // ---- quick invite: POST by userId, stay on page (no "pretty print") ----
+  window._quickInvite = async function(userId) {
+    const token = _csrfToken();
+    if (!token) { _showError('Missing token, please refresh.'); return; }
+
+    try {
+      const communityId = document.getElementById('_inviteCommunityId').value;
+      const role = document.getElementById('_inviteRole').value;
+
+      const res = await fetch('/Communities/InviteMemberById', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: new URLSearchParams({
+          communityId: communityId,
+          inviteeId: userId,
+          role: role,
+          __RequestVerificationToken: token
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        _showInfo(data.message || 'Invitation sent.');
+        _loadInviteSuggestions(); // refresh list to avoid duplicates
+      } else {
+        // Friendly messages
+        const msg = (data && data.message) ? data.message : 'Failed to invite.';
+        if (msg.toLowerCase().includes('already an active member')) {
+          _showWarn('This player is already an active member of this community.');
+        } else if (msg.toLowerCase().includes('pending')) {
+          _showWarn('There is already a pending invitation for this user.');
+        } else {
+          _showError(msg);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      _showError('Network error.');
+    }
+  };
+
+  // ---- normal form submit via AJAX (prevents page navigating to JSON) ----
+  document.getElementById('_inviteForm')?.addEventListener('submit', async (ev) => {
+    ev.preventDefault(); // stop normal navigation (this removes the "pretty print" page)
+    const token = _csrfToken();
+    if (!token) { _showError('Missing token, please refresh.'); return; }
+
+    const userId = document.getElementById('_inviteTargetUserId').value;
+    const ident = document.getElementById('_inviteSearch').value.trim();
+    if (!userId && !ident) {
+      _showWarn('Please type a username/email or choose a suggestion.');
+      return;
+    }
+
+    try {
+      const communityId = document.getElementById('_inviteCommunityId').value;
+      const role = document.getElementById('_inviteRole').value;
+
+      const form = new URLSearchParams();
+      form.append('communityId', communityId);
+      if (userId) form.append('targetUserId', userId);
+      if (ident) form.append('usernameOrEmail', ident);
+      form.append('role', role);
+      form.append('__RequestVerificationToken', token);
+
+      const res = await fetch('/Communities/InviteMember', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: form
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        _showInfo(data.message || 'Invitation sent.');
+        document.getElementById('_inviteTargetUserId').value = '';
+        document.getElementById('_inviteSearch').value = '';
+        _loadInviteSuggestions(); // refresh
+      } else {
+        const msg = (data && data.message) ? data.message : 'Unable to send invitation.';
+        if (msg.toLowerCase().includes('already an active member')) {
+          _showWarn('This player is already an active member of this community.');
+        } else if (msg.toLowerCase().includes('pending')) {
+          _showWarn('There is already a pending invitation for this user.');
+        } else {
+          _showError(msg);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      _showError('Network error.');
+    }
+  });
+</script>

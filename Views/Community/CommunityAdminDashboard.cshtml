@@ -1,33 +1,8 @@
 @* File: Views/Community/CommunityAdminDashboard.cshtml *@
+@model PicklePlay.ViewModels.CommunityAdminDashboardViewModel
 @{
     ViewData["Title"] = "Admin Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
-}
-
-@* Sample Data Structure for the View (Will be replaced by live data) *@
-@{
-    int communityId = ViewBag.CommunityId ?? 101;
-    string communityName = "Pickleball Elite Squad";
-    string communityRole = "Admin"; 
-    // === TOGGLE THIS FOR TESTING ===
-    string communityType = "Private"; 
-    // ===============================
-
-    // Sample Join Requests (Visible only if communityType == "Private")
-    var joinRequests = new List<dynamic>
-    {
-        new { RequestId = 501, UserId = 10, Username = "Vicky_Viper", RequestedDate = "2025-10-10" },
-        new { RequestId = 502, UserId = 11, Username = "Walter_Wallop", RequestedDate = "2025-10-11" }
-    };
-
-    var members = new List<dynamic>
-    {
-        new { Id = 1, Name = "Alice Johnson", Role = "Admin", Status = "Active", JoinDate = "2025-01-15" },
-        new { Id = 2, Name = "Bob Smith", Role = "Member", Status = "Active", JoinDate = "2025-02-20" },
-        new { Id = 3, Name = "Charlie Brown", Role = "Member", Status = "Active", JoinDate = "2025-03-10" },
-        new { Id = 4, Name = "Diana Prince", Role = "Member", Status = "Inactive", JoinDate = "2025-04-01" },
-        new { Id = 5, Name = "Eve Adams", Role = "Member", Status = "Active", JoinDate = "2025-05-25" }
-    };
 }
 
 @section Styles {
@@ -87,6 +62,25 @@
             margin-bottom: 20px;
             font-size: 1.4rem;
         }
+
+        /* Statistics Boxes */
+        .stat-box {
+            background: var(--gradient);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .stat-box h3 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        .stat-box p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
         .role-admin { color: var(--primary); font-weight: bold; }
         .role-member { color: #3B82F6; }
         .status-active { color: #10B981; }
@@ -94,6 +88,96 @@
         .btn-action-group {
             display: flex;
             gap: 5px;
+        }
+
+        /* Announcement Items */
+        .announcement-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary);
+        }
+        .announcement-item h5 {
+            color: var(--dark);
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        .announcement-item p {
+            color: #6B7280;
+            margin-bottom: 5px;
+        }
+        .announcement-item small {
+            color: #9CA3AF;
+        }
+
+        /* Blocked Users */
+        .blocked-user-item {
+            background: #FEE2E2;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #EF4444;
+        }
+
+        /* Empty States */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6B7280;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #D1D5DB;
+        }
+
+        /* Loading States */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--primary);
+        }
+
+        /* Reduced Header Height & Style like TopUp.cshtml header */
+        .page-header-admin {
+            background: var(--primary); /* #2E8B57 */
+            color: white;
+            padding: 25px 0; /* Reduced padding from 60px 0 40px */
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .main-content-admin {
+            margin-top: 0;
+        }
+
+        .section-card {
+            background-color: #fff;
+            border-radius: 12px; /* Slight increase for visual appeal */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(46, 139, 87, 0.1); /* Match side-box border */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .section-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .section-card h4 {
+            color: var(--primary); /* Match section-title color */
+            font-weight: 700;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
         }
     </style>
 }
@@ -103,8 +187,10 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h1 class="fw-bold"><i class="fas fa-users-cog me-2"></i>@communityName</h1>
-                <p class="lead mb-0">Admin Dashboard | Type: @communityType | Your Role: **@communityRole**</p>
+                <h1 class="fw-bold"><i class="fas fa-users-cog me-2"></i>@Model.CommunityName</h1>
+                <p class="lead mb-0">
+                    Admin Dashboard | Type: @Model.CommunityType | Your Role: **@Model.CurrentUserRole**
+                </p>
             </div>
             <div class="col-md-4 text-end">
                 <a href="@Url.Action("Community", "Home")" class="btn btn-light btn-sm">
@@ -119,67 +205,99 @@
 <div class="container main-content-admin">
     <div class="row">
         
-        @* === LEFT COLUMN: Settings, Announcements (4/12) === *@
+        @* === LEFT COLUMN: Stats, Settings, Announcements (4/12) === *@
         <div class="col-lg-4">
             
+            @* === Community Statistics === *@
+            <div class="section-card">
+                <h4><i class="fas fa-chart-line me-2"></i>Statistics</h4>
+                <div class="stat-box">
+                    <h3>@Model.Members.Count</h3>
+                    <p>Total Members</p>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);">
+                    <h3>@Model.Members.Count(m => m.Role == "Admin")</h3>
+                    <p>Admins</p>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                    <h3>0</h3>
+                    <p>Announcements</p>
+                </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);">
+                    <h3>0</h3>
+                    <p>Blocked Users</p>
+                </div>
+            </div>
+
             @* === Community Settings === *@
             <div class="section-card">
                 <h4><i class="fas fa-cog me-2"></i>Community Settings</h4>
                 <div class="d-grid gap-2">
                     <button class="btn btn-outline-primary"><i class="fas fa-image me-2"></i>Set Profile Picture</button>
-                    <button class="btn btn-outline-info"><i class="fas fa-user-plus me-2"></i>Invite Members</button>
-                    <button class="btn btn-outline-secondary"><i class="fas fa-lock me-2"></i>Change Privacy (@communityType)</button>
+
+                    @* AMENDED BUTTON: opens shared invite modal for this community *@
+                    <button class="btn btn-outline-info" onclick="openInviteModal(@Model.CommunityId)">
+                        <i class="fas fa-user-plus me-2"></i>Invite Members
+                    </button>
+
+                    <button class="btn btn-outline-secondary"><i class="fas fa-lock me-2"></i>Change Privacy (@Model.CommunityType)</button>
                     <button class="btn btn-danger mt-3"><i class="fas fa-trash-alt me-2"></i>Delete/Suspend Community</button>
                 </div>
             </div>
 
             @* === Announcement Dashboard === *@
-            <div class="section-card">
-                <h4><i class="fas fa-bullhorn me-2"></i>New Announcement</h4>
-                <form>
-                    <div class="mb-3">
-                        <label for="announcementTitle" class="form-label">Title</label>
-                        <input type="text" id="announcementTitle" class="form-control" placeholder="Today's Game is ON!">
-                    </div>
-                    <div class="mb-3">
-                        <label for="announcementBody" class="form-label">Details</label>
-                        <textarea id="announcementBody" class="form-control" rows="3" placeholder="Time and court changes..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Post Announcement</button>
-                </form>
-            </div>
+           @* === Announcement Dashboard === *@
+<div class="section-card">
+    <h4><i class="fas fa-bullhorn me-2"></i>New Announcement</h4>
+    <form>
+        <div class="mb-3">
+            <label for="announcementTitle" class="form-label">Title</label>
+            <input type="text" id="announcementTitle" class="form-control" placeholder="Today's Game is ON!">
+        </div>
+        <div class="mb-3">
+            <label for="announcementBody" class="form-label">Details</label>
+            <textarea id="announcementBody" class="form-control" rows="3" placeholder="Time and court changes..."></textarea>
+        </div>
+        <!-- ADD THIS EXPIRY DATE FIELD -->
+        <div class="mb-3">
+            <label for="announcementExpiry" class="form-label">Expiry Date (Optional)</label>
+            <input type="date" id="announcementExpiry" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Post Announcement</button>
+    </form>
+</div>
         </div>
 
-        @* === RIGHT COLUMN: Join Requests + Member List (8/12) === *@
+        @* === RIGHT COLUMN: Join Requests + Member List + Announcements + Blocked (8/12) === *@
         <div class="col-lg-8">
             
             @* === Conditional: Join Request List (Above Member List) === *@
-            @if (communityType == "Private")
+            @if (!string.IsNullOrEmpty(Model.CommunityType) && Model.CommunityType.Equals("Private", StringComparison.OrdinalIgnoreCase))
             {
                 <div class="section-card">
                     <h4><i class="fas fa-hand-paper me-2"></i>New Join Requests 
-                        <span class="badge bg-danger ms-2">@joinRequests.Count</span>
+                        <span class="badge bg-danger ms-2">@Model.JoinRequests.Count</span>
                     </h4>
                     
-                    @if (joinRequests.Any())
+                    @if (Model.JoinRequests.Any())
                     {
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="overflow: visible;">
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
                                         <th>User</th>
                                         <th>Requested</th>
-                                        <th>Actions</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var request in joinRequests)
+                                    @foreach (var request in Model.JoinRequests)
                                     {
                                         <tr>
                                             <td>@request.Username</td>
-                                            <td>@request.RequestedDate</td>
-                                            <td>
-                                                <div class="btn-action-group">
+                                            <td>@request.RequestedDate.ToString("yyyy-MM-dd")</td>
+                                            <td class="text-end">
+                                                <div class="btn-action-group justify-content-end">
                                                     <button class="btn btn-sm btn-success" onclick="acceptRequest(@request.RequestId)"><i class="fas fa-check"></i> Accept</button>
                                                     <button class="btn btn-sm btn-danger" onclick="rejectRequest(@request.RequestId)"><i class="fas fa-times"></i> Reject</button>
                                                 </div>
@@ -201,10 +319,10 @@
             <div class="section-card">
                 <h4>
                     <span><i class="fas fa-users-cog me-2"></i>Member Management</span>
-                    <span class="badge bg-secondary ms-2">Active: @members.Count(m => m.Status == "Active")</span>
+                    <span class="badge bg-secondary ms-2">Active: @Model.Members.Count(m => m.Status == "Active")</span>
                 </h4>
                 
-                <div class="table-responsive">
+                <div class="table-responsive" style="overflow: visible;">
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
@@ -212,72 +330,131 @@
                                 <th>Role</th>
                                 <th>Status</th>
                                 <th>Joined</th>
-                                <th>Actions</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var member in members)
+                            @if (Model.Members?.Any(m => m.Status == "Active") == true)
                             {
-                                <tr>
-                                    <td>@member.Name</td>
-                                    <td>
-                                        <span class="@(member.Role == "Admin" ? "role-admin" : "role-member")">@member.Role</span>
-                                    </td>
-                                    <td>
-                                        <span class="@(member.Status == "Active" ? "status-active" : "status-inactive")">@member.Status</span>
-                                    </td>
-                                    <td>@member.JoinDate</td>
-                                    <td>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                Manage
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                @if (member.Role != "Admin")
-                                                {
-                                                    <li><a class="dropdown-item text-primary" href="#" onclick="assignRole(@member.Id, 'Admin')"><i class="fas fa-crown me-2"></i>Make Admin</a></li>
-                                                }
-                                                @if (member.Role == "Admin" && member.Id != members.First().Id)
-                                                {
-                                                    <li><a class="dropdown-item text-info" href="#" onclick="assignRole(@member.Id, 'Member')"><i class="fas fa-user-tag me-2"></i>Demote to Member</a></li>
-                                                }
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" href="#" onclick="kickMember(@member.Id)"><i class="fas fa-user-minus me-2"></i>Kick Member</a></li>
-                                                <li><a class="dropdown-item text-danger" href="#" onclick="blockMember(@member.Id)"><i class="fas fa-ban me-2"></i>Block/Ban</a></li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
+                                @foreach (var member in Model.Members.Where(m => m.Status == "Active"))
+                                {
+                                    var roleClass = member.Role == "Admin" ? "role-admin" : "role-member";
+                                    <tr>
+                                        <td>@member.UserName</td>
+                                        <td><span class="@roleClass">@member.Role</span></td>
+                                        <td><span class="status-active">Active</span></td>
+                                        <td>@member.JoinDate.ToString("yyyy-MM-dd")</td>
+                                        <td class="text-end">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-secondary dropdown-toggle"
+                                                        type="button"
+                                                        data-bs-toggle="dropdown"
+                                                        data-bs-display="static"
+                                                        aria-expanded="false">
+                                                    Manage
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    @if (member.Role != "Admin")
+                                                    {
+                                                        <li>
+                                                            <a class="dropdown-item text-primary" href="#"
+                                                               onclick="assignRole(@member.UserId, 'Admin')">
+                                                                <i class="fas fa-crown me-2"></i>Make Admin
+                                                            </a>
+                                                        </li>
+                                                    }
+                                                    @if (member.Role == "Admin" && member.UserId != Model.Members.First().UserId)
+                                                    {
+                                                        <li>
+                                                            <a class="dropdown-item text-info" href="#"
+                                                               onclick="assignRole(@member.UserId, 'Member')">
+                                                                <i class="fas fa-user-tag me-2"></i>Demote to Member
+                                                            </a>
+                                                        </li>
+                                                    }
+                                                    <li><hr class="dropdown-divider" /></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger" href="#"
+                                                           onclick="kickMember(@member.UserId)">
+                                                            <i class="fas fa-user-minus me-2"></i>Kick Member
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger" href="#"
+                                                           onclick="blockMember(@member.UserId)">
+                                                            <i class="fas fa-ban me-2"></i>Block/Ban
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="5" class="text-muted">No active members yet.</td></tr>
                             }
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            @* === Recent Announcements Section === *@
+            <div class="section-card">
+                <h4><i class="fas fa-bullhorn me-2"></i>Recent Announcements</h4>
+                <div class="empty-state">
+                    <i class="fas fa-bullhorn"></i>
+                    <p>No announcements yet. Create one to get started!</p>
+                </div>
+            </div>
+
+            @* === Blocked Users Section === *@
+            <div class="section-card">
+                <h4><i class="fas fa-ban me-2"></i>Blocked Users</h4>
+                <div class="empty-state">
+                    <i class="fas fa-ban"></i>
+                    <p>No blocked users.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+@* RENDER SHARED INVITE MODAL (reusable) *@
+@await Html.PartialAsync("_InviteFriendModal",
+    viewData: new ViewDataDictionary(ViewData)
+    {
+        ["InviteContext"] = "community",
+        ["InviteCommunityId"] = Model.CommunityId
+    })
+
 @section Scripts {
     <script>
         // Placeholder functions for the join request actions
         function acceptRequest(requestId) {
             alert(`API CALL: Accepting Join Request ID ${requestId}`);
+            // TODO: POST /Communities/AcceptJoinRequest
         }
         function rejectRequest(requestId) {
             alert(`API CALL: Rejecting Join Request ID ${requestId}`);
+            // TODO: POST /Communities/RejectJoinRequest
         }
 
         // Placeholder functions for member management
         function assignRole(userId, newRole) {
             alert(`API CALL: Assigning role ${newRole} to User ID ${userId}`);
+            // TODO: POST /Communities/AssignRole
         }
         function kickMember(userId) {
             if (confirm(`Are you sure you want to kick User ID ${userId}?`)) {
                 alert(`API CALL: Kicking User ID ${userId}`);
+                // TODO: POST /Communities/KickMember
             }
         }
         function blockMember(userId) {
             alert(`API CALL: Blocking User ID ${userId}`);
+            // TODO: POST /Communities/BlockMember
         }
     </script>
 }
