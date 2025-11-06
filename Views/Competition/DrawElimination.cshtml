@@ -216,13 +216,26 @@ team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
             <button type="button" class="btn btn-primary" onclick="document.getElementById('saveBracketForm').submit();">
                 <i class="bi bi-save"></i> Save Bracket
             </button>
-            <form asp-action="PublishDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId" method="post" class="d-inline"
-                  onsubmit="return confirm('Are you sure you want to publish this draw? This will make it visible to all participants.');">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-send-check"></i> Publish Draw
-                </button>
-            </form>
+            @if (Model.IsDrawPublished)
+            {
+                <form asp-action="UnpublishDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId" method="post" class="d-inline"
+                      onsubmit="return confirm('Are you sure you want to unpublish this draw? This will hide it from participants.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-eye-slash"></i> Unpublish Draw
+                    </button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="PublishDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId" method="post" class="d-inline"
+                      onsubmit="return confirm('Are you sure you want to publish this draw? This will make it visible to all participants.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-send-check"></i> Publish Draw
+                    </button>
+                </form>
+            }
         </div>
     </div>
     <p>Drag and drop teams between the "Seed Slots" to set the draw. Teams will swap places.</p>

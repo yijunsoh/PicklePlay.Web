@@ -97,7 +97,8 @@ namespace PicklePlay.Controllers
                                       .Include(p => p.Teams)
                                       .ThenInclude(t => t.Captain)
                                       .ToListAsync(), // Load fresh data
-                        UnassignedTeams = confirmedTeams.Where(t => !t.PoolId.HasValue).ToList()
+                        UnassignedTeams = confirmedTeams.Where(t => !t.PoolId.HasValue).ToList(),
+                        IsDrawPublished = schedule.Competition.DrawPublished
                     };
                     
                     return View("~/Views/Competition/DrawPoolPlay.cshtml", poolViewModel);
@@ -120,7 +121,8 @@ namespace PicklePlay.Controllers
                         TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count,
 
                         // This will now use the fresh data from step 2
-                        HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch
+                        HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch,
+                        IsDrawPublished = schedule.Competition.DrawPublished
                     };
                     
                     // *** ADD THIS DEBUG LINE ***
@@ -160,7 +162,26 @@ namespace PicklePlay.Controllers
             return RedirectToAction("GenerateDraw", new { id = id });
         }
         // --- *** END: NEW ACTION *** ---
-
+// --- *** START: NEW ACTION TO UNPUBLISH DRAW *** ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UnpublishDraw(int id)
+        {
+            var competition = await _context.Competitions.FirstOrDefaultAsync(c => c.ScheduleId == id);
+            if (competition != null)
+            {
+                competition.DrawPublished = false;
+                _context.Update(competition);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Draw has been unpublished and is no longer visible to participants.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Could not find competition to unpublish.";
+            }
+            return RedirectToAction("GenerateDraw", new { id = id });
+        }
+        // --- *** END: NEW ACTION *** ---
 
         // --- Pool Play Actions ---
         private async Task CreatePoolsAsync(Schedule schedule, List<Team> teams)

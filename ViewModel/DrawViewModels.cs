@@ -9,6 +9,7 @@ namespace PicklePlay.Models.ViewModels
         public string? CompetitionName { get; set; }
         public List<Pool> Pools { get; set; } = new List<Pool>();
         public List<Team> UnassignedTeams { get; set; } = new List<Team>();
+        public bool IsDrawPublished { get; set; }
 
         // This property will be populated by the form post
         // The key will be the TeamId, the value will be the selected PoolId
@@ -22,6 +23,7 @@ namespace PicklePlay.Models.ViewModels
         public string? CompetitionName { get; set; }
         public List<Team> Teams { get; set; } = new List<Team>();
         public int TotalSeeds { get; set; }
+        public bool IsDrawPublished { get; set; }
 
         // *** This property was added ***
         public bool HasThirdPlaceMatch { get; set; }
