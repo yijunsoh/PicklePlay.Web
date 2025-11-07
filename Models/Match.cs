@@ -39,6 +39,10 @@ namespace PicklePlay.Models
         public virtual Team ?Winner { get; set; }
 
         public bool IsBye { get; set; } = false;
+
+        [ForeignKey("LastUpdatedByUser")]
+public int? LastUpdatedByUserId { get; set; }
+public virtual User? LastUpdatedByUser { get; set; }
     }
 
     public enum MatchStatus

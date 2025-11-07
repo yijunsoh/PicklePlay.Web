@@ -3,26 +3,49 @@
 @using PicklePlay.Models
 
 <style>
-    /* Styles are unchanged */
+    /* Status Borders */
     .match-container { border: 3px solid #dee2e6; border-radius: 0.375rem; margin-bottom: 1rem; background-color: #fff; }
     .status-active { border-color: #198754; }
     .status-progressing { border-color: #ffc107; }
     .status-done { border-color: #6c757d; }
     .status-bye { border-color: #adb5bd; }
+    
     .match-header { background-color: #f8f9fa; padding: 0.75rem 1.25rem; border-bottom: 1px solid #dee2e6; }
     .match-body { padding: 1.25rem; }
     .team-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
     .team-name { font-weight: 500; font-size: 1.1rem; }
+    
+    /* --- NEW: Score Set Titles --- */
+    .score-set-titles {
+        display: flex;
+        gap: 5px;
+        margin-left: auto; /* Aligns with score inputs */
+    }
+    .score-set-title {
+        width: 45px;
+        text-align: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+    
     .score-sets-container { display: flex; gap: 5px; flex-wrap: wrap; }
     .score-set-input { width: 45px; text-align: center; padding-left: 2px; padding-right: 2px; }
     .score-set-text { font-size: 1.1rem; font-weight: 500; padding: 0.25rem 0.5rem; }
+
+    /* --- NEW: Winner Highlight --- */
+    .team-winner .team-name {
+        font-weight: 700;
+        color: #198754; /* Green */
+    }
+    .team-winner .team-name::after {
+        content: " ✔";
+    }
 </style>
 
 @if (!Model.Matches!.Any())
 {
-    <div class="alert alert-info">
-        Matches have not been generated for this competition yet.
-    </div>
+    <div class="alert alert-info">Matches have not been generated...</div>
     return;
 }
 
@@ -42,8 +65,7 @@
                         @if (Model.IsOrganizer)
                         {
                             <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-match-btn" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#editMatchModal"
+                                    data-bs-toggle="modal" data-bs-target="#editMatchModal"
                                     data-match-id="@match.MatchId"
                                     data-match-time="@(match.MatchTime.HasValue ? match.MatchTime.Value.ToString("yyyy-MM-ddTHH:mm") : "")"
                                     data-court="@match.Court"
@@ -64,16 +86,44 @@
             </div>
             
             <div class="match-body">
+                @{
+                    // Status flags for C# logic
+                    var isDone = match.Status == MatchStatus.Done;
+                    var isActive = match.Status == MatchStatus.Active;
+                    var isProgressing = match.Status == MatchStatus.Progressing;
+                    
+                    // --- NEW: Set Title Logic ---
+                    int setCount = 1;
+                    if (!string.IsNullOrEmpty(match.Team1Score))
+                    {
+                        setCount = Math.Max(setCount, match.Team1Score.Split(',').Length);
+                    }
+                    if (!string.IsNullOrEmpty(match.Team2Score))
+                    {
+                        setCount = Math.Max(setCount, match.Team2Score.Split(',').Length);
+                    }
+                    // Ensure at least 1 set shows for progressing
+                    if (isProgressing && setCount == 0) setCount = 1;
+                }
+                
+                @if (isProgressing || (isDone && !match.IsBye))
+                {
+                    <div class="team-row">
+                        <span class="team-name"></span> <div class="score-set-titles">
+                            @for (int i = 1; i <= setCount; i++)
+                            {
+                                <span class="score-set-title">Set @i</span>
+                            }
+                        </div>
+                    </div>
+                }
+
+
                 @if (Model.IsOrganizer)
                 {
                     <div class="organizer-match-form" data-match-id="@match.MatchId">
-                        @{
-                            var isDone = match.Status == MatchStatus.Done;
-                            var isActive = match.Status == MatchStatus.Active;
-                            var isProgressing = match.Status == MatchStatus.Progressing;
-                        }
-
-                        <div class="team-row">
+                        
+                        <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
                             <span class="team-name">@(match.Team1?.TeamName ?? "TBD")</span>
                             <div class="score-sets-container" data-team-id="1">
                                 @if (isProgressing)
@@ -95,7 +145,7 @@
                         
                         <div class="text-center text-muted my-2">VS</div>
                         
-                        <div class="team-row">
+                        <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
                             <span class="team-name">@(match.Team2?.TeamName ?? "TBD")</span>
                             <div class="score-sets-container" data-team-id="2">
                                 @if (isProgressing)
@@ -118,7 +168,7 @@
                         @if (!match.IsBye)
                         {
                             <hr />
-                            <div class="d-flex justify-content-between">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div class="btn-group">
                                     @if (isActive)
                                     {
@@ -130,6 +180,13 @@
                                                 <i class="bi bi-play-circle"></i> Start
                                             </button>
                                         </form>
+                                    }
+                                    
+                                    @if (isDone && match.LastUpdatedByUser != null)
+                                    {
+                                        <small class="text-muted ms-2 fst-italic">
+                                            Saved by: @match.LastUpdatedByUser.Username
+                                        </small>
                                     }
                                 </div>
                                 
@@ -148,6 +205,9 @@
 
                                     @if (isProgressing)
                                     {
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-minus-set">
+                                            <i class="bi bi-dash"></i> Minus Set
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-success btn-add-set">
                                             <i class="bi bi-plus"></i> Add Set
                                         </button>
@@ -170,10 +230,10 @@
                 }
                 else
                 {
-                    <div class="team-row">
+                    <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
                         <span class="team-name">@(match.Team1?.TeamName ?? "TBD")</span>
                         
-                        @if(match.Status == MatchStatus.Done)
+                        @if(isDone)
                         {
                             <span class="fs-5 fw-bold">@match.Team1Score</span>
                         }
@@ -181,20 +241,25 @@
                     
                     <div class="text-center text-muted my-2">VS</div>
                     
-                    <div class="team-row">
+                    <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
                         <span class="team-name">@(match.Team2?.TeamName ?? "TBD")</span>
                         
-                        @if(match.Status == MatchStatus.Done)
+                        @if(isDone)
                         {
                             <span class="fs-5 fw-bold">@match.Team2Score</span>
                         }
                     </div>
                     
-                    @if(match.IsBye)
+                    @if(match.IsBye) { /* BYE text */ }
+
+                    @if (isDone && match.LastUpdatedByUser != null)
                     {
-                         <div class="text-center mt-3">
-                             <span class="badge bg-secondary">BYE Round</span>
-                         </div>
+                        <hr />
+                        <div class="text-end">
+                            <small class="text-muted fst-italic">
+                                Last update by: @match.LastUpdatedByUser.Username
+                            </small>
+                        </div>
                     }
                 }
             </div>
@@ -204,23 +269,57 @@
 
 <script>
 (function() {
+    
+    // "Add Set" Button
     $('.btn-add-set').on('click', function() {
         var $formContainer = $(this).closest('.organizer-match-form');
+        
+        // Add score inputs
         var $newSetT1 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" min="0" placeholder="0" />');
         var $newSetT2 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" min="0" placeholder="0" />');
         $formContainer.find('.score-sets-container[data-team-id="1"]').append($newSetT1);
         $formContainer.find('.score-sets-container[data-team-id="2"]').append($newSetT2);
+
+        // --- NEW: Add Set Title ---
+        var $titleContainer = $formContainer.closest('.match-body').find('.score-set-titles');
+        var newSetNum = $titleContainer.find('.score-set-title').length + 1;
+        $titleContainer.append('<span class="score-set-title">Set ' + newSetNum + '</span>');
     });
 
+    // --- NEW: "Minus Set" Button ---
+    $('.btn-minus-set').on('click', function() {
+        var $formContainer = $(this).closest('.organizer-match-form');
+        
+        // Find score inputs for Team 1
+        var $team1Inputs = $formContainer.find('.score-sets-container[data-team-id="1"] .score-set-input');
+        // Find score inputs for Team 2
+        var $team2Inputs = $formContainer.find('.score-sets-container[data-team-id="2"] .score-set-input');
+
+        // Only remove if there is more than 1 set input
+        if ($team1Inputs.length > 1) {
+            $team1Inputs.last().remove();
+            $team2Inputs.last().remove();
+
+            // --- NEW: Remove Set Title ---
+            var $titleContainer = $formContainer.closest('.match-body').find('.score-set-titles');
+            $titleContainer.find('.score-set-title').last().remove();
+        }
+    });
+
+    // Intercept "Save Score" form submission
     $('.save-score-form').on('submit', function(e) {
         e.preventDefault(); 
         var $form = $(this);
         var $formContainer = $form.closest('.organizer-match-form'); 
+        
         var scoresT1 = $formContainer.find('input[data-team-score="1"]').map(function() { return $(this).val() || "0"; }).get().join(',');
         var scoresT2 = $formContainer.find('input[data-team-score="2"]').map(function() { return $(this).val() || "0"; }).get().join(',');
+        
         $form.find('.hidden-team1-score').val(scoresT1);
         $form.find('.hidden-team2-score').val(scoresT2);
+        
         this.submit();
     });
+
 })();
 </script>

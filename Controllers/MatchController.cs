@@ -254,85 +254,80 @@ namespace PicklePlay.Controllers
         }
 
         // GET: /Match/GetMatchListing/5
-        [HttpGet]
-        public async Task<IActionResult> GetMatchListing(int id)
-        {
-            var schedule = await _context.Schedules
-                .Include(s => s.Participants) // <-- This is needed for the organizer check
-                .FirstOrDefaultAsync(s => s.ScheduleId == id);
+       [HttpGet]
+public async Task<IActionResult> GetMatchListing(int id)
+{
+    var schedule = await _context.Schedules
+        .Include(s => s.Participants) 
+        .FirstOrDefaultAsync(s => s.ScheduleId == id);
 
-            if (schedule == null) return NotFound();
+    if (schedule == null) return NotFound();
 
-            var matches = await _context.Matches
-                .Where(m => m.ScheduleId == id)
-                .Include(m => m.Team1)
-                .Include(m => m.Team2)
-                .OrderBy(m => m.RoundNumber)
-                .ThenBy(m => m.RoundName)
-                .ThenBy(m => m.MatchNumber)
-                .ToListAsync();
+    var matches = await _context.Matches
+        .Where(m => m.ScheduleId == id)
+        .Include(m => m.Team1)
+        .Include(m => m.Team2)
+        // --- ADD THIS INCLUDE ---
+        .Include(m => m.LastUpdatedByUser) // To get the username for "Saved By"
+        // --- END ADD ---
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.RoundName)
+        .ThenBy(m => m.MatchNumber)
+        .ToListAsync();
 
-            // *** GET THE CURRENT USER ID (THE CORRECT WAY) ***
-            int? currentUserId = GetCurrentUserId();
+    int? currentUserId = GetCurrentUserId();
+    bool isOrganizer = false;
+    if (currentUserId.HasValue)
+    {
+        isOrganizer = schedule.Participants.Any(p =>
+            p.UserId == currentUserId.Value &&
+            p.Role == ParticipantRole.Organizer
+        );
+    }
 
-            // *** THIS CHECK NOW WORKS FOR ALL ORGANIZERS/STAFF ***
-            bool isOrganizer = false;
-            if (currentUserId.HasValue)
-            {
-                isOrganizer = schedule.Participants.Any(p =>
-                    p.UserId == currentUserId.Value &&
-                    p.Role == ParticipantRole.Organizer
-                );
-            }
+    var vm = new MatchListingViewModel
+    {
+        ScheduleId = id,
+        Matches = matches,
+        IsOrganizer = isOrganizer
+    };
 
-            var vm = new MatchListingViewModel
-            {
-                ScheduleId = id,
-                Matches = matches,
-                IsOrganizer = isOrganizer // <-- This will now be 'true' for you and your staff
-            };
+    return PartialView("~/Views/Competition/_MatchListing.cshtml", vm);
+}
 
-            return PartialView("~/Views/Competition/_MatchListing.cshtml", vm);
-        }
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
+{
+    var match = await _context.Matches.FindAsync(MatchId);
+    if (match == null)
+    {
+        return NotFound();
+    }
 
-        // In Controllers/MatchController.cs
+    match.Team1Score = Team1Score;
+    match.Team2Score = Team2Score;
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
-        {
-            var match = await _context.Matches.FindAsync(MatchId);
-            if (match == null)
-            {
-                return NotFound();
-            }
+    // Determine the winner
+    match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
 
-            match.Team1Score = Team1Score;
-            match.Team2Score = Team2Score;
+    // --- ADD THIS LINE ---
+    match.LastUpdatedByUserId = GetCurrentUserId(); // Save who made the change
+    // --- END ADD ---
 
-            // Determine the winner
-            match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
+    bool hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
+                         Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
 
-            // *** NEW LOGIC ***
-            // Check if any score set is not "0" AND not empty.
-            bool hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
-                                 Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
+    if (hasRealScores && match.Status != MatchStatus.Bye)
+    {
+        match.Status = MatchStatus.Done;
+    }
 
-            // Only set status to Done if real scores were submitted.
-            if (hasRealScores && match.Status != MatchStatus.Bye)
-            {
-                match.Status = MatchStatus.Done;
-            }
-            // If no real scores were submitted (e.g., "0,0" from the Start button bug),
-            // the status will remain unchanged (e.g., Progressing).
-            // *** END NEW LOGIC ***
+    _context.Matches.Update(match);
+    await _context.SaveChangesAsync();
 
-            _context.Matches.Update(match);
-            await _context.SaveChangesAsync();
-
-            // Redirect back to the match listing
-            return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
-        }
+    return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
+}
 
         // A helper method to determine the winner based on scores
         private int? DetermineWinnerId(int? team1Id, int? team2Id, string team1Score, string team2Score)
