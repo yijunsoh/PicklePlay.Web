@@ -1,10 +1,12 @@
 @model Schedule
 @using PicklePlay.Models
 @using PicklePlay.Models.ViewModels
+@using PicklePlay.Data
+@using System.Security.Claims;
 
 @{
     ViewData["Title"] = Model.GameName ?? "Competition Details";
-    bool setupPending = ViewData["SetupPending"] as bool? ?? false;
+    bool setupPending = Model.Status == ScheduleStatus.PendingSetup;
 
     // --- NEW: Get data for Registration Tab ---
     var organizers = Model.Participants.Where(p => p.Role == ParticipantRole.Organizer).ToList();
@@ -14,6 +16,14 @@
     // --- NEW: Data for "Register Team" button ---
     bool hasUserRegisteredTeam = ViewBag.HasUserRegisteredTeam ?? false;
     int? currentUserId = ViewBag.CurrentUserId as int?;
+
+    // --- NEW: Control variables for UI state ---
+    bool isCompetitionOpen = Model.Status == ScheduleStatus.Active;
+    bool isCompetitionInProgress = Model.Status == ScheduleStatus.InProgress;
+    bool isCompetitionDone = Model.Status == ScheduleStatus.Completed;
+    bool canManage = (isCompetitionOpen || setupPending) && organizers.Any(o => o.UserId == currentUserId);
+
+    
 }
 
 <style>
@@ -161,124 +171,116 @@
     }
 
     @* --- Header Section --- *@
-     <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
         <div>
             <h2>@Model.GameName</h2>
             <p class="text-muted mb-0">@Model.Location</p>
-             @if (Model.Status == ScheduleStatus.PendingSetup) {
+            
+            @if (Model.Status == ScheduleStatus.PendingSetup) {
                  <span class="badge bg-warning text-dark">Pending Setup</span>
-             } else {
-                 <span class="badge bg-success">@Model.Status?.ToString()</span>
-             }
+            } else if (Model.Status == ScheduleStatus.InProgress) {
+                 <span class="badge bg-primary">In Progress</span>
+            } else if (Model.Status == ScheduleStatus.Completed) {
+                 <span class="badge bg-secondary">Completed</span>
+            } else {
+                 <span class="badge bg-success">@Model.Status.ToString()</span>
+            }
         </div>
         <div>
             <button class="btn btn-outline-secondary"><i class="bi bi-share"></i> Share</button>
-             @if (Model.Status == ScheduleStatus.PendingSetup) {
+            
+            @if (Model.Status == ScheduleStatus.PendingSetup) {
                  <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="btn btn-warning"><i class="bi bi-pencil-square"></i> Continue Setup</a>
-             } else if (currentUserId.HasValue && !hasUserRegisteredTeam) {
+            } else if (isCompetitionOpen && currentUserId.HasValue && !hasUserRegisteredTeam) {
                  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerTeamModal">
                      <i class="bi bi-person-plus"></i> Register Team
                  </button>
-             } else if (hasUserRegisteredTeam) {
+            } else if (hasUserRegisteredTeam) {
                  <button class="btn btn-success" disabled><i class="bi bi-check-all"></i> Team Registered</button>
-             } else {
+            } else if (isCompetitionOpen && !currentUserId.HasValue) {
                  <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-primary">
                      <i class="bi bi-box-arrow-in-right"></i> Log in to Register
                  </a>
-             }
+            }
 
-@if (organizers.Any(o => o.UserId == currentUserId))
-{
-           @* --- UPDATED DROPDOWN --- *@
-            <div class="dropdown d-inline-block">
-                 <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Actions
-                </button>
-                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="compActionsDropdown">
-                     
-                    @* 1. Edit Details Link *@
-                    @if (Model.Status == ScheduleStatus.PendingSetup) {
-                        <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Draft Details</a></li>
-                    } else {
-                        <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Details</a></li>
-                    }
-
-                    @* 2. NEW: Edit Setup Match Link *@
-                    <li>
-                        <a class="dropdown-item" asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId">
-                            <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
-                        </a>
-                    </li>
-
-                    <!-- *** ADD THIS NEW BLOCK *** -->
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        @if(Model.Competition?.Format == CompetitionFormat.RoundRobin)
-                        {
-                            <a class="dropdown-item disabled" href="#" title="Round Robin format does not require a manual draw.">
-                                <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
-                            </a>
-                        }
-                        else
-                        {
-                            <a class="dropdown-item" asp-action="GenerateDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId">
-                                <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
-                            </a>
-                        }
-                    </li>
-                    <!-- *** END OF NEW BLOCK *** -->
-
-                     <li><a class="dropdown-item disabled" href="#">Manage Teams (Future)</a></li>
-                     <li><hr class="dropdown-divider"></li>
-
-                    @* 3. Delete Link (No changes here) *@
-                    @if (Model.Status == ScheduleStatus.PendingSetup) {
-                        <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
-                    } else {
-                        <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId" onclick="return confirm('Are you sure you want to permanently delete this competition? This action cannot be undone.')"><i class="bi bi-trash-fill me-2"></i> Delete Competition</a></li>
-                    }
-                </ul>
-            </div>
-            @* --- END UPDATED DROPDOWN --- *@
- }
-        </div>
-   
- </div>
-
-<!-- *** REPLACE THE OLD POSTER BLOCK WITH THIS *** -->
-@if (!string.IsNullOrEmpty(Model.CompetitionImageUrl))
-{
-    <div class="card shadow-sm mb-3">
-        <!-- 1. The Header is the clickable toggle -->
-        <div class="card-header" style="cursor: pointer;" 
-             data-bs-toggle="collapse" 
-             data-bs-target="#posterCollapse" 
-             aria-expanded="true" 
-             aria-controls="posterCollapse">
-            
-            <h5 class="mb-0 d-flex justify-content-between align-items-center">
-                Competition Poster
-                <!-- 
-                    The 'rotated' class is added here because 'show' is on the div below,
-                    so it starts in the open/rotated state.
-                -->
-                <a class="text-decoration-none text-secondary">
-                    <span class="toggle-icon small rotated">▼</span>
-                </a>
-            </h5>
-        </div>
-        <!-- 
-            2. The Content. 'collapse show' makes this visible by default.
-        -->
-        <div class="collapse show" id="posterCollapse">
-            <div class="card-body text-center p-2">
-                <img src="@Url.Content(Model.CompetitionImageUrl)" alt="@Model.GameName Poster" 
-                     style="max-width: 100%; height: auto; max-height: 400px; border-radius: 8px;" />
-            </div>
+            @if (organizers.Any(o => o.UserId == currentUserId))
+            {
+                @if (isCompetitionOpen)
+                {
+                    <button class="btn btn-success" id="startCompetitionBtn">
+                        <i class="bi bi-play-fill"></i> Start Competition
+                    </button>
+                }
+                @if (canManage)
+                {
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Actions
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="compActionsDropdown">
+                            @if (Model.Status == ScheduleStatus.PendingSetup) {
+                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Draft Details</a></li>
+                            } else {
+                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Details</a></li>
+                            }
+                            <li>
+                                <a class="dropdown-item" asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId">
+                                    <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                @if(Model.Competition?.Format == CompetitionFormat.RoundRobin)
+                                {
+                                    <a class="dropdown-item disabled" href="#" title="Round Robin format does not require a manual draw.">
+                                        <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a class="dropdown-item" asp-action="GenerateDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId">
+                                        <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
+                                    </a>
+                                }
+                            </li>
+                            <li><a class="dropdown-item disabled" href="#">Manage Teams (Future)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            @if (Model.Status == ScheduleStatus.PendingSetup) {
+                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
+                            } else {
+                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId" onclick="return confirm('Are you sure you want to permanently delete this competition? This action cannot be undone.')"><i class="bi bi-trash-fill me-2"></i> Delete Competition</a></li>
+                            }
+                        </ul>
+                    </div>
+                }
+            }
         </div>
     </div>
-}
-<!-- *** END OF REPLACEMENT BLOCK *** -->
+
+    @if (!string.IsNullOrEmpty(Model.CompetitionImageUrl))
+    {
+        <div class="card shadow-sm mb-3">
+            <div class="card-header" style="cursor: pointer;" 
+                 data-bs-toggle="collapse" 
+                 data-bs-target="#posterCollapse" 
+                 aria-expanded="true" 
+                 aria-controls="posterCollapse">
+                
+                <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    Competition Poster
+                    <a class="text-decoration-none text-secondary">
+                        <span class="toggle-icon small rotated">▼</span>
+                    </a>
+                </h5>
+            </div>
+            <div class="collapse show" id="posterCollapse">
+                <div class="card-body text-center p-2">
+                    <img src="@Url.Content(Model.CompetitionImageUrl)" alt="@Model.GameName Poster" 
+                         style="max-width: 100%; height: auto; max-height: 400px; border-radius: 8px;" />
+                </div>
+            </div>
+        </div>
+    }
 
     @* --- Main Tabs --- *@
     <ul class="nav nav-tabs" id="competitionTab" role="tablist">
@@ -382,8 +384,8 @@
                         <h5 class="mb-0">Organizers</h5>
                         @if (organizers.Any(o => o.UserId == currentUserId))
                         {
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal" disabled>
-                                <i class="bi bi-person-plus-fill"></i> Add Staff (Future)
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                                <i class="bi bi-person-plus-fill"></i> Add Staff
                             </button>
                         }
                     </div>
@@ -536,7 +538,7 @@
             </div>
         </div>
 
-        @* --- Match Tab Pane --- *@
+        @* --- Match Tab Pane (MODIFIED) --- *@
         <div class="tab-pane fade p-3" id="match-tab-pane" role="tabpanel" aria-labelledby="match-tab" tabindex="0">
 
              @if (setupPending)
@@ -549,47 +551,47 @@
              else if (Model.Competition == null)
              {
                   <div class="alert alert-danger" role="alert">
-                    Error: Competition details are missing.
-                    Cannot display match information.
+                    Error: Competition details are missing. Cannot display match information.
                  </div>
              }
              else
              {
                 bool isDrawPublished = Model.Competition.DrawPublished;
                 bool isRoundRobin = Model.Competition.Format == CompetitionFormat.RoundRobin;
-                // This variable will control the tab
                 bool canViewDraw = isDrawPublished && !isRoundRobin;
-
-                @* --- Nested Match Tabs --- *@
+                
+                @* --- Nested Match Tabs (MODIFIED) --- *@
                  <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
              
-               <li class="nav-item" role="presentation">
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="format-subtab" data-bs-toggle="tab" data-bs-target="#format-subtab-pane" type="button" role="tab" aria-controls="format-subtab-pane" aria-selected="true">Format</button>
                     </li>
 
                     <li class="nav-item" role="presentation">
-    <button class="nav-link" 
-            id="draw-subtab" 
-            data-bs-toggle="tab" 
-            data-bs-target="#draw-subtab-pane" 
-            type="button" 
-            role="tab" 
-            aria-controls="draw-subtab-pane" 
-            aria-selected="false"
-            @(canViewDraw ? "" : "disabled")
-            title="@(canViewDraw ? "View Published Draw" : (isRoundRobin ? "Draw not applicable for Round Robin" : "Draw has not been published"))">
-        Draw
-        @if (!canViewDraw && !isRoundRobin)
-        {
-            <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
-        }
-    </button>
-</li>
-
-                    <li class="nav-item" role="presentation">
-                 <button class="nav-link disabled" id="listing-subtab" data-bs-toggle="tab" data-bs-target="#listing-subtab-pane" type="button" role="tab" aria-controls="listing-subtab-pane" aria-selected="false">Listing</button>
+                        <button class="nav-link" 
+                                id="draw-subtab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#draw-subtab-pane" 
+                                type="button" 
+                                role="tab" 
+                                aria-controls="draw-subtab-pane" 
+                                aria-selected="false"
+                                @(canViewDraw ? "" : "disabled")
+                                title="@(canViewDraw ? "View Published Draw" : (isRoundRobin ? "Draw not applicable for Round Robin" : "Draw has not been published"))">
+                            Draw
+                            @if (!canViewDraw && !isRoundRobin)
+                            {
+                                <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
+                            }
+                        </button>
                     </li>
-                     <li class="nav-item" role="presentation">
+                    
+                    <li class="nav-item" role="presentation">
+                         <button class="nav-link" id="listing-subtab" data-bs-toggle="tab" data-bs-target="#listing-subtab-pane" type="button" role="tab" aria-controls="listing-subtab-pane" aria-selected="false">
+                            Listing
+                         </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link disabled" id="standing-subtab" data-bs-toggle="tab" data-bs-target="#standing-subtab-pane" type="button" role="tab" aria-controls="standing-subtab-pane" aria-selected="false">Standing</button>
                      </li>
                 </ul>
@@ -659,10 +661,16 @@
 </div>
 
                     @* --- Listing Sub-Tab Pane --- *@
-                    <div class="tab-pane fade" id="listing-subtab-pane" role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
-                        <h5>Match Listing</h5>
-                        <p>Match listing feature coming soon.</p>
-                    </div>
+<div class="tab-pane fade" id="listing-subtab-pane" role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
+    <div id="match-listing-container">
+        <div class="text-center p-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading Matches...</span>
+            </div>
+            <p class="mt-2">Loading Matches...</p>
+        </div>
+    </div>
+</div>
 
                     @* --- Standing Sub-Tab Pane --- *@
                      <div class="tab-pane fade" id="standing-subtab-pane" role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
@@ -715,6 +723,7 @@
     </div>
 </div>
 
+
 <div class="modal fade" id="editTeamModal" tabindex="-1" aria-labelledby="editTeamModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -752,6 +761,30 @@
     </div>
 </div>
 
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addStaffModalLabel">Add Staff Member</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="staffSearchInput" class="form-label">Search by username:</label>
+                    <input type="text" id="staffSearchInput" class="form-control" placeholder="Enter username..." />
+                </div>
+                <div id="staff-search-spinner" class="text-center d-none">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                         <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="staff-search-results">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- *** NEW: Invite Player Modal *** -->
 <div class="modal fade" id="invitePlayerModal" tabindex="-1" aria-labelledby="invitePlayerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -779,6 +812,63 @@
     </div>
 </div>
 
+<div class="modal fade" id="startCompetitionModal" tabindex="-1" aria-labelledby="startCompetitionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form asp-controller="Match" asp-action="StartCompetition" asp-route-id="@Model.ScheduleId" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="startCompetitionModalLabel">Start Competition</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="startCompetitionModalBody">
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Details...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-play-fill"></i> Confirm and Start
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editMatchModal" tabindex="-1" aria-labelledby="editMatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-controller="Match" asp-action="UpdateMatchDetails" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="editMatchId" name="MatchId" value="0" />
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMatchModalLabel">Edit Match Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editMatchTime" class="form-label">Match Time</label>
+                        <input type="datetime-local" id="editMatchTime" name="MatchTime" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="editCourt" class="form-label">Court</label>
+                        <input type="text" id="editCourt" name="Court" class="form-control" placeholder="e.g. Court 3" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Details</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     @* Make sure these scripts are loaded FIRST *@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -786,6 +876,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
 
     <script>
+
+    // --- Store model data in JS vars for checking ---
+        const COMP_DATA = {
+            scheduleId: @Model.ScheduleId,
+            isSetupComplete: @(Model.Competition != null ? "true" : "false"),
+            isDrawPublished: @(Model.Competition?.DrawPublished == true ? "true" : "false"),
+            isRoundRobin: @(Model.Competition?.Format == CompetitionFormat.RoundRobin ? "true" : "false")
+        };
         // Enable tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -921,6 +1019,121 @@
             });
         }
 
+        // --- *** NEW: Add Staff Modal Scripts *** ---
+        var addStaffModal = document.getElementById('addStaffModal');
+        var staffSearchInput = document.getElementById('staffSearchInput');
+        var staffSearchResultsContainer = document.getElementById('staff-search-results');
+        var staffSpinner = document.getElementById('staff-search-spinner');
+        var staffSearchTimeout;
+        
+        if (addStaffModal) {
+            addStaffModal.addEventListener('show.bs.modal', function (event) {
+                // Clear the modal on show
+                staffSearchInput.value = '';
+                staffSearchResultsContainer.innerHTML = '';
+            });
+
+            staffSearchInput.addEventListener('keyup', function () {
+                clearTimeout(staffSearchTimeout);
+                var query = staffSearchInput.value;
+                var scheduleId = COMP_DATA.scheduleId;
+
+                if (query.length < 2) {
+                    staffSearchResultsContainer.innerHTML = '';
+                     return;
+                }
+
+                staffSpinner.classList.remove('d-none');
+
+                staffSearchTimeout = setTimeout(function () {
+                    fetch(`/Competition/SearchUsersForStaff?scheduleId=${scheduleId}&query=${query}`)
+                         .then(response => {
+                            staffSpinner.classList.add('d-none');
+                            if (!response.ok) {
+                                 throw new Error('Search failed');
+                            }
+                            return response.json();
+                        })
+                         .then(users => {
+                            renderStaffSearchResults(users, scheduleId);
+                        })
+                        .catch(error => {
+                            staffSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                        });
+                }, 500);
+            });
+        }
+
+        function renderStaffSearchResults(users, scheduleId) {
+            staffSearchResultsContainer.innerHTML = '';
+            if (users.length === 0) {
+                staffSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                var userHtml = `
+                    <div class="user-search-item">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        <button class="btn btn-sm btn-primary add-staff-btn" 
+                                data-schedule-id="${scheduleId}" 
+                                data-user-id="${user.userId}">
+                            Add Staff
+                        </button>
+                    </div>`;
+                staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+            });
+
+            document.querySelectorAll('.add-staff-btn').forEach(button => {
+                button.addEventListener('click', addStaffMember);
+            });
+        }
+
+        function addStaffMember(event) {
+            var button = event.target;
+            var scheduleId = button.getAttribute('data-schedule-id');
+            var userId = button.getAttribute('data-user-id');
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch('/Competition/AddStaff', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `scheduleId=${scheduleId}&userId=${userId}`
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to add staff') });
+                 }
+                return response.json();
+            })
+            .then(data => {
+                button.innerHTML = 'Added!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-secondary');
+                
+                // We just reload the page to show the new staff member
+                location.reload(); 
+            })
+            .catch(error => {
+                button.innerHTML = 'Error';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+                alert('Error: ' + error.message);
+            });
+        }
+        
+        // --- *** END: Add Staff Modal Scripts *** ---
+
         // Competition Poster Toggle
         var posterCollapseElement = document.getElementById('posterCollapse');
         var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
@@ -937,6 +1150,46 @@
                     posterIcon.classList.remove('rotated');
                 });
             }
+        }
+// --- *** NEW: Start Competition Button Logic *** ---
+        var startCompBtn = document.getElementById('startCompetitionBtn');
+        if (startCompBtn) {
+            var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
+            var startModalBody = document.getElementById('startCompetitionModalBody');
+            
+            startCompBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                
+                // 1. Check if setup is complete
+                if (!COMP_DATA.isSetupComplete) {
+                    alert('Please complete "Match Setup & Format" before starting.');
+                    return;
+                }
+                
+                // 2. Check if draw is published (unless Round Robin)
+                if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
+                    alert('Please publish the draw at generate draw to proceed.');
+                    return;
+                }
+                
+                // 3. All checks passed, show modal and load details
+                startModalBody.innerHTML = `
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Details...</span>
+                        </div>
+                    </div>`;
+                startModal.show();
+                
+                fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        startModalBody.innerHTML = html;
+                    })
+                    .catch(err => {
+                        startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
+                    });
+            });
         }
 
  // *** DRAW TAB LOADING - Replace the existing draw tab script with this ***
@@ -1088,5 +1341,88 @@ if (drawTab) {
         }
     });
 }
+
+// --- 2. NEW: Listing Tab Loader ---
+        var listingTab = document.getElementById('listing-subtab');
+        if (listingTab) {
+            var listingContainer = document.getElementById('match-listing-container');
+            var listingLoaded = false;
+            
+            listingTab.addEventListener('show.bs.tab', function(event) {
+                if (listingContainer && !listingLoaded) {
+                    listingLoaded = true; // Only load once
+                    
+                    listingContainer.innerHTML = `
+                        <div class="text-center p-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading Matches...</span>
+                            </div>
+                            <p class="mt-2">Loading Matches...</p>
+                        </div>`;
+                        
+                    fetch(`/Match/GetMatchListing/${COMP_DATA.scheduleId}`)
+                        .then(response => {
+                            if (!response.ok) { throw new Error('HTTP ' + response.status); }
+                            return response.text();
+                        })
+                        .then(html => {
+                            listingContainer.innerHTML = html;
+                            // Re-run any scripts that might be in the partial
+                            var scripts = listingContainer.querySelectorAll('script');
+                            scripts.forEach(function(oldScript) {
+                                var newScript = document.createElement('script');
+                                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                                newScript.textContent = oldScript.textContent;
+                                oldScript.parentNode.replaceChild(newScript, oldScript);
+                            });
+                        })
+                        .catch(err => {
+                            console.error('Failed to load match listing:', err);
+                            listingContainer.innerHTML = '<div class="alert alert-danger">Could not load match listing. Please refresh.</div>';
+                        });
+                }
+            });
+        }
+        
+        // --- 3. NEW: Auto-open tab from URL ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabToOpen = urlParams.get('tab');
+            
+            if (tabToOpen === 'match-listing') {
+                // First, click the main 'Match' tab
+                var mainMatchTab = document.getElementById('match-tab');
+                if (mainMatchTab) {
+                    new bootstrap.Tab(mainMatchTab).show();
+                }
+                
+                // Then, click the nested 'Listing' sub-tab
+                var subListingTab = document.getElementById('listing-subtab');
+                if (subListingTab) {
+                    new bootstrap.Tab(subListingTab).show();
+                }
+            }
+        });
+
+        // --- NEW: Script for Edit Match Time/Court Modal ---
+var editMatchModal = document.getElementById('editMatchModal');
+if (editMatchModal) {
+    editMatchModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        
+        var matchId = button.getAttribute('data-match-id');
+        var matchTime = button.getAttribute('data-match-time');
+        var court = button.getAttribute('data-court');
+
+        var modal = this;
+        modal.querySelector('#editMatchId').value = matchId;
+        modal.querySelector('#editMatchTime').value = matchTime;
+        modal.querySelector('#editCourt').value = court;
+    });
+}
+
+
+
+        
     </script>
 }

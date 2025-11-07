@@ -1,43 +1,50 @@
-@model Schedule
+@model PicklePlay.Models.Schedule
 @using PicklePlay.Models
 
 <div class="col">
-    <div class="card h-100 shadow-sm">
-        <div class="card-body d-flex flex-column">
+    <div class="card h-100 shadow-sm competition-card" 
+         onclick="location.href='@Url.Action("CompDetails", "Competition", new { id = Model.ScheduleId })'">
+        
+        @if (!string.IsNullOrEmpty(Model.CompetitionImageUrl))
+        {
+            <img src="@Url.Content(Model.CompetitionImageUrl)" class="card-img-top" alt="@Model.GameName Poster" style="height: 200px; object-fit: cover;">
+        }
+        else
+        {
+            <div class="card-img-top" style="height: 200px; background-color: #495057; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500; font-size: 1.2rem;">
+                <span>No Poster</span>
+            </div>
+        }
+        
+        <div class="card-body">
             <h5 class="card-title">@Model.GameName</h5>
+            
+            @if(Model.Status == ScheduleStatus.PendingSetup)
+            {
+                <span class="badge bg-warning text-dark mb-2">Pending Setup</span>
+            }
+            else if (Model.Status == ScheduleStatus.InProgress)
+            {
+                <span class="badge bg-primary mb-2">In Progress</span>
+            }
+            else if (Model.Status == ScheduleStatus.Completed)
+            {
+                <span class="badge bg-secondary mb-2">Completed</span>
+            }
+            else
+            {
+                <span class="badge bg-success mb-2">@Model.Status?.ToString()</span>
+            }
+
             <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @Model.Location</p>
             <p class="card-text mb-1 small">
                 <i class="bi bi-calendar-event me-1"></i>
-                @if (Model.StartTime.HasValue) {
-                    <span>@Model.StartTime.Value.ToString("ddd, MMM d")</span>
-                    <small class="text-muted"> (@Model.StartTime.Value.ToString("t") - @Model.EndTime?.ToString("t"))</small>
-                }
+                @Model.StartTime?.ToString("MMM d") - @Model.EndTime?.ToString("MMM d, yyyy")
             </p>
             <p class="card-text small"><i class="bi bi-trophy-fill me-1"></i> @Model.NumTeam Teams</p>
-
-            @* Status and Action Buttons *@
-            @if (Model.Status == ScheduleStatus.PendingSetup)
-            {
-                <span class="badge bg-warning text-dark align-self-start mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Pending Match Setup</span>
-                <div class="mt-auto pt-2 d-grid gap-2 d-sm-flex justify-content-sm-between">
-                    <a asp-controller="Community" asp-action="SetupMatch" asp-route-id="@Model.ScheduleId" class="btn btn-sm btn-warning mb-1 mb-sm-0">Continue Setup</a>
-                    <form asp-controller="Community" asp-action="Publish" asp-route-id="@Model.ScheduleId" method="post" onsubmit="return confirm('Publish this competition? Default format settings will be used if setup is incomplete.')" class="d-inline-block">
-                         @Html.AntiForgeryToken()
-                         <button type="submit" class="btn btn-sm btn-info w-100">Publish Now</button>
-                    </form>
-                 </div>
-            }
-            else // Active, Past, etc.
-            {
-                string statusBadgeClass = "bg-secondary"; // Default
-                if (Model.Status == ScheduleStatus.Active) { statusBadgeClass = "bg-success"; }
-                else if (Model.Status == ScheduleStatus.Past) { statusBadgeClass = "bg-dark"; }
-                
-                <span class="badge @statusBadgeClass align-self-start mb-2">@Model.Status?.ToString()</span>
-                 <div class="mt-auto pt-2">
-                     <a asp-controller="Competition" asp-action="CompDetails" asp-route-id="@Model.ScheduleId" class="btn btn-sm btn-outline-primary w-100">View Competition</a>
-                 </div>
-            }
+        </div>
+        <div class="card-footer bg-white border-top-0 pb-3">
+            <small class="text-danger">Registration Closes: @Model.RegClose?.ToString("MMM d")</small>
         </div>
     </div>
 </div>

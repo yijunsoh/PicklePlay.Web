@@ -1,111 +1,194 @@
 @model IEnumerable<PicklePlay.Models.Schedule>
-@using PicklePlay.Models 
+@using PicklePlay.Models
 @{
     ViewData["Title"] = "Competitions";
     var today = DateTime.Today;
 
-    // Helper function (copied from Schedule/Index)
-    string GetFriendlyDateString(DateTime date)
-    {
-        if (date == today) return "Today";
-        if (date == today.AddDays(1)) return "Tomorrow";
-        return date.ToString("dddd, dd MMM yyyy");
-    }
+    // Get Current User ID from Controller
+    int? currentUserId = ViewBag.CurrentUserId as int?;
 
-    // --- Modified Filter ---
-    // 1. Filter for Competition type
-    // 2. Filter for future/ongoing competitions (StartTime >= today)
-    var competitions = Model.Where(s => s.ScheduleType == ScheduleType.Competition &&
-                                      s.StartTime.HasValue &&
-                                      s.StartTime.Value.Date >= today)
+    // --- NEW FILTERS FOR TABS ---
+    var upcoming = Model.Where(s => s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.Active)
+                        .OrderBy(s => s.StartTime);
+
+    var running = Model.Where(s => s.Status == ScheduleStatus.InProgress)
+                       .OrderBy(s => s.StartTime);
+
+    var ended = Model.Where(s => s.Status == ScheduleStatus.Completed)
+                     .OrderByDescending(s => s.StartTime);
+
+    var myCompetitions = Model.Where(s => 
+                            // User is an organizer
+                            s.Participants.Any(p => p.UserId == currentUserId) ||
+                            // User is a member of any team in this schedule
+                            s.Teams.Any(t => t.TeamMembers.Any(tm => tm.UserId == currentUserId))
+                         )
                          .OrderBy(s => s.StartTime);
 
-    // --- New Grouping (copied from Schedule/Index) ---
-    // Group by Date
-    var groupedByDay = competitions.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+
+    // Helper function (from your file)
+    string GetFriendlyDateString(DateTime date)
+    {
+        if (date == today) return "Today"; 
+        if (date == today.AddDays(1)) return "Tomorrow"; 
+        return date.ToString("dddd, dd MMM yyyy"); 
+    }
 }
-
-<div class="container mt-4 page-wrapper">
-    <h2 class="mb-4">Upcoming Competitions</h2>
-
-    @if (!groupedByDay.Any())
-    {
-        <p class="text-muted">No upcoming competitions found.</p>
-    }
-
-    @foreach (var dayGroup in groupedByDay)
-    {
-        // Use the helper for the main date title
-        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
-            @GetFriendlyDateString(dayGroup.Key)
-        </h4>
-
-        // Group this day's competitions by the specific time
-        var groupedByTime = dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key);
-
-        @foreach (var timeGroup in groupedByTime)
-        {
-            
-            // Time subtitle
-            <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
-
-            // Use the original competition card layout in a grid
-            <div class="row row-cols-1 row-cols-md-2 g-4">
-                @foreach (var competition in timeGroup)
-                {
-                    <div class="col">
-                        <div class="card h-100 shadow-sm competition-card" 
-                             onclick="location.href='@Url.Action("CompDetails", "Competition", new { id = competition.ScheduleId })'">
-                            
-                            @if (!string.IsNullOrEmpty(competition.CompetitionImageUrl))
-                            {
-                                <img src="@Url.Content(competition.CompetitionImageUrl)" class="card-img-top" alt="@competition.GameName Poster" style="height: 200px; object-fit: cover;">
-                            }
-                            else
-                            {
-                                // Placeholder image if no poster
-                                <div class="card-img-top" style="height: 200px; background-color: #495057; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500; font-size: 1.2rem;">
-                                    <span>No Poster</span>
-                                </div>
-                            }
-                            
-                            <div class="card-body">
-                                <h5 class="card-title">@competition.GameName</h5>
-                                
-                                @if(competition.Status == ScheduleStatus.PendingSetup)
-                                {
-                                    <span class="badge bg-warning text-dark mb-2">Pending Setup</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success mb-2">@competition.Status?.ToString()</span>
-                                }
-
-                                <p class="card-text mb-1 small"><i class="bi bi-geo-alt-fill me-1"></i> @competition.Location</p>
-                                <p class="card-text mb-1 small">
-                                    <i class="bi bi-calendar-event me-1"></i>
-                                    @competition.StartTime?.ToString("MMM d") - @competition.EndTime?.ToString("MMM d, yyyy")
-                                </p>
-                                <p class="card-text small"><i class="bi bi-trophy-fill me-1"></i> @competition.NumTeam Teams</p>
-                            </div>
-                            <div class="card-footer bg-white border-top-0 pb-3">
-                                <small class="text-danger">Registration Closes: @competition.RegClose?.ToString("MMM d")</small>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    }
-</div>
 
 <style>
     .competition-card {
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer; [cite: 471]
+        transition: transform 0.2s ease, box-shadow 0.2s ease; [cite: 472]
     }
     .competition-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        transform: translateY(-5px); [cite: 473]
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; [cite: 473]
     }
 </style>
+
+<div class="container mt-4 page-wrapper">
+    
+    <ul class="nav nav-tabs mb-3" id="competitionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab" aria-controls="upcoming" aria-selected="true">
+                Upcoming
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="running-tab" data-bs-toggle="tab" data-bs-target="#running" type="button" role="tab" aria-controls="running" aria-selected="false">
+                Running Now
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ended-tab" data-bs-toggle="tab" data-bs-target="#ended" type="button" role="tab" aria-controls="ended" aria-selected="false">
+                Ended
+            </button>
+        </li>
+        @if(currentUserId.HasValue)
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="my-competitions-tab" data-bs-toggle="tab" data-bs-target="#my-competitions" type="button" role="tab" aria-controls="my-competitions" aria-selected="false">
+                    My Competitions
+                </button>
+            </li>
+        }
+    </ul>
+    
+    <div class="tab-content" id="competitionTabsContent">
+        
+        <div class="tab-pane fade show active" id="upcoming" role="tabpanel" aria-labelledby="upcoming-tab">
+            @{
+                var groupedUpcoming = upcoming.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+            }
+            @if (!groupedUpcoming.Any())
+            {
+                <p class="text-muted p-3">No upcoming competitions found.</p>
+            }
+            
+            @foreach (var dayGroup in groupedUpcoming)
+            {
+                <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                    @GetFriendlyDateString(dayGroup.Key)
+                </h4>
+                
+                @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                {
+                    <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
+                    <div class="row row-cols-1 row-cols-md-2 g-4">
+                        @foreach (var competition in timeGroup)
+                        {
+                            @await Html.PartialAsync("_CompetitionCard", competition)
+                        }
+                    </div>
+                }
+            }
+        </div>
+        
+        <div class="tab-pane fade" id="running" role="tabpanel" aria-labelledby="running-tab">
+            @{
+                var groupedRunning = running.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+            }
+            @if (!groupedRunning.Any())
+            {
+                <p class="text-muted p-3">No competitions are currently running.</p>
+            }
+
+            @foreach (var dayGroup in groupedRunning)
+            {
+                <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                    @GetFriendlyDateString(dayGroup.Key)
+                </h4>
+                
+                @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                {
+                    <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
+                    <div class="row row-cols-1 row-cols-md-2 g-4">
+                        @foreach (var competition in timeGroup)
+                        {
+                            @await Html.PartialAsync("_CompetitionCard", competition)
+                        }
+                    </div>
+                }
+            }
+        </div>
+        
+        <div class="tab-pane fade" id="ended" role="tabpanel" aria-labelledby="ended-tab">
+            @{
+                var groupedEnded = ended.GroupBy(g => g.StartTime!.Value.Date).OrderByDescending(g => g.Key);
+            }
+            @if (!groupedEnded.Any())
+            {
+                <p class="text-muted p-3">No ended competitions found.</p>
+            }
+
+            @foreach (var dayGroup in groupedEnded)
+            {
+                <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                    @GetFriendlyDateString(dayGroup.Key)
+                </h4>
+                
+                @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                {
+                    <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
+                    <div class="row row-cols-1 row-cols-md-2 g-4">
+                        @foreach (var competition in timeGroup)
+                        {
+                            @await Html.PartialAsync("_CompetitionCard", competition)
+                        }
+                    </div>
+                }
+            }
+        </div>
+        
+        @if(currentUserId.HasValue)
+        {
+            <div class="tab-pane fade" id="my-competitions" role="tabpanel" aria-labelledby="my-competitions-tab">
+                @{
+                    var groupedMyComps = myCompetitions.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+                }
+                @if (!groupedMyComps.Any())
+                {
+                    <p class="text-muted p-3">You are not participating in any competitions.</p>
+                }
+
+                @foreach (var dayGroup in groupedMyComps)
+                {
+                    <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
+                        @GetFriendlyDateString(dayGroup.Key)
+                    </h4>
+                    
+                    @foreach (var timeGroup in dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key))
+                    {
+                        <h6 class="text-muted mt-3">@dayGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
+                        <div class="row row-cols-1 row-cols-md-2 g-4">
+                            @foreach (var competition in timeGroup)
+                            {
+                                @await Html.PartialAsync("_CompetitionCard", competition)
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>

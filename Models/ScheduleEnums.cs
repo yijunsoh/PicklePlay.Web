@@ -142,7 +142,10 @@ namespace PicklePlay.Models
         Past = 2,
         Quit = 3,
         Cancelled = 4,
-        PendingSetup = 5
+        PendingSetup = 5,
+        Open = 6,  //i didt use this first i try use back active
+        InProgress = 7, //for competition
+        Completed = 8 //for competition
     }
 
     // Add these to the end of the file

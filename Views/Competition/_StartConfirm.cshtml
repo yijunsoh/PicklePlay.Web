@@ -1,0 +1,42 @@
+@model PicklePlay.Models.ViewModels.StartCompetitionConfirmViewModel
+@using PicklePlay.Models
+
+<div class.alert alert-warning" role="alert">
+    <h5 class="alert-heading">Confirm Start</h5>
+    <p>You are about to start this competition. This will generate all matches and lock the competition settings.</p>
+    <hr>
+    <p class="mb-0">
+        <strong>Warning:</strong> You will NOT be able to modify the schedule, match format, draw, or teams after starting.
+    </p>
+</div>
+
+<h5 class="mt-3">Summary</h5>
+<ul class="list-group">
+    <li class="list-group-item">
+        <strong>Competition:</strong> @Model.Schedule?.GameName
+    </li>
+    <li class="list-group-item">
+        <strong>Format:</strong> @Model.Competition?.Format.ToString()
+    </li>
+    @if (Model.Competition?.Format == CompetitionFormat.PoolPlay && Model.PoolDraw != null)
+    {
+        <li class="list-group-item">
+            <strong>Pools:</strong> @Model.PoolDraw.Pools.Count
+        </li>
+        <li class="list-group-item">
+            <strong>Teams:</strong> @Model.PoolDraw.Pools.Sum(p => p.Teams.Count)
+        </li>
+    }
+    @if (Model.Competition?.Format == CompetitionFormat.Elimination && Model.EliminationDraw != null)
+    {
+        <li class="list-group-item">
+            <strong>Teams:</strong> @Model.EliminationDraw.Teams.Count
+        </li>
+    }
+    @if (Model.Competition?.Format == CompetitionFormat.RoundRobin)
+    {
+        <li class="list-group-item">
+            <strong>Teams:</strong> @(Model.Schedule?.Teams?.Count(t => t.Status == TeamStatus.Confirmed) ?? 0)
+        </li>
+    }
+</ul>
