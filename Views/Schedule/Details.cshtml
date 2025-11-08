@@ -196,12 +196,26 @@
                                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addOrganizerModal">
                                         <i class="bi bi-person-plus-fill me-2"></i>Add Organizer
                                     </a>
-                                </li>
+                                </li>                      
                                 <li><hr class="dropdown-divider"></li>
+
+                                @if (Model.Status != ScheduleStatus.Past && Model.EndTime < DateTime.Now && Model.EndorsementStatus == EndorsementStatus.InProgress)
+                                {
+                                    <li>
+                                        <form asp-action="EndGame" asp-controller="Schedule" method="post" onsubmit="return confirm('Are you sure you want to end this game?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                                            <button type="submit" class="dropdown-item text-success">
+                                                <i class="bi bi-stop-circle-fill me-2"></i>End Game
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                }
                                 <li>
-                                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                     <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
                                          <i class="bi bi-trash me-2"></i>Delete
-                                    </a>
+                                     </a>
                                 </li>
                            </ul>
                         </div>

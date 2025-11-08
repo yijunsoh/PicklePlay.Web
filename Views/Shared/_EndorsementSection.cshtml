@@ -1,0 +1,156 @@
+@model PicklePlay.Models.ViewModels.ProfileEndorsementViewModel
+@using PicklePlay.Models
+
+<style>
+    .endorsement-profile-section {
+        background: #fff;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+        border: 1px solid rgba(46, 139, 87, 0.1);
+    }
+    .endorsement-profile-section h5 {
+        font-weight: 700;
+        color: #2E8B57; /* Use your theme color */
+        margin-bottom: 1.5rem;
+    }
+    .endorsement-bar {
+        position: relative;
+        background-color: #e9ecef;
+        border-radius: 50px;
+        height: 28px;
+        margin-bottom: 0.75rem;
+    }
+    .endorsement-bar-fill {
+        position: absolute;
+        height: 100%;
+        border-radius: 50px;
+        transition: width 0.5s ease-in-out;
+    }
+    .skill-bar .endorsement-bar-fill {
+        background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    }
+    .personality-bar .endorsement-bar-fill {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .endorsement-bar-label {
+        position: relative;
+        z-index: 2;
+        padding: 0.25rem 1rem;
+        color: #333;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .endorsement-bar-count {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        font-weight: 700;
+        color: #333;
+    }
+    .personality-bar .endorsement-bar-label,
+    .personality-bar .endorsement-bar-count {
+        color: white;
+    }
+    .btn-show-all {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+</style>
+
+<div class="endorsement-profile-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-award-fill me-2"></i>Endorsements</h5>
+        <a class="btn btn-sm btn-outline-secondary btn-show-all" 
+           data-bs-toggle="collapse" 
+           href="#collapseEndorsements" 
+           role="button" 
+           aria-expanded="false" 
+           aria-controls="collapseEndorsements">
+            Show All
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-3 mb-lg-0">
+            <h6 class="text-center fw-bold">Top Skills</h6>
+            
+            @if(Model.TopSkills.Any())
+            {
+                int maxSkillCount = Model.TopSkills.First().Count;
+                
+                @foreach (var skill in Model.TopSkills)
+                {
+                    double width = (double)skill.Count / maxSkillCount * 100;
+                    <div class="skill-bar">
+                        <div class="endorsement-bar">
+                            <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                            <span class="endorsement-bar-label">@skill.EndorsementName</span>
+                            <span class="endorsement-bar-count">@skill.Count</span>
+                        </div>
+                    </div>
+                }
+                
+                <div class="collapse" id="collapseEndorsements">
+                    @foreach (var skill in Model.AllSkills.Skip(3))
+                    {
+                        double width = (double)skill.Count / maxSkillCount * 100;
+                        <div class="skill-bar">
+                            <div class="endorsement-bar">
+                                <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                                <span class="endorsement-bar-label">@skill.EndorsementName</span>
+                                <span class="endorsement-bar-count">@skill.Count</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted text-center small">No skill endorsements yet.</p>
+            }
+        </div>
+        
+        <div class="col-lg-6">
+            <h6 class="text-center fw-bold">Top Personality</h6>
+            
+            @if(Model.TopPersonalities.Any())
+            {
+                int maxPersCount = Model.TopPersonalities.First().Count;
+                
+                @foreach (var pers in Model.TopPersonalities)
+                {
+                    double width = (double)pers.Count / maxPersCount * 100;
+                    <div class="personality-bar">
+                        <div class="endorsement-bar">
+                            <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                            <span class="endorsement-bar-label">@pers.EndorsementName</span>
+                            <span class="endorsement-bar-count">@pers.Count</span>
+                        </div>
+                    </div>
+                }
+                
+                <div class="collapse" id="collapseEndorsements">
+                    @foreach (var pers in Model.AllPersonalities.Skip(3))
+                    {
+                        double width = (double)pers.Count / maxPersCount * 100;
+                        <div class="personality-bar">
+                            <div class="endorsement-bar">
+                                <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                                <span class="endorsement-bar-label">@pers.EndorsementName</span>
+                                <span class="endorsement-bar-count">@pers.Count</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted text-center small">No personality endorsements yet.</p>
+            }
+        </div>
+    </div>
+</div>

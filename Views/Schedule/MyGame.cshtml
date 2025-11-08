@@ -16,90 +16,6 @@
         return date.ToString("dd/MM/yyyy (dddd)");
     }
 
-    // --- Helper function to get status text and CSS class ---
-    (string, string) GetStatusInfo(Schedule game)
-    {
-        if (currentUserId == null || game.Participants == null) return ("", "");
-        
-        var p = game.Participants.FirstOrDefault(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player);
-
-        if (p == null) return ("", ""); // Should not happen in My Games, but safe to check
-        
-        return p.Status switch
-        {
-            ParticipantStatus.Confirmed => ("Confirmed", "status-confirmed"),
-            ParticipantStatus.PendingPayment => ("Pending", "status-pending"),
-            ParticipantStatus.OnHold => ("On Hold", "status-onhold"),
-            ParticipantStatus.Cancelled => ("Quit", "status-cancelled"),
-            _ => ("", "")
-        };
-    }
-
-    // --- Helper to render the game card ---
-    void RenderGameCard(Schedule game)
-    {
-        var (statusText, statusClass) = GetStatusInfo(game);
-
-        <div class="card mb-3 shadow-sm game-card"
-             onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
-             style="cursor:pointer;">
-            
-            <!-- *** NEW: STATUS BADGE *** -->
-            @if (!string.IsNullOrEmpty(statusText))
-            {
-                <div class="status-badge @statusClass">@statusText</div>
-            }
-
-            <div class="card-body d-flex justify-content-between align-items-center">
-                
-                <!-- Left Side -->
-                <div>
-                    <h5 class="card-title mb-1">@game.GameName</h5>
-                    <p class="mb-0">
-                        <i class="bi bi-clock"></i>
-                        <!-- *** MODIFIED: Only show time *** -->
-                        @game.StartTime?.ToString("hh:mm tt")
-                    </p>
-                    <p class="mb-0">
-                        <i class="bi bi-geo-alt-fill"></i>
-                        @game.Location
-                    </p>
-                    <p class="mb-0 text-muted">
-                        @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
-                        {
-                            <span class="badge bg-primary">@game.EventTag.ToString()</span>
-                        }
-                    </p>
-                </div>
-
-                <!-- Right Side -->
-                <div class="text-end">
-                    @{
-                        var confirmedCount = 0;
-                        if (game.Participants != null)
-                        {
-                            confirmedCount = game.Participants.Count(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed);
-                        }
-                    }
-
-                    @if (game.NumPlayer.HasValue && game.NumPlayer > 0)
-                    {
-                        <h5 class="mb-0">
-                            <i class="bi bi-people-fill text-success"></i>
-                            <span class="ms-1">@confirmedCount / @game.NumPlayer</span>
-                        </h5>
-                    }
-                    else
-                    {
-                        <h5 class="mb-0">
-                            <i class="bi bi-people-fill text-success"></i>
-                            <span class="ms-1">@confirmedCount</span>
-                        </h5>
-                    }
-                </div>
-            </div>
-        </div>
-    }
 }
 
 <style>
@@ -211,7 +127,7 @@
                         <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
                         foreach (var game in dayGroup)
                         {
-                            RenderGameCard(game);
+                            
                         }
                     }
                 }
@@ -233,7 +149,9 @@
                         <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
                         foreach (var game in dayGroup)
                         {
-                            RenderGameCard(game);
+                            <div class="col">
+                                    @await Html.PartialAsync("~/Views/Shared/_GameCard.cshtml", game)
+                                </div>
                         }
                     }
                 }
@@ -255,7 +173,9 @@
                         <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
                         foreach (var game in dayGroup)
                         {
-                            RenderGameCard(game);
+                            <div class="col">
+                                    @await Html.PartialAsync("~/Views/Shared/_GameCard.cshtml", game)
+                                </div>
                         }
                     }
                 }
@@ -277,7 +197,9 @@
                         <h4 class="mt-4 mb-3 date-header">@GetFriendlyDateString(dayGroup.Key)</h4>
                         foreach (var game in dayGroup)
                         {
-                            RenderGameCard(game);
+                           <div class="col">
+                                    @await Html.PartialAsync("~/Views/Shared/_GameCard.cshtml", game)
+                                </div>
                         }
                     }
                 }

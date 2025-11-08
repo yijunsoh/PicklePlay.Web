@@ -1,0 +1,226 @@
+@model PicklePlay.Models.ViewModels.GiveEndorsementViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "Give Endorsements";
+    // Get all enum values for the badges
+    var personalityTypes = Enum.GetValues(typeof(PersonalityEndorsement)).Cast<PersonalityEndorsement>().Where(e => e != PersonalityEndorsement.None);
+    var skillTypes = Enum.GetValues(typeof(SkillEndorsement)).Cast<SkillEndorsement>().Where(e => e != SkillEndorsement.None);
+}
+
+<style>
+    /* Card Styles (Unchanged) */
+    .endorsement-card {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    .endorsement-header {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .endorsement-header img {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 15px;
+        border: 2px solid #0d6efd;
+    }
+    .endorsement-header h4 { margin: 0; font-weight: 600; color: #333; }
+    .endorsement-body { padding: 1.5rem; }
+    .endorsement-badge-title {
+        display: inline-block;
+        padding: 0.5em 0.75em;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .badge-personality { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .badge-skill { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #333; }
+
+    /* --- NEW CHIP/BADGE STYLES --- */
+    .endorsement-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .endorsement-chip {
+        background-color: #f1f3f5;
+        border: 2px solid #f1f3f5;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    .endorsement-chip:hover {
+        background-color: #e9ecef;
+    }
+    /* "Active" state for selected chip */
+    .endorsement-chip.active-personality {
+        background-color: #e7dff5;
+        border-color: #667eea;
+        color: #667eea;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+    }
+    .endorsement-chip.active-skill {
+        background-color: #fff8e1;
+        border-color: #f7971e;
+        color: #f7971e;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(247,151,30,0.3);
+    }
+    
+    /* "Locked" state for already-given endorsements */
+    .endorsement-locked {
+        background-color: #f8f9fa;
+        border: 2px dashed #0d6efd;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 700;
+        color: #0d6efd;
+        font-size: 1.1rem;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            
+            <div class="text-center mb-4">
+                <h2>@ViewData["Title"]</h2>
+                <h4 class="text-muted fw-normal">For "@Model.ScheduleName"</h4>
+                <p>Click a badge to give an endorsement. You can give one of each type per player.</p>
+            </div>
+
+            <form asp-action="Give" asp-controller="Endorsement" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ScheduleId" />
+
+                @if (!Model.ParticipantsToEndorse.Any())
+                {
+                    <div class="alert alert-info">...</div>
+                }
+                
+                @for (int i = 0; i < Model.ParticipantsToEndorse.Count; i++)
+                {
+                    var p = Model.ParticipantsToEndorse[i];
+                    
+                    <input type="hidden" asp-for="ParticipantsToEndorse[i].ReceiverUserId" />
+                    <input type="hidden" class="hidden-personality" asp-for="ParticipantsToEndorse[i].SelectedPersonality" />
+                    <input type="hidden" class="hidden-skill" asp-for="ParticipantsToEndorse[i].SelectedSkill" />
+
+                    <div class="endorsement-card">
+                        <div class="endorsement-header">
+                            <img src="@(string.IsNullOrEmpty(p.ProfilePicture) ? "/images/profile_image.jpg" : p.ProfilePicture)" alt="@p.Username" />
+                            <h4>@p.Username</h4>
+                        </div>
+                        <div class="endorsement-body">
+                            <div class="mb-4">
+                                <label class="endorsement-badge-title badge-personality">
+                                    <i class="bi bi-person-heart me-2"></i>Personality
+                                </label>
+                                @if (p.HasExistingPersonality)
+                                {
+                                    <div class="endorsement-locked">
+                                        @p.SelectedPersonality.ToString()
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="endorsement-chips" data-type="personality" data-index="@i">
+                                        @foreach (var type in personalityTypes)
+                                        {
+                                            <div class="endorsement-chip" data-value="@type">@type.ToString()</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            
+                            <div>
+                                <label class="endorsement-badge-title badge-skill">
+                                    <i class="bi bi-stars me-2"></i>Skill
+                                </label>
+                                @if (p.HasExistingSkill)
+                                {
+                                    <div class="endorsement-locked">
+                                        @p.SelectedSkill.ToString()
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="endorsement-chips" data-type="skill" data-index="@i">
+                                        @foreach (var type in skillTypes)
+                                        {
+                                            <div class="endorsement-chip" data-value="@type">@type.ToString()</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.ParticipantsToEndorse.Any())
+                {
+                    <div class="text-center mt-4">
+                         <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-send-check-fill me-2"></i>Submit Endorsements
+                        </button>
+                    </div>
+                }
+            </form>
+            
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chipContainers = document.querySelectorAll('.endorsement-chips');
+
+            chipContainers.forEach(container => {
+                const type = container.dataset.type;
+                const index = container.dataset.index;
+                const chips = container.querySelectorAll('.endorsement-chip');
+                
+                // Find the corresponding hidden input
+                let hiddenInput;
+                if (type === 'personality') {
+                    hiddenInput = document.querySelector(`input[name="ParticipantsToEndorse[${index}].SelectedPersonality"]`);
+                } else {
+                    hiddenInput = document.querySelector(`input[name="ParticipantsToEndorse[${index}].SelectedSkill"]`);
+                }
+                
+                chips.forEach(chip => {
+                    chip.addEventListener('click', function() {
+                        const value = this.dataset.value;
+                        
+                        // Check if this chip is already active
+                        if (this.classList.contains(type === 'personality' ? 'active-personality' : 'active-skill')) {
+                            // De-select it
+                            this.classList.remove('active-personality', 'active-skill');
+                            hiddenInput.value = 'None';
+                        } else {
+                            // De-select all other chips in this group
+                            chips.forEach(c => c.classList.remove('active-personality', 'active-skill'));
+                            
+                            // Select this one
+                            this.classList.add(type === 'personality' ? 'active-personality' : 'active-skill');
+                            hiddenInput.value = value;
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+}

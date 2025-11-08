@@ -2,6 +2,13 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using PicklePlay.Web.Models;
 using PicklePlay.ViewModels;
+using Microsoft.EntityFrameworkCore;
+using PicklePlay.Data;
+using PicklePlay.Models;
+using PicklePlay.Models.ViewModels;
+using Microsoft.AspNetCore.Http;
+using System.Linq;
+using System.Threading.Tasks;
 
 
 namespace PicklePlay.Web.Controllers;
@@ -12,14 +19,23 @@ public class HomeController : Controller
     private readonly IAuthService _authService;
     private readonly IWebHostEnvironment _environment;
     private readonly IEmailService _emailService;
+    private readonly ApplicationDbContext _context;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public HomeController(ILogger<HomeController> logger, IAuthService authService,
-                        IWebHostEnvironment environment, IEmailService emailService)
+                        IWebHostEnvironment environment, IEmailService emailService, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
     {
         _logger = logger;
         _authService = authService;
         _environment = environment;
         _emailService = emailService;
+        _context = context;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private int? GetCurrentUserId()
+    {
+        return _httpContextAccessor.HttpContext?.Session.GetInt32("UserId");
     }
 
     // GET: /Home/EditProfile
@@ -335,5 +351,41 @@ public class HomeController : Controller
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    // This action will be called by the partial view
+    [HttpGet]
+    public async Task<IActionResult> EndorsementSection(int userId)
+    {
+        // Get all endorsements for the specified user
+        var allReceived = await _context.Endorsements
+            .Where(e => e.ReceiverUserId == userId)
+            .ToListAsync();
+
+        // Process Skills
+        var allSkills = allReceived
+            .Where(e => e.Skill != SkillEndorsement.None)
+            .GroupBy(e => e.Skill)
+            .Select(g => new EndorsementSummary { EndorsementName = g.Key.ToString(), Count = g.Count() })
+            .OrderByDescending(s => s.Count)
+            .ToList();
+
+        // Process Personalities
+        var allPersonalities = allReceived
+            .Where(e => e.Personality != PersonalityEndorsement.None)
+            .GroupBy(e => e.Personality)
+            .Select(g => new EndorsementSummary { EndorsementName = g.Key.ToString(), Count = g.Count() })
+            .OrderByDescending(s => s.Count)
+            .ToList();
+
+        var vm = new ProfileEndorsementViewModel
+        {
+            AllSkills = allSkills,
+            TopSkills = allSkills.Take(3).ToList(),
+            AllPersonalities = allPersonalities,
+            TopPersonalities = allPersonalities.Take(3).ToList()
+        };
+
+        return PartialView("~/Views/Shared/_EndorsementSection.cshtml", vm);
     }
 }

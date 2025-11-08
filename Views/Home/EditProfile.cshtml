@@ -645,7 +645,13 @@
                         </button>
                     </div>
                 </form>
+
+                <div class="mt-4">
+                    @await Component.InvokeAsync("EndorsementSection", new { userId = Model.UserId })
+                </div>
             </div>
+
+            
         </div>
 
         <!-- Right side: Wallet + Communities -->

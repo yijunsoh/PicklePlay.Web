@@ -113,6 +113,10 @@ namespace PicklePlay.Models
         [Column("requireOrganizerApproval")]
         public bool RequireOrganizerApproval { get; set; } = true; // Default to ON (approval is required)
 
+        [Column("endorsementStatus")]
+        public EndorsementStatus EndorsementStatus { get; set; } = EndorsementStatus.InProgress;
+
+
         // --- ADD NAVIGATION PROPERTY ---
         // This will hold the related Competition data if ScheduleType is Competition
         public virtual Competition? Competition { get; set; }

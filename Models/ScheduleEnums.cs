@@ -162,4 +162,11 @@ public enum ParticipantRole
         OnHold,
         Cancelled
     }
+
+    public enum EndorsementStatus
+    {
+        InProgress,        // Default state, game is active
+        PendingEndorsement, // Game is over, awaiting endorsements
+        Closed             // Endorsement period is over (e.g., 24hr+)
+    }
 }

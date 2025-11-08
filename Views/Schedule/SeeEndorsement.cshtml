@@ -1,0 +1,261 @@
+@model PicklePlay.Models.ViewModels.ViewEndorsementViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "View Endorsements";
+}
+
+<style>
+    /* --- Styles copied from GiveEndorsement/Profile pages --- */
+    .endorsement-badge-title {
+        display: inline-block;
+        padding: 0.5em 0.75em;
+        font-size: 1.25rem; /* Made it a bit bigger */
+        font-weight: 600;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        margin-top: 1.5rem;
+    }
+    .badge-personality {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .badge-skill {
+        background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+        color: #333;
+    }
+    
+    /* Progress Bar styles for "My Awards" */
+    .endorsement-bar {
+        position: relative;
+        background-color: #e9ecef;
+        border-radius: 50px;
+        height: 28px;
+        margin-bottom: 0.75rem;
+    }
+    .endorsement-bar-fill {
+        position: absolute;
+        height: 100%;
+        border-radius: 50px;
+        transition: width 0.5s ease-in-out;
+    }
+    .skill-bar .endorsement-bar-fill {
+        background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    }
+    .personality-bar .endorsement-bar-fill {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .endorsement-bar-label {
+        position: relative;
+        z-index: 2;
+        padding: 0.25rem 1rem;
+        color: #333;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .endorsement-bar-count {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        font-weight: 700;
+        color: #333;
+    }
+    .personality-bar .endorsement-bar-label,
+    .personality-bar .endorsement-bar-count {
+        color: white;
+    }
+    /* --- End of copied styles --- */
+
+    .endorsement-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 1.5rem;
+        padding-left: 0.5rem;
+    }
+    .player-avatar { text-align: center; }
+    .player-avatar img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 0.5rem;
+        border: 4px solid transparent;
+        transition: all 0.3s ease;
+    }
+    .player-avatar img.endorsed-by-me {
+        border-color: #198754; /* Green border */
+    }
+    .player-avatar .player-name {
+        font-weight: 600;
+        color: #333;
+        display: block;
+    }
+    /* --- THIS IS THE FIX --- */
+    .player-avatar .player-count {
+        font-size: 0.9rem;
+        color: #333; /* Was #6c757d. Now darker. */
+        font-weight: 500;
+    }
+    /* This will style the "You, +1" text */
+    .player-count .text-success {
+        color: #198754 !important; /* Bootstrap's success green */
+        font-weight: 700; /* Bolder */
+    }
+    /* --- END OF FIX --- */
+</style>
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h2>@ViewData["Title"]</h2>
+        <h4 class="text-muted fw-normal">For "@Model.ScheduleName"</h4>
+    </div>
+
+    <ul class="nav nav-tabs nav-fill" id="endorsementTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="skills-tab" data-bs-toggle="tab" data-bs-target="#skills-pane" type="button" role="tab">Skills</button>
+        </li>
+        <li class="nav-item" role="presentation">
+             <button class="nav-link" id="personality-tab" data-bs-toggle="tab" data-bs-target="#personality-pane" type="button" role="tab">Personality</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="myawards-tab" data-bs-toggle="tab" data-bs-target="#myawards-pane" type="button" role="tab">My Awards</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="endorsementTabsContent">
+
+        <div class="tab-pane fade show active p-3" id="skills-pane" role="tabpanel" aria-labelledby="skills-tab">
+            @if (Model.SkillGroups!.Any())
+            {
+                @foreach (var group in Model.SkillGroups!)
+                {
+                    <div class="endorsement-badge-title badge-skill">
+                        <i class="bi bi-stars me-2"></i>@group.EndorsementName
+                    </div>
+                    
+                    <div class="endorsement-grid">
+                         @foreach (var r in group.Recipients!)
+                        {
+                            <div class="player-avatar">
+                                <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
+                                     alt="@r.Username" 
+                                     class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")" />
+                                
+                                <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
+                                
+                                <span class="player-count">
+                                    @if (r.IsEndorsedByMe && r.Count > 1) {
+                                        <span class="text-success">You, +@(r.Count - 1)</span>
+                                    } else if (r.IsEndorsedByMe && r.Count == 1) {
+                                        <span class="text-success">You</span>
+                                    } else {
+                                        <span>x@(r.Count)</span>
+                                    }
+                                </span>
+                                </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info mt-3">No skill endorsements were given in this game.</div>
+            }
+         </div>
+        
+        <div class="tab-pane fade p-3" id="personality-pane" role="tabpanel" aria-labelledby="personality-tab">
+            @if (Model.PersonalityGroups!.Any())
+            {
+                @foreach (var group in Model.PersonalityGroups!)
+                {
+                    <div class="endorsement-badge-title badge-personality">
+                        <i class="bi bi-person-heart me-2"></i>@group.EndorsementName
+                    </div>
+                    
+                    <div class="endorsement-grid">
+                        @foreach (var r in group.Recipients!)
+                        {
+                            <div class="player-avatar">
+                                <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
+                                     alt="@r.Username" 
+                                     class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")" />
+                                
+                                <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
+                                
+                                <span class="player-count">
+                                    @if (r.IsEndorsedByMe && r.Count > 1) {
+                                        <span class="text-success">You, +@(r.Count - 1)</span>
+                                    } else if (r.IsEndorsedByMe && r.Count == 1) {
+                                        <span class="text-success">You</span>
+                                    } else {
+                                        <span>x@(r.Count)</span>
+                                    }
+                                </span>
+                                </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info mt-3">No personality endorsements were given in this game.</div>
+            }
+         </div>
+
+        <div class="tab-pane fade p-3" id="myawards-pane" role="tabpanel" aria-labelledby="myawards-tab">
+            @if (Model.MySkillAwards!.Any() || Model.MyPersonalityAwards!.Any())
+            {
+                <div class="row">
+                    <div class="col-lg-6 mb-3 mb-lg-0">
+                        <h4 class="mt-4 text-center fw-bold">My Skills</h4>
+                        @if (Model.MySkillAwards!.Any())
+                        {
+                            int maxSkillCount = Model.MySkillAwards!.First().Count;
+                            @foreach(var award in Model.MySkillAwards!)
+                            {
+                                double width = Math.Max(15, (double)award.Count / maxSkillCount * 100);
+                                <div class="skill-bar">
+                                    <div class="endorsement-bar">
+                                        <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                                        <span class="endorsement-bar-label">@award.EndorsementName</span>
+                                        <span class="endorsement-bar-count">@award.Count</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">You didn't receive any skill awards in this game.</p>
+                        }
+                    </div>
+                    <div class="col-lg-6">
+                        <h4 class="mt-4 text-center fw-bold">My Personality</h4>
+                        @if (Model.MyPersonalityAwards!.Any())
+                        {
+                            int maxPersCount = Model.MyPersonalityAwards!.First().Count;
+                            @foreach(var award in Model.MyPersonalityAwards!)
+                            {
+                                double width = Math.Max(15, (double)award.Count / maxPersCount * 100);
+                                <div class="personality-bar">
+                                    <div class="endorsement-bar">
+                                        <div class="endorsement-bar-fill" style="width: @width%;"></div>
+                                        <span class="endorsement-bar-label">@award.EndorsementName</span>
+                                        <span class="endorsement-bar-count">@award.Count</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">You didn't receive any personality awards in this game.</p>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info mt-3">You did not receive any endorsements in this game.</div>
+            }
+        </div>
+    </div>
+</div>

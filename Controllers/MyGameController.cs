@@ -49,6 +49,17 @@ namespace PicklePlay.Controllers
                     .ThenInclude(s => s!.Participants)
                 .ToListAsync();
 
+            // --- *** THIS PART IS ESSENTIAL *** ---
+            var endorsedGameIds = await _context.Endorsements
+                .Where(e => e.GiverUserId == currentUserId.Value)
+                .Select(e => e.ScheduleId)
+                .Distinct()
+                .ToListAsync();
+            
+            // This passes the list to the _GameCard partial
+            ViewBag.EndorsedGameIds = endorsedGameIds;
+            // --- *** END OF ESSENTIAL PART *** ---
+
             var viewModel = new MyGameViewModel
             {
                 // Active Games (Correct)

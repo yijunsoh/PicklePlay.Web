@@ -36,7 +36,10 @@ namespace PicklePlay.Data
         public virtual DbSet<Pool> Pools { get; set; }
         public DbSet<Match> Matches { get; set; }
         // --- ADD THIS NEW DbSet ---
-public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Endorsement> Endorsements { get; set; }
+
+
 
 
 
@@ -135,6 +138,18 @@ public DbSet<Notification> Notifications { get; set; }
                 .HasForeignKey(m => m.Team2Id)
                 .OnDelete(DeleteBehavior.Restrict);
             // --- END OF BLOCK ---
+
+            modelBuilder.Entity<Endorsement>()
+        .HasOne(e => e.GiverUser)
+        .WithMany() // No navigation property on User
+        .HasForeignKey(e => e.GiverUserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<Endorsement>()
+        .HasOne(e => e.ReceiverUser)
+        .WithMany() // No navigation property on User
+        .HasForeignKey(e => e.ReceiverUserId)
+        .OnDelete(DeleteBehavior.Restrict);
         }
         // Add other DbSets for your 25+ tables later
     }

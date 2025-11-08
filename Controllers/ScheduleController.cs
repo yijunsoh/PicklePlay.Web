@@ -352,13 +352,42 @@ public IActionResult Edit(int id, ScheduleEditViewModel vm)
             }
             catch (Exception ex)
             {
-                 // Log the error
-                 // Add error message to TempData or ModelState
-                 TempData["ErrorMessage"] = $"Error deleting schedule: {ex.Message}";
-                 // Redirect back to details or show error view
-                 return RedirectToAction("Details", new { id = id });
+                // Log the error
+                // Add error message to TempData or ModelState
+                TempData["ErrorMessage"] = $"Error deleting schedule: {ex.Message}";
+                // Redirect back to details or show error view
+                return RedirectToAction("Details", new { id = id });
             }
         }
         // --- END DELETE ACTIONS ---
+        
+        // --- NEW ACTION: EndGame ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EndGame(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue) return Unauthorized();
+
+            // Check if user is an organizer for this game
+            var isOrganizer = await _context.ScheduleParticipants
+                .AnyAsync(p => p.ScheduleId == scheduleId &&
+                               p.UserId == currentUserId.Value &&
+                               p.Role == ParticipantRole.Organizer);
+
+            if (!isOrganizer) return Forbid();
+
+            var schedule = await _context.Schedules.FindAsync(scheduleId);
+            if (schedule == null) return NotFound();
+
+            // Set the status to allow endorsements
+            schedule.EndorsementStatus = EndorsementStatus.PendingEndorsement;
+            schedule.Status = ScheduleStatus.Past; // Also mark the game as Past
+            _context.Schedules.Update(schedule);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Game has been ended! Participants can now leave endorsements.";
+            return RedirectToAction("Details", new { id = scheduleId });
+        }
     }
 }
