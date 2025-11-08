@@ -35,6 +35,10 @@ namespace PicklePlay.Data
         public virtual DbSet<Friendship> Friendships { get; set; }
         public virtual DbSet<Pool> Pools { get; set; }
         public DbSet<Match> Matches { get; set; }
+        // --- ADD THIS NEW DbSet ---
+public DbSet<Notification> Notifications { get; set; }
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -110,27 +114,27 @@ namespace PicklePlay.Data
                 .HasOne(t => t.Pool)
                 .WithMany(p => p.Teams)
                 .HasForeignKey(t => t.PoolId)
-                .OnDelete(DeleteBehavior.SetNull); 
-                // --- ADD THIS BLOCK ---
-    // Configure one-way navigation for Match -> Team (Winner)
-    modelBuilder.Entity<Match>()
-        .HasOne(m => m.Winner)
-        .WithMany() // No navigation property on Team
-        .HasForeignKey(m => m.WinnerId)
-        .OnDelete(DeleteBehavior.Restrict); // Avoid cascade delete issues
+                .OnDelete(DeleteBehavior.SetNull);
+            // --- ADD THIS BLOCK ---
+            // Configure one-way navigation for Match -> Team (Winner)
+            modelBuilder.Entity<Match>()
+                .HasOne(m => m.Winner)
+                .WithMany() // No navigation property on Team
+                .HasForeignKey(m => m.WinnerId)
+                .OnDelete(DeleteBehavior.Restrict); // Avoid cascade delete issues
 
-    modelBuilder.Entity<Match>()
-        .HasOne(m => m.Team1)
-        .WithMany()
-        .HasForeignKey(m => m.Team1Id)
-        .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Match>()
+                .HasOne(m => m.Team1)
+                .WithMany()
+                .HasForeignKey(m => m.Team1Id)
+                .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<Match>()
-        .HasOne(m => m.Team2)
-        .WithMany()
-        .HasForeignKey(m => m.Team2Id)
-        .OnDelete(DeleteBehavior.Restrict);
-    // --- END OF BLOCK ---
+            modelBuilder.Entity<Match>()
+                .HasOne(m => m.Team2)
+                .WithMany()
+                .HasForeignKey(m => m.Team2Id)
+                .OnDelete(DeleteBehavior.Restrict);
+            // --- END OF BLOCK ---
         }
         // Add other DbSets for your 25+ tables later
     }

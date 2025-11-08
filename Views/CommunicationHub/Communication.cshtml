@@ -3,6 +3,12 @@
 @{
     ViewData["Title"] = "Communication Hub";
     int? currentUserId = Context.Session.GetInt32("UserId");
+
+    // --- UPDATED NOTIFICATION COUNT ---
+    int notificationCount = Model.PendingTeamInvitations.Count + 
+                            Model.PendingFriendRequests.Count + 
+                            Model.PendingCommunityInvitations.Count +
+                            Model.GeneralNotifications!.Count;
 }
 
 <style>
@@ -50,7 +56,6 @@
 <div class="container mt-4">
     <h2 class="mb-4">@ViewData["Title"]</h2>
 
-    <!-- Main Hub Tabs -->
     <ul class="nav nav-tabs" id="hubTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="notifications-tab" data-bs-toggle="tab"
@@ -58,39 +63,66 @@
                 aria-selected="true">
                 Notifications
                 @{
-                    int notificationCount = Model.PendingTeamInvitations.Count + Model.PendingFriendRequests.Count;
+                    // This count now includes general notifications
                     if (notificationCount > 0)
                     {
                         <span class="badge bg-danger ms-1">@notificationCount</span>
                     }
                 }
             </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="friends-tab" data-bs-toggle="tab" data-bs-target="#friends-pane" type="button"
-                role="tab" aria-controls="friends-pane" aria-selected="false">
-                Friends
-                <span class="badge bg-secondary ms-1">@Model.Friends.Count</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane"
-                type="button" role="tab" aria-controls="chat-pane" aria-selected="false">
-                Chat (Future)
-            </button>
-        </li>
-    </ul>
+       </li>
+       </ul>
 
-    <!-- Tab Content -->
     <div class="tab-content" id="hubTabsContent">
 
-        <!-- Notifications Pane -->
         <div class="tab-pane fade show active" id="notifications-pane" role="tabpanel"
             aria-labelledby="notifications-tab" tabindex="0">
             <div class="pt-4">
                 @if (notificationCount == 0)
                 {
                     <p class="text-muted">Your notification mailbox is empty.</p>
+                }
+                
+                @if (notificationCount > 0)
+                {
+                    <form asp-action="MarkAllAsRead" asp-controller="Communication" method="post" class="d-flex justify-content-end mb-2">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-check-all"></i> Mark All as Read
+                        </button>
+                    </form>
+                }
+                
+                @if (Model.GeneralNotifications.Any())
+                {
+                    <h5 class="my-3">General</h5>
+                    @foreach (var n in Model.GeneralNotifications)
+                    {
+                        <div class="notification-list-item shadow-sm">
+                            <div class="notification-content">
+                                <i class="bi bi-info-circle-fill fs-4 me-3 text-primary"></i>
+                                <div>
+                                    @Html.Raw(n.Message)
+                                    <div class="text-muted small">
+                                        @n.DateCreated.ToString("dd MMM yyyy, h:mm tt")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="notification-actions">
+                                <form asp-action="MarkAsRead" asp-controller="Communication" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="notificationId" value="@n.NotificationId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Mark as Read">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                </form>
+                                @if (!string.IsNullOrEmpty(n.LinkUrl))
+                                {
+                                    <a href="@n.LinkUrl" class="btn btn-sm btn-primary">View</a>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
 
                 <!-- Team Invitations -->

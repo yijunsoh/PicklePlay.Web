@@ -87,13 +87,15 @@ namespace PicklePlay.Controllers
             return RedirectToAction("Index", new { id = participant.ScheduleId });
         }
 
-        // --- NEW ACTION ---
         // POST: /ManageGame/RemoveParticipant
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveParticipant(int spId)
         {
-            var participant = await _context.ScheduleParticipants.FindAsync(spId);
+            var participant = await _context.ScheduleParticipants
+                                        .Include(p => p.Schedule) // <-- Include Schedule
+                                        .FirstOrDefaultAsync(p => p.SP_Id == spId);
+                                        
             if (participant == null) return NotFound();
 
             if (!await IsUserOrganizer(participant.ScheduleId))
@@ -101,14 +103,25 @@ namespace PicklePlay.Controllers
 
             var scheduleId = participant.ScheduleId;
             var userIdToNotify = participant.UserId;
+            var gameName = participant.Schedule?.GameName ?? "a game"; // Get game name for message
 
             _context.ScheduleParticipants.Remove(participant);
+
+            // --- CREATE NOTIFICATION ---
+            var notification = new Notification
+            {
+                UserId = userIdToNotify,
+                Message = $"You have been removed from the game: <strong>{gameName}</strong> by the organizer.",
+                LinkUrl = Url.Action("Details", "Schedule", new { id = scheduleId }),
+                IsRead = false,
+                DateCreated = DateTime.Now
+            };
+            _context.Notifications.Add(notification);
+            // --- END ---
+
             await _context.SaveChangesAsync();
             
-            // TODO: Notification logic goes here.
-            // See my note at the end of this response.
-            
-            TempData["SuccessMessage"] = "Participant has been removed.";
+            TempData["SuccessMessage"] = "Participant has been removed and notified.";
             return RedirectToAction("Index", new { id = scheduleId });
         }
 

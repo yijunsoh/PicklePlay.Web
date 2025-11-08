@@ -9,5 +9,7 @@ namespace PicklePlay.Models.ViewModels
         public List<Friendship> PendingFriendRequests { get; set; } = new List<Friendship>();
         public List<Friendship> Friends { get; set; } = new List<Friendship>();
         public List<CommunityInvitation> PendingCommunityInvitations { get; set; } = new List<CommunityInvitation>();
+
+        public List<Notification> ?GeneralNotifications { get; set; }
     }
 }

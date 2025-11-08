@@ -6,6 +6,7 @@ using PicklePlay.Models.ViewModels;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using System;
 
 namespace PicklePlay.Controllers
 {
@@ -56,7 +57,7 @@ namespace PicklePlay.Controllers
                 .Include(f => f.UserTwo)
                 .ToListAsync();
 
-            // 4) NEW: Pending community invitations for current user
+            // 4) Pending community invitations
             var communityInvitations = await _context.CommunityInvitations
                 .Where(inv => inv.InviteeUserId == currentUserId.Value && inv.Status == "Pending")
                 .Include(inv => inv.Community)
@@ -64,15 +65,67 @@ namespace PicklePlay.Controllers
                 .OrderByDescending(inv => inv.DateSent)
                 .ToListAsync();
 
+            // --- 5) NEW: General Notifications (unread only) ---
+            var generalNotifications = await _context.Notifications
+                .Where(n => n.UserId == currentUserId.Value && !n.IsRead)
+                .OrderByDescending(n => n.DateCreated)
+                .ToListAsync();
+            // --- END ---
+
             var viewModel = new CommunicationHubViewModel
             {
                 PendingTeamInvitations = teamInvitations,
                 PendingFriendRequests = friendRequests,
                 Friends = friends,
-                PendingCommunityInvitations = communityInvitations
+                PendingCommunityInvitations = communityInvitations,
+                GeneralNotifications = generalNotifications // <-- ADDED
             };
 
             return View("~/Views/CommunicationHub/Communication.cshtml", viewModel);
+        }
+
+        // --- NEW ACTION ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkAsRead(int notificationId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue) return Unauthorized();
+
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.NotificationId == notificationId && n.UserId == currentUserId.Value);
+
+            if (notification != null)
+            {
+                notification.IsRead = true;
+                _context.Notifications.Update(notification);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Index");
+        }
+
+        // --- NEW ACTION ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue) return Unauthorized();
+
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == currentUserId.Value && !n.IsRead)
+                .ToListAsync();
+
+            foreach (var n in notifications)
+            {
+                n.IsRead = true;
+            }
+
+            _context.Notifications.UpdateRange(notifications);
+            await _context.SaveChangesAsync();
+            
+            return RedirectToAction("Index");
         }
     }
 }
