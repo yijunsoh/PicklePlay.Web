@@ -45,6 +45,11 @@ namespace PicklePlay.Models
 
         // For Elimination: Stores the seed (1-16)
         public int? BracketSeed { get; set; }
+
+        // --- ADD THIS NEW PROPERTY ---
+        [Required]
+        public PaymentStatusForSchedule PaymentStatusForSchedule { get; set; } = PaymentStatusForSchedule.Unpaid;
+
     }
 
     public enum TeamStatus

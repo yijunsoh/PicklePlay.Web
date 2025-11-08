@@ -243,7 +243,7 @@
                                     </a>
                                 }
                             </li>
-                            <li><a class="dropdown-item disabled" href="#">Manage Teams (Future)</a></li>
+                           <li><a class="dropdown-item" asp-action="Index" asp-controller="ManageTeam" asp-route-id="@Model.ScheduleId"><i class="bi bi-people-fill me-2"></i> Manage Teams</a></li>
                             <li><hr class="dropdown-divider"></li>
                             @if (Model.Status == ScheduleStatus.PendingSetup) {
                                 <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
@@ -424,59 +424,98 @@
 
                     <div class="tab-content" id="teamStatusTabsContent">
                         <div class="tab-pane fade" id="pending-teams-pane" role="tabpanel" aria-labelledby="pending-teams-tab" tabindex="0">
-                            <div class="pt-3">
+                             <div class="pt-3">
                                 @if (!pendingTeams.Any())
                                 {
-                                    <p class="text-muted">No teams pending approval.</p>
+                                     <p class="text-muted">No teams pending approval.</p>
                                 }
                                 @foreach (var team in pendingTeams)
-                                {
+                                 {
                                     <div class="team-card">
                                         <div class="team-header d-flex align-items-center justify-content-between">
-                                            <div class="d-flex align-items-center">
+                                             <div class="d-flex align-items-center">
                                                 <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="Team Icon" class="team-icon" />
                                                 <h5 class="mb-0">@team.TeamName</h5>
+                                                @if (team.PaymentStatusForSchedule == PaymentStatusForSchedule.Paid)
+                                                {
+                                                    <span class="badge bg-success ms-2">Paid</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-2">Unpaid</span>
+                                                }
                                             </div>
-                                            @if (team.CreatedByUserId == currentUserId)
-                                            {
-                                                <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
-                                                   data-bs-toggle="modal"
-                                                   data-bs-target="#editTeamModal"
-                                                   data-team-id="@team.TeamId"
-                                                   data-team-name="@team.TeamName"
-                                                   data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                            }
+                                            
+                                            <div class="btn-group">
+                                                @if (currentUserId == team.CreatedByUserId && team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
+                                                {
+                                                    <a asp-action="MakePayment" asp-controller="Competition" asp-route-teamId="@team.TeamId" class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-credit-card"></i> Make Payment
+                                                    </a>
+                                                }
+                                                @if (team.CreatedByUserId == currentUserId)
+                                                {
+                                                    <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#editTeamModal"
+                                                       data-team-id="@team.TeamId"
+                                                       data-team-name="@team.TeamName"
+                                                       data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                }
+                                            </div>
                                         </div>
                                         <div class="team-body">
                                             @foreach (var member in team.TeamMembers)
-                                            {
+                                             {
                                                 <div class="player-slot-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="@member.User?.Username">
-                                                    <div class="player-slot">
+                                                     <div class="player-slot">
                                                         <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)" alt="Profile"/>
                                                     </div>
-                                                    <span class="player-name">@member.User?.Username</span>
+                                                     <span class="player-name">@member.User?.Username</span>
                                                 </div>
+                                                
+                                                @if (currentUserId == team.CreatedByUserId && member.UserId != team.CreatedByUserId)
+                                                {
+                                                    <div class="btn-group-vertical btn-group-sm" style="width: 65px; align-items: center;">
+                                                        <form asp-action="MakeCaptain" asp-controller="Competition" method="post" class="d-inline" onsubmit="return confirm('Make @member.User!.Username captain? You will lose captain permissions.')">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                            <input type="hidden" name="newCaptainUserId" value="@member.UserId" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning w-100" title="Make Captain">
+                                                                <i class="bi bi-star-fill"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form asp-action="RemoveMember" asp-controller="Competition" method="post" class="d-inline" onsubmit="return confirm('Remove @member.User.Username from the team?')">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                            <input type="hidden" name="userId" value="@member.UserId" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100" title="Remove Member">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                }
                                             }
-                                            <!-- *** MODIFIED: Invite Slot *** -->
                                             @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) // Assuming 2 players max
                                             {
                                                 <div class="player-slot-wrapper">
-                                                    <div class="empty-slot" 
-                                                         data-bs-toggle="modal" 
+                                                     <div class="empty-slot" 
+                                                          data-bs-toggle="modal" 
                                                          data-bs-target="#invitePlayerModal" 
                                                          data-team-id="@team.TeamId"
                                                          title="Invite Player">
-                                                        <i class="bi bi-person-plus"></i>
+                                                         <i class="bi bi-person-plus"></i>
                                                     </div>
-                                                    <span class="player-name text-muted">Invite</span>
+                                                     <span class="player-name text-muted">Invite</span>
                                                 </div>
                                             }                         
-                                        </div>
-                                    </div>
+                                         </div>
+                                         
+                                         </div>
                                 }
-                            </div>
+                             </div>
                         </div>
                         <div class="tab-pane fade show active" id="confirmed-teams-pane" role="tabpanel" aria-labelledby="confirmed-teams-tab" tabindex="0">
                             <div class="pt-3">

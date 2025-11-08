@@ -1,0 +1,256 @@
+@model PicklePlay.Models.ViewModels.ManageTeamViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "Manage Teams";
+}
+
+<style>
+    .team-member-list { list-style-type: none; padding-left: 0; }
+    .team-member-list li { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 5px; 
+        border-bottom: 1px solid #eee; 
+    }
+    .team-member-list li:last-child { border-bottom: 0; }
+    .captain-icon { color: #ffc107; }
+</style>
+
+<div class="container mt-4">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>@ViewData["Title"]</h2>
+            <h5 class="text-muted">@Model.CompetitionName</h5>
+        </div>
+        <a asp-action="CompDetails" asp-controller="Competition" asp-route-id="@Model.ScheduleId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Competition
+        </a>
+    </div>
+
+    <ul class="nav nav-tabs" id="teamTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab" aria-controls="pending-pane" aria-selected="true">
+                Pending Teams (@Model.PendingTeams!.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="confirmed-tab" data-bs-toggle="tab" data-bs-target="#confirmed-pane" type="button" role="tab" aria-controls="confirmed-pane" aria-selected="false">
+                Confirmed Teams (@Model.ConfirmedTeams!.Count)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="teamTabsContent">
+        
+        <div class="tab-pane fade show active" id="pending-pane" role="tabpanel" aria-labelledby="pending-tab" tabindex="0">
+            <form asp-action="BulkAcceptTeams" asp-controller="ManageTeam" method="post" id="bulkAcceptForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                
+                @if (Model.IsOrganizer && Model.PendingTeams.Any())
+                {
+                    <div class="card my-3">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" id="checkAllPending">
+                                <label class="form-check-label" for="checkAllPending">
+                                    Select All
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="bi bi-check-all"></i> Accept Selected
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (!Model.PendingTeams.Any())
+                {
+                    <p class="text-muted p-3">No teams are pending.</p>
+                }
+                
+                @foreach (var team in Model.PendingTeams)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                @if (Model.IsOrganizer)
+                                {
+                                    <input class="form-check-input me-3" type="checkbox" name="teamIds" value="@team.TeamId">
+                                }
+                                <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" style="width: 30px; height: 30px; border-radius: 50%;" />
+                                <h5 class="mb-0 ms-2">@team.TeamName</h5>
+                            </div>
+                            <div>
+                                @if (team.PaymentStatusForSchedule == PaymentStatusForSchedule.Paid)
+                                {
+                                    <span class="badge bg-success">Paid</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">Unpaid</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <h6>Members</h6>
+                                    <ul class="team-member-list">
+                                        @foreach (var member in team.TeamMembers)
+                                        {
+                                            <li>
+                                                <div>
+                                                    @if (member.UserId == team.CreatedByUserId)
+                                                    {
+                                                        <i class="bi bi-star-fill captain-icon" title="Captain"></i>
+                                                    }
+                                                    @member.User.Username
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                                <div class="col-md-7 text-end">
+                                    @if (Model.IsOrganizer)
+                                    {
+                                        <div class="btn-group">
+                                            <form asp-action="UpdateTeamStatus" asp-controller="ManageTeam" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                <input type="hidden" name="newStatus" value="@TeamStatus.Confirmed" />
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-check-lg"></i> Accept
+                                                </button>
+                                            </form>
+                                            <form asp-action="UpdateTeamStatus" asp-controller="ManageTeam" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                <input type="hidden" name="newStatus" value="@TeamStatus.Cancelled" />
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="bi bi-x-lg"></i> Decline
+                                                </button>
+                                            </form>
+                                        </div>
+                                        <div class="btn-group ms-2">
+                                            @if (team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
+                                            {
+                                                <form asp-action="UpdatePaymentStatus" asp-controller="ManageTeam" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                    <input type="hidden" name="newStatus" value="@PaymentStatusForSchedule.Paid" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-cash-coin"></i> Mark as Paid
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="UpdatePaymentStatus" asp-controller="ManageTeam" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="teamId" value="@team.TeamId" />
+                                                    <input type="hidden" name="newStatus" value="@PaymentStatusForSchedule.Unpaid" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                        <i class="bi bi-cash-coin"></i> Mark as Unpaid
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </form>
+        </div>
+
+        <div class="tab-pane fade" id="confirmed-pane" role="tabpanel" aria-labelledby="confirmed-tab" tabindex="0">
+            @if (!Model.ConfirmedTeams.Any())
+            {
+                <p class="text-muted p-3">No teams are confirmed.</p>
+            }
+            
+            @foreach (var team in Model.ConfirmedTeams)
+            {
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="icon" style="width: 30px; height: 30px; border-radius: 50%;" />
+                            <h5 class="mb-0 ms-2">@team.TeamName</h5>
+                        </div>
+                        <div>
+                            @if (team.PaymentStatusForSchedule == PaymentStatusForSchedule.Paid)
+                            {
+                                <span class="badge bg-success">Paid</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Unpaid</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <h6>Members</h6>
+                                <ul class="team-member-list">
+                                    @foreach (var member in team.TeamMembers)
+                                    {
+                                        <li>
+                                            @if (member.UserId == team.CreatedByUserId)
+                                            {
+                                                <i class="bi bi-star-fill captain-icon" title="Captain"></i>
+                                            }
+                                            @member.User.Username
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                            <div class="col-md-7 text-end">
+                                @if (Model.IsOrganizer)
+                                {
+                                    <form asp-action="UpdateTeamStatus" asp-controller="ManageTeam" method="post" class="d-inline" onsubmit="return confirm('Move @team.TeamName back to Pending? This will allow the captain to change members.')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="teamId" value="@team.TeamId" />
+                                        <input type="hidden" name="newStatus" value="@TeamStatus.Pending" />
+                                        <button type="submit" class="btn btn-sm btn-warning">
+                                            <i class="bi bi-arrow-left-right"></i> Move to Pending
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var checkAll = document.getElementById('checkAllPending');
+            if (checkAll) {
+                checkAll.addEventListener('change', function() {
+                    var checkboxes = document.querySelectorAll('#pending-pane input[name="teamIds"]');
+                    for (var cb of checkboxes) {
+                        cb.checked = this.checked;
+                    }
+                });
+            }
+        });
+    </script>
+}

@@ -151,8 +151,8 @@ namespace PicklePlay.Controllers
 
             // Check if the current user is an organizer
             bool isOrganizer = await _context.ScheduleParticipants // <-- RENAMED
-                .AnyAsync(p => p.ScheduleId == scheduleId && 
-                               p.UserId == currentUserId.Value && 
+                .AnyAsync(p => p.ScheduleId == scheduleId &&
+                               p.UserId == currentUserId.Value &&
                                p.Role == ParticipantRole.Organizer);
 
             if (!isOrganizer)
@@ -181,6 +181,90 @@ namespace PicklePlay.Controllers
             await _context.SaveChangesAsync();
 
             return Json(new { message = "Staff added successfully." });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveMember(int teamId, int userId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var team = await _context.Teams.FindAsync(teamId);
+            if (team == null) return NotFound();
+
+            // Only the captain can remove members
+            if (team.CreatedByUserId != currentUserId)
+                return Forbid();
+                
+            // Captain cannot remove themself
+            if (team.CreatedByUserId == userId)
+            {
+                 TempData["ErrorMessage"] = "You cannot remove yourself. Make another member captain first.";
+                 return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+            }
+
+            var member = await _context.TeamMembers
+                .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+
+            if (member != null)
+            {
+                _context.TeamMembers.Remove(member);
+                await _context.SaveChangesAsync();
+                // TODO: Send notification to the user
+            }
+
+            return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+        }
+
+        // POST: /Competition/MakeCaptain
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MakeCaptain(int teamId, int newCaptainUserId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var team = await _context.Teams.FindAsync(teamId);
+            if (team == null) return NotFound();
+
+            // Only the current captain can do this
+            if (team.CreatedByUserId != currentUserId)
+                return Forbid();
+                
+            // Check if the new captain is actually in the team
+            bool isMember = await _context.TeamMembers
+                .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == newCaptainUserId);
+
+            if (!isMember)
+            {
+                TempData["ErrorMessage"] = "User is not a member of this team.";
+                return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+            }
+
+            team.CreatedByUserId = newCaptainUserId; // This re-assigns the "Captain"
+            _context.Teams.Update(team);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Captain updated successfully.";
+            return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+        }
+        
+        // GET: /Competition/MakePayment
+        [HttpGet]
+        public async Task<IActionResult> MakePayment(int teamId)
+        {
+            var team = await _context.Teams.FindAsync(teamId);
+            if (team == null) return NotFound();
+            
+            // --- PAYMENT GATEWAY LOGIC ---
+            // This is where you would redirect to your payment provider
+            // For now, we'll just simulate a successful payment and redirect
+            // back to the organizer's manage team page.
+            
+            // In a real app, this logic would be in a webhook or callback
+            team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
+            _context.Teams.Update(team);
+            await _context.SaveChangesAsync();
+            
+            TempData["SuccessMessage"] = "Payment successful!";
+            return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
         }
     }
 }
