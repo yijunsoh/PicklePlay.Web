@@ -3,11 +3,20 @@
 @using System.Text
 @model DrawEliminationViewModel
 @{
-    // --- Determine bracket size (next power of 2) ---
-    int bracketSize = 8;
-    if (Model.TotalSeeds > 32) bracketSize = 64;
-    else if (Model.TotalSeeds > 16) bracketSize = 32;
-    else if (Model.TotalSeeds > 8) bracketSize = 16;
+    // --- *** NEW: DYNAMIC BRACKET SIZE LOGIC *** ---
+    int bracketSize;
+    if (Model.TotalSeeds <= 8)
+    {
+        bracketSize = 8;
+    }
+    else
+    {
+        // Calculate the next power of 2
+        bracketSize = (int)Math.Pow(2, Math.Ceiling(Math.Log(Model.TotalSeeds, 2)));
+    }
+    // Ensure bracket size doesn't exceed 64 (based on your seeding dictionary)
+    if (bracketSize > 64) bracketSize = 64;
+    // --- *** END OF NEW LOGIC *** ---
     
     // --- Create team lookup dictionary ---
     var teamLookup = Model.Teams.Where(t => t.BracketSeed.HasValue).ToDictionary(t => t.BracketSeed!.Value, t => t);
@@ -97,10 +106,18 @@
         font-size: 1.1rem;
         color: #333;
     }
+    /* --- ADD THIS NEW STYLE --- */
+    .bracket-container {
+        width: 100%;
+        overflow: auto; /* This adds scrollbars if needed */
+        min-height: 600px; /* Gives the bracket space */
+        border: 1px solid #ddd;
+        background-color: #fcfcfc;
+    }
 </style>
 
 <h5 class="mb-3">Published Bracket (@bracketSize Teams)</h5>
-<div id="bracketVisual_Published" style="width: 100%; overflow-x: auto; min-height: 400px;"></div>
+<div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
 
 <!-- Store data in data attributes instead of inline script -->
 <div id="bracket-data-holder" 

@@ -10,13 +10,22 @@
     ViewData["Title"] = "Elimination Draw";
    
     
-    // --- Determine bracket size (next power of 2) ---
-    int bracketSize = 8;
-    if (Model.TotalSeeds > 32) bracketSize = 64;
-    else if (Model.TotalSeeds > 16) bracketSize = 32;
-    else if (Model.TotalSeeds > 8) bracketSize = 16;
+    // --- *** NEW: DYNAMIC BRACKET SIZE LOGIC *** ---
+    int bracketSize;
+    if (Model.TotalSeeds <= 8)
+    {
+        bracketSize = 8;
+    }
+    else
+    {
+        // Calculate the next power of 2
+        bracketSize = (int)Math.Pow(2, Math.Ceiling(Math.Log(Model.TotalSeeds, 2)));
+    }
+    // Ensure bracket size doesn't exceed 64 (based on your seeding dictionary)
+    if (bracketSize > 64) bracketSize = 64;
+    // --- *** END OF NEW LOGIC *** ---
     
-    // --- Create team lookup dictionary ---
+
    // --- Create team lookup dictionary (safely ignoring null seeds) ---
     var teamLookup = Model.Teams
                           .Where(t => t.BracketSeed.HasValue)
@@ -192,6 +201,14 @@ team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
         font-size: 1.1rem;
         color: #333;
     }
+    /* --- ADD THIS NEW STYLE --- */
+    .bracket-container {
+        width: 100%;
+        overflow: auto; /* This adds scrollbars if needed */
+        min-height: 600px; /* Gives the bracket space */
+        border: 1px solid #ddd;
+        background-color: #fcfcfc;
+    }
 </style>
 
 <div class="container mt-4">
@@ -280,7 +297,9 @@ team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
             <h5>Bracket Visual (@bracketSize Teams)</h5>
             <p>This is a visual representation of your draw. It will not update live.</p>
 
-            <div id="bracketVisual"></div>
+            <div class="bracket-container">
+                <div id="bracketVisual"></div>
+            </div>
             </div>
     </div>
 </div>

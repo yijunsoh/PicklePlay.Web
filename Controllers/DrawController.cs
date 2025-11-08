@@ -118,9 +118,13 @@ namespace PicklePlay.Controllers
                         ScheduleId = schedule.ScheduleId,
                         CompetitionName = schedule.GameName,
                         Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
-                        TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count,
+                        
+                        // --- *** THE FIX IS HERE *** ---
+                        // TotalSeeds should be the count of *confirmed* teams,
+                        // not the schedule's max capacity.
+                        TotalSeeds = confirmedTeams.Count,
+                        // --- *** END OF FIX *** ---
 
-                        // This will now use the fresh data from step 2
                         HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch,
                         IsDrawPublished = schedule.Competition.DrawPublished
                     };
@@ -387,7 +391,12 @@ public async Task<IActionResult> ViewPublishedDraw(int id)
                     ScheduleId = schedule.ScheduleId,
                     CompetitionName = schedule.GameName,
                     Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
-                    TotalSeeds = schedule.NumTeam ?? confirmedTeams.Count,
+
+                    // --- *** THE FIX IS HERE *** ---
+                    // This now matches your GenerateDraw action!
+                    TotalSeeds = confirmedTeams.Count,
+                    // --- *** END OF FIX *** ---
+
                     HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch
                 };
                 
