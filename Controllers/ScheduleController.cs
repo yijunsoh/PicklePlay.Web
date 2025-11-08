@@ -111,9 +111,12 @@ public async Task<IActionResult> Details(int id)
                 CancellationFreeze = schedule.CancellationFreeze ?? Models.CancellationFreeze.None,
                 HostRole = schedule.HostRole ?? Models.HostRole.HostAndPlay,
 
+                RequireOrganizerApproval = schedule.RequireOrganizerApproval,
+
+
                 // One-Off specific
                 StartTime = schedule.StartTime, // Keep as DateTime?
-                
+
 
                 // Recurring specific
                 RecurringWeek = new List<RecurringWeek>(), // Initialize
@@ -249,7 +252,12 @@ public IActionResult Edit(int id, ScheduleEditViewModel vm)
         scheduleToUpdate.GenderRestriction = vm.GenderRestriction;
         scheduleToUpdate.AgeGroupRestriction = vm.AgeGroupRestriction;
         scheduleToUpdate.CancellationFreeze = vm.CancellationFreeze;
-        scheduleToUpdate.HostRole = vm.HostRole;
+            scheduleToUpdate.HostRole = vm.HostRole;
+
+            // --- ADD THIS LINE ---
+            scheduleToUpdate.RequireOrganizerApproval = vm.RequireOrganizerApproval;
+            
+            
 
         // Update type-specific fields
         if (vm.ScheduleType == ScheduleType.Recurring)

@@ -88,5 +88,8 @@ namespace PicklePlay.Models
         [Display(Name = "Auto-Create When")]
         [Required] // Required for Recurring
         public AutoCreateWhen? AutoCreateWhen { get; set; } = Models.AutoCreateWhen.B2d;
+
+        // --- ADD THIS NEW PROPERTY ---
+public bool RequireOrganizerApproval { get; set; } = true;
     }
 }

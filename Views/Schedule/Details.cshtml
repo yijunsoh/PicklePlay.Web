@@ -188,12 +188,22 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <!-- Changed this to a simple link to the GET Delete page for safety -->
-                                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                                        <i class="bi bi-trash me-2"></i>Delete
+                                    <a class="dropdown-item" asp-action="Index" asp-controller="ManageGame" asp-route-id="@Model.ScheduleId">
+                                        <i class="bi bi-person-lines-fill me-2"></i>Manage Requests
                                     </a>
                                 </li>
-                            </ul>
+                                <li>
+                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addOrganizerModal">
+                                        <i class="bi bi-person-plus-fill me-2"></i>Add Organizer
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                         <i class="bi bi-trash me-2"></i>Delete
+                                    </a>
+                                </li>
+                           </ul>
                         </div>
                     }
                 </div>
@@ -503,6 +513,29 @@
     </div>
 </div>
 
+<div class="modal fade" id="addOrganizerModal" tabindex="-1" aria-labelledby="addOrganizerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addOrganizerModalLabel">Add Organizer</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="organizerSearchInput" class="form-label">Search by username:</label>
+                    <input type="text" id="organizerSearchInput" class="form-control" placeholder="Enter username..." />
+                </div>
+                <div id="organizer-search-spinner" class="text-center d-none">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                         <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="organizer-search-results">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 @section Scripts {
@@ -579,6 +612,130 @@
                 alert('An error occurred. Please try again.');
             });
         });
+
+        // --- *** NEW: Add Organizer Modal Scripts *** ---
+        var addOrganizerModal = document.getElementById('addOrganizerModal');
+        var organizerSearchInput = document.getElementById('organizerSearchInput');
+        var organizerSearchResultsContainer = document.getElementById('organizer-search-results');
+        var organizerSpinner = document.getElementById('organizer-search-spinner');
+        var organizerSearchTimeout;
+        
+        if (addOrganizerModal) {
+            addOrganizerModal.addEventListener('show.bs.modal', function (event) {
+                // Clear the modal on show
+                organizerSearchInput.value = '';
+                organizerSearchResultsContainer.innerHTML = '';
+            });
+
+            organizerSearchInput.addEventListener('keyup', function () {
+                clearTimeout(organizerSearchTimeout);
+                var query = organizerSearchInput.value;
+                var scheduleId = @Model.ScheduleId;
+
+                if (query.length < 2) {
+                    organizerSearchResultsContainer.innerHTML = '';
+                     return;
+                }
+
+                organizerSpinner.classList.remove('d-none');
+
+                organizerSearchTimeout = setTimeout(function () {
+                    fetch(`/Community/SearchUsersForOrganizer?scheduleId=${scheduleId}&query=${query}`)
+                         .then(response => {
+                            organizerSpinner.classList.add('d-none');
+                            if (!response.ok) {
+                                 throw new Error('Search failed');
+                            }
+                            return response.json();
+                        })
+                         .then(users => {
+                            renderOrganizerSearchResults(users, scheduleId);
+                        })
+                        .catch(error => {
+                            organizerSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                        });
+                }, 500);
+            });
+        }
+
+        function renderOrganizerSearchResults(users, scheduleId) {
+            organizerSearchResultsContainer.innerHTML = '';
+            if (users.length === 0) {
+                organizerSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
+                return;
+            }
+            
+            // Find the token from one of the forms on the page
+            var tokenInput = document.querySelector('form input[name="__RequestVerificationToken"]');
+            var token = tokenInput ? tokenInput.value : '';
+
+            users.forEach(user => {
+                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                // Using a light blue style for user search item (you can customize)
+                var userHtml = `
+                    <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background-color: #f8f9fa; margin-bottom: 5px;">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px;" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        <button class="btn btn-sm btn-primary add-organizer-btn" 
+                                data-schedule-id="${scheduleId}" 
+                                data-user-id="${user.userId}"
+                                data-token="${token}">
+                            Add Organizer
+                        </button>
+                    </div>`;
+                organizerSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+            });
+
+            document.querySelectorAll('.add-organizer-btn').forEach(button => {
+                button.addEventListener('click', addOrganizer);
+            });
+        }
+
+        function addOrganizer(event) {
+            var button = event.target;
+            var scheduleId = button.getAttribute('data-schedule-id');
+            var userId = button.getAttribute('data-user-id');
+            var token = button.getAttribute('data-token');
+
+            if (!token) {
+                 alert('Error: Anti-forgery token not found. Please refresh the page.');
+                 return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch('/Community/AddOrganizer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `scheduleId=${scheduleId}&userId=${userId}`
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to add organizer') });
+                 }
+                return response.json();
+            })
+            .then(data => {
+                button.innerHTML = 'Added!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-secondary');
+                
+                // Reload the page to show the new organizer
+                location.reload(); 
+            })
+            .catch(error => {
+                button.innerHTML = 'Error';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+                alert('Error: ' + error.message);
+            });
+        }
     </script>
 }
 

@@ -109,6 +109,10 @@ namespace PicklePlay.Models
         [StringLength(512)] // Max path length
         public string? CompetitionImageUrl { get; set; }
 
+        // --- ADD THIS NEW PROPERTY ---
+        [Column("requireOrganizerApproval")]
+        public bool RequireOrganizerApproval { get; set; } = true; // Default to ON (approval is required)
+
         // --- ADD NAVIGATION PROPERTY ---
         // This will hold the related Competition data if ScheduleType is Competition
         public virtual Competition? Competition { get; set; }

@@ -131,6 +131,17 @@
              <span asp-validation-for="Repeat" class="text-danger"></span>
         </div>
 
+        <div class="form-check form-switch mb-3">
+  <input class="form-check-input" type="checkbox" role="switch" asp-for="RequireOrganizerApproval">
+  <label class="form-check-label" asp-for="RequireOrganizerApproval">
+    Require Organizer Approval
+  </label>
+  <small class="form-text text-muted d-block">
+    If ON, new players go to "On Hold" to be approved.
+    If OFF, new players will immediately go to "Pending Payment" (if paid) or "Confirmed" (if free).
+  </small>
+</div>
+
 
         <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Save Changes</button>
     </form>

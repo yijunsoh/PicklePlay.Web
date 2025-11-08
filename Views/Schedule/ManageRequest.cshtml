@@ -1,0 +1,116 @@
+@model PicklePlay.Models.ViewModels.ManageGameViewModel
+@using PicklePlay.Models
+@{
+    ViewData["Title"] = "Manage Requests";
+}
+
+<div class="container mt-4">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>@ViewData["Title"]</h2>
+            <h5 class="text-muted">@Model.GameName</h5>
+        </div>
+        <a asp-action="Details" asp-controller="Schedule" asp-route-id="@Model.ScheduleId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Game
+        </a>
+    </div>
+    
+    <div class="card mb-3">
+        <div class="card-body">
+            <form asp-action="ToggleApproval" asp-controller="ManageGame" method="post" class="d-flex align-items-center">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                <div class="form-check form-switch fs-5">
+                    <input class="form-check-input" type="checkbox" role="switch" id="approvalToggle" 
+                           name="RequireOrganizerApproval" 
+                           value="true" @(Model.RequireOrganizerApproval ? "checked" : "")
+                           onchange="this.form.submit()">
+                    <label class="form-check-label" for="approvalToggle">
+                        Require Organizer Approval
+                    </label>
+                </div>
+            </form>
+            <small class="text-muted d-block mt-2">
+                If ON, new players go to "On Hold" to be approved.
+                If OFF, new players will assign to pending payment section (bypassing "On Hold").
+            </small>
+        </div>
+    </div>
+    @if (!Model.Participants!.Any())
+    {
+        <p class="text-muted">There are no participants to manage.</p>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Participant</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Participants!)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" 
+                                         alt="icon" style="width: 30px; height: 30px; border-radius: 50%;" />
+                                    <span class="ms-2">@p.User!.Username</span>
+                                </td>
+                                <td>
+                                    @if (p.Status == ParticipantStatus.Confirmed)
+                                    { <span class="badge bg-success">Confirmed</span> }
+                                    else if (p.Status == ParticipantStatus.OnHold)
+                                    { <span class="badge bg-warning text-dark">On Hold</span> }
+                                    else if (p.Status == ParticipantStatus.PendingPayment)
+                                    { <span class="badge bg-info">Pending Payment</span> }
+                                    else if (p.Status == ParticipantStatus.Cancelled)
+                                    { <span class="badge bg-danger">Cancelled (Left)</span> }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <form asp-action="UpdateStatus" asp-controller="ManageGame" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="spId" value="@p.SP_Id" />
+                                            
+                                            <button type="submit" name="newStatus" value="@ParticipantStatus.Confirmed" 
+                                                    class="btn btn-outline-success" @(p.Status == ParticipantStatus.Confirmed ? "disabled" : "")>
+                                                Confirm
+                                            </button>
+                                            <button type="submit" name="newStatus" value="@ParticipantStatus.PendingPayment" 
+                                                    class="btn btn-outline-info" @(p.Status == ParticipantStatus.PendingPayment ? "disabled" : "")>
+                                                To Payment
+                                            </button>
+                                            <button type="submit" name="newStatus" value="@ParticipantStatus.OnHold" 
+                                                    class="btn btn-outline-warning" @(p.Status == ParticipantStatus.OnHold ? "disabled" : "")>
+                                                To On Hold
+                                            </button>
+                                        </form>
+                                        
+                                        <form asp-action="RemoveParticipant" asp-controller="ManageGame" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to remove @p.User.Username? This cannot be undone.')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="spId" value="@p.SP_Id" />
+                                            <button type="submit" class="btn btn-danger" title="Remove Participant">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

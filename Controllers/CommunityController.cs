@@ -268,77 +268,84 @@ namespace PicklePlay.Controllers
 
         // REPLACE this entire action in CommunityController.cs
 
+// In CommunityController.cs
+
 [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> JoinIndividually(int scheduleId)
-{
-    var currentUserId = GetCurrentUserId();
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> JoinIndividually(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized();
 
-    if (!currentUserId.HasValue)
-    {
-        return Unauthorized();
-    }
-
-    var schedule = await _context.Schedules
+            var schedule = await _context.Schedules
                                  .Include(s => s.Participants)
                                  .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+            if (schedule == null)
+                return NotFound();
 
-    if (schedule == null)
-    {
-        return NotFound();
-    }
+            var existingParticipation = schedule.Participants
+                .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
 
-    // *** FIX: Find the *specific* participation record ***
-    var existingParticipation = schedule.Participants
-        .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+            if (existingParticipation == null)
+            {
+                bool isOrganizer = schedule.Participants.Any(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Organizer);
+                bool isFree = schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None;
+                
+                ParticipantStatus newStatus;
 
-    if (existingParticipation == null)
-    {
-        // --- This is a brand new participant ---
-        bool isOrganizer = schedule.Participants.Any(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Organizer);
-        
-        var newStatus = ParticipantStatus.OnHold; 
-        
-        if(schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None || isOrganizer)
-        {
-            newStatus = ParticipantStatus.Confirmed;
-            TempData["SuccessMessage"] = isOrganizer ? 
-                "You have successfully joined as a player!" : 
-                "You have successfully joined this free game!";
+                // *** THIS IS THE NEW LOGIC ***
+                if (schedule.RequireOrganizerApproval)
+                {
+                    // --- APPROVAL IS ON ---
+                    // All players go to "On Hold" first.
+                    newStatus = ParticipantStatus.OnHold;
+                    TempData["SuccessMessage"] = "Requested! Please wait for the Organizer to Accept.";
+                }
+                else
+                {
+                    // --- APPROVAL IS OFF ---
+                    // Players are sorted directly.
+                    if (isFree || isOrganizer)
+                    {
+                        // Free games or organizers go straight to "Confirmed"
+                        newStatus = ParticipantStatus.Confirmed;
+                        TempData["SuccessMessage"] = "You have successfully joined this free game!";
+                    }
+                    else
+                    {
+                        // Paid games go to "Pending Payment"
+                        newStatus = ParticipantStatus.PendingPayment;
+                        TempData["SuccessMessage"] = "Your spot is reserved. Please complete payment.";
+                    }
+                }
+                // *** END OF NEW LOGIC ***
+
+                var participant = new ScheduleParticipant
+                {
+                    ScheduleId = scheduleId,
+                    UserId = currentUserId.Value,
+                    Role = ParticipantRole.Player,
+                    Status = newStatus
+                };
+                _context.ScheduleParticipants.Add(participant);
+                await _context.SaveChangesAsync();
+            }
+            else if (existingParticipation.Status == ParticipantStatus.Cancelled)
+            {
+                // Re-joining logic (unchanged)
+                existingParticipation.Status = ParticipantStatus.Confirmed;
+                _context.ScheduleParticipants.Update(existingParticipation);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "You have successfully re-joined the game!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "You are already in this game.";
+            }
+
+            return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
-        else
-        {
-            newStatus = ParticipantStatus.OnHold;
-            TempData["SuccessMessage"] = "Requested! Please wait for the Organizer to Accept.";
-        }
-        
-        var participant = new ScheduleParticipant
-        {
-            ScheduleId = scheduleId,
-            UserId = currentUserId.Value,
-            Role = ParticipantRole.Player,
-            Status = newStatus
-        };
-        _context.ScheduleParticipants.Add(participant);
-        await _context.SaveChangesAsync();
-    }
-    else if (existingParticipation.Status == ParticipantStatus.Cancelled)
-    {
-        // --- FIX: This is an organizer (or player) re-joining ---
-        // Just update their status back to Confirmed
-        existingParticipation.Status = ParticipantStatus.Confirmed;
-        _context.ScheduleParticipants.Update(existingParticipation);
-        await _context.SaveChangesAsync();
-        TempData["SuccessMessage"] = "You have successfully re-joined the game!";
-    }
-    else
-    {
-        // --- User is already OnHold, Pending, or Confirmed ---
-        TempData["ErrorMessage"] = "You are already in this game.";
-    }
-
-    return RedirectToAction("Details", "Schedule", new { id = scheduleId });
-}
 
        [HttpPost]
         [ValidateAntiForgeryToken]
@@ -827,6 +834,77 @@ public async Task<IActionResult> JoinIndividually(int scheduleId)
                 [DayOfWeek.Saturday] = RecurringWeek.Sat,
                 [DayOfWeek.Sunday] = RecurringWeek.Sun
             };
+        }
+
+        // --- ACTION 1: Search for users to add as organizer ---
+        [HttpGet]
+        public async Task<IActionResult> SearchUsersForOrganizer(int scheduleId, string query)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(query) || query.Length < 2)
+            {
+                return Json(new List<object>());
+            }
+
+            var users = await _context.Users
+                .Where(u => u.Username.Contains(query) && u.UserId != currentUserId)
+                .Take(10)
+                .ToListAsync();
+
+            var existingParticipantUserIds = await _context.ScheduleParticipants
+                .Where(p => p.ScheduleId == scheduleId)
+                .Select(p => p.UserId)
+                .ToListAsync();
+
+            var results = users
+                .Where(u => !existingParticipantUserIds.Contains(u.UserId))
+                .Select(u => new
+                {
+                    userId = u.UserId,
+                    username = u.Username,
+                    profilePicture = u.ProfilePicture
+                });
+
+            return Json(results);
+        }
+
+        // --- ACTION 2: Add the user as an organizer ---
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddOrganizer(int scheduleId, int userId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized();
+
+            bool isOrganizer = await _context.ScheduleParticipants
+                .AnyAsync(p => p.ScheduleId == scheduleId && 
+                               p.UserId == currentUserId.Value && 
+                               p.Role == ParticipantRole.Organizer);
+
+            if (!isOrganizer)
+                return Forbid(); // Only organizers can add other organizers
+
+            bool alreadyExists = await _context.ScheduleParticipants
+                .AnyAsync(p => p.ScheduleId == scheduleId && p.UserId == userId);
+
+            if (alreadyExists)
+            {
+                return BadRequest(new { message = "This user is already a participant in this game." });
+            }
+
+            var newOrganizer = new ScheduleParticipant
+            {
+                ScheduleId = scheduleId,
+                UserId = userId,
+                Role = ParticipantRole.Organizer,
+                Status = ParticipantStatus.Confirmed // Organizers are auto-confirmed
+            };
+
+            _context.ScheduleParticipants.Add(newOrganizer);
+            await _context.SaveChangesAsync();
+
+            return Json(new { message = "Organizer added successfully." });
         }
     }
 }
