@@ -53,6 +53,20 @@ namespace PicklePlay.Models
         [ForeignKey("CreateByUserId")]
         public virtual User Creator { get; set; } = null!;
 
+        [Column("deletion_reason")]
+        [StringLength(500)]
+        public string? DeletionReason { get; set; }
+
+        [Column("deleted_by_user_id")]
+        public int? DeletedByUserId { get; set; }
+
+        [Column("deletion_date")]
+        public DateTime? DeletionDate { get; set; }
+
+        // Navigation property
+        [ForeignKey("DeletedByUserId")]
+        public virtual User? DeletedByUser { get; set; }
+
         // Add these properties to your Community class in Community.cs
         [NotMapped] // This property won't be stored in the database
         public IFormFile? ProfileImageFile { get; set; }

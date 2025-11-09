@@ -1298,5 +1298,230 @@ namespace PicklePlay.Controllers
                 });
             }
         }
+
+  // POST: /Communities/DeleteCommunity
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> DeleteCommunity([FromForm] DeleteCommunityViewModel model)
+{
+    if (!ModelState.IsValid)
+    {
+        return BadRequest(new { success = false, message = "Invalid data submitted." });
+    }
+
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int userId = currentUserIdInt.Value;
+
+    try
+    {
+        var community = await _context.Communities
+            .Include(c => c.Memberships)
+            .Include(c => c.Announcements)
+            .Include(c => c.BlockedUsers)
+            .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
+
+        if (community == null)
+        {
+            return NotFound(new { success = false, message = "Community not found." });
+        }
+
+        // Verify user is community admin
+        var userMembership = await _context.CommunityMembers
+            .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                     cm.UserId == userId &&
+                                     cm.Status == "Active" &&
+                                     cm.CommunityRole == "Admin");
+
+        var isCreator = community.CreateByUserId == userId;
+
+        if (userMembership == null && !isCreator)
+        {
+            return Forbid("Only community admins can delete this community.");
+        }
+
+        // Verify community name matches for confirmation
+        if (!community.CommunityName.Equals(model.ConfirmationName, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { success = false, message = "Community name does not match. Please type the exact community name to confirm deletion." });
+        }
+
+        // Check for pending join requests (for private communities)
+        if (community.CommunityType == "Private")
+        {
+            var pendingRequests = community.Memberships
+                .Where(m => m.Status == "Pending")
+                .Any();
+
+            if (pendingRequests)
+            {
+                return BadRequest(new { success = false, message = "Cannot delete private community while there are pending join requests. Please resolve all pending requests first." });
+            }
+        }
+
+        // Check for active games/competitions associated with this community
+        var activeGames = await _context.Schedules
+            .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                       (s.Status == ScheduleStatus.Active || s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.InProgress))
+            .AnyAsync();
+
+        if (activeGames)
+        {
+            return BadRequest(new { success = false, message = "Cannot delete community while there are active games or competitions associated with it. Please cancel or complete all active events first." });
+        }
+
+        // Check for upcoming competitions
+        var upcomingCompetitions = await _context.Schedules
+            .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                       s.ScheduleType == ScheduleType.Competition &&
+                       s.StartTime > DateTime.UtcNow &&
+                       s.Status != ScheduleStatus.Cancelled)
+            .AnyAsync();
+
+        if (upcomingCompetitions)
+        {
+            return BadRequest(new { success = false, message = "Cannot delete community while there are upcoming competitions. Please cancel all upcoming competitions first." });
+        }
+
+        // Get ALL active members to notify (INCLUDING the deletor)
+        var activeMembers = community.Memberships
+            .Where(m => m.Status == "Active")
+            .Select(m => m.UserId)
+            .ToList();
+
+        // SOFT DELETE: Update status to "Deleted" and store deletion metadata
+        community.Status = "Deleted";
+        community.CommunityName = $"[DELETED] {community.CommunityName}";
+        
+        // UPDATED: Format the reason field as "This community was deleted on YYYY-MM-DD + reason"
+        var deletionDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        community.DeletionReason = $"This community was deleted on {deletionDate}. Reason: {model.DeleteReason}";
+        
+        community.DeletedByUserId = userId;
+        community.DeletionDate = DateTime.UtcNow;
+
+        _context.Communities.Update(community);
+
+        // Archive or remove related data
+        _context.CommunityAnnouncements.RemoveRange(community.Announcements);
+        _context.CommunityBlockLists.RemoveRange(community.BlockedUsers);
+
+        // Update all memberships to inactive
+        foreach (var membership in community.Memberships)
+        {
+            membership.Status = "Inactive";
+        }
+
+        // SEND NOTIFICATIONS TO ALL FORMER MEMBERS (INCLUDING DELETOR)
+        if (model.NotifyMembers && activeMembers.Any())
+        {
+            var currentUser = await _context.Users.FindAsync(userId);
+            var deleterName = currentUser?.Username ?? "Admin";
+            var originalCommunityName = community.CommunityName.Replace("[DELETED] ", "");
+            
+            foreach (var memberId in activeMembers)
+            {
+                // Create different message for deletor vs other members
+                string message;
+                if (memberId == userId)
+                {
+                    // Message for the person who deleted the community
+                    message = $"You have successfully deleted the community '{originalCommunityName}'. Reason: {model.DeleteReason}";
+                }
+                else
+                {
+                    // Message for other members
+                    message = $"The community '{originalCommunityName}' has been deleted by {deleterName}. Reason: {model.DeleteReason}";
+                }
+                
+                var notification = new Notification
+                {
+                    UserId = memberId,
+                    Message = message,
+                    // LinkUrl = Url.Action("Community", "Home"), // Redirect to communities list
+                    IsRead = false,
+                    DateCreated = DateTime.UtcNow
+                };
+                _context.Notifications.Add(notification);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            message = "Community has been successfully deleted.",
+            communityId = model.CommunityId
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database error deleting community: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An unexpected error occurred while deleting the community."
+        });
+    }
+}
+
+        // GET: /Communities/CheckCommunityDeletionRules
+        [HttpGet]
+        public async Task<IActionResult> CheckCommunityDeletionRules(int communityId)
+        {
+            try
+            {
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == communityId);
+
+                if (community == null)
+                {
+                    return NotFound(new { success = false, message = "Community not found." });
+                }
+
+                // Check for pending join requests (for private communities)
+                bool hasPendingRequests = false;
+                if (community.CommunityType == "Private")
+                {
+                    hasPendingRequests = await _context.CommunityMembers
+                        .AnyAsync(cm => cm.CommunityId == communityId && cm.Status == "Pending");
+                }
+
+                // Check for active games/competitions
+                bool hasActiveGames = await _context.Schedules
+                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                               (s.Status == ScheduleStatus.Active || s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.InProgress))
+                    .AnyAsync();
+
+                // Check for upcoming competitions
+                bool hasUpcomingCompetitions = await _context.Schedules
+                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                               s.ScheduleType == ScheduleType.Competition &&
+                               s.StartTime > DateTime.UtcNow &&
+                               s.Status != ScheduleStatus.Cancelled)
+                    .AnyAsync();
+
+                var rules = new
+                {
+                    hasPendingRequests = hasPendingRequests,
+                    hasActiveGames = hasActiveGames,
+                    hasUpcomingCompetitions = hasUpcomingCompetitions,
+                    canDelete = !hasPendingRequests && !hasActiveGames && !hasUpcomingCompetitions,
+                    communityType = community.CommunityType
+                };
+
+                return Ok(new { success = true, data = rules });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking deletion rules: {ex.Message}");
+                return StatusCode(500, new { success = false, message = "Error checking deletion rules." });
+            }
+        }
     }
 }

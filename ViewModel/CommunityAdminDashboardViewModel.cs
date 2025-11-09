@@ -143,5 +143,23 @@ namespace PicklePlay.ViewModels
 
             public string? CurrentImageUrl { get; set; }
         }
+
+        public class DeleteCommunityViewModel
+        {
+            [Required]
+            public int CommunityId { get; set; }
+
+            [Required(ErrorMessage = "Confirmation is required")]
+            [Display(Name = "Type community name to confirm")]
+            [StringLength(150)]
+            public string ConfirmationName { get; set; } = null!;
+
+            [Display(Name = "Reason for deletion")]
+            [StringLength(500, ErrorMessage = "Reason cannot exceed 500 characters")]
+            [Required(ErrorMessage = "Please provide a reason for deletion")]
+            public string DeleteReason { get; set; } = null!; // Now required
+
+            public bool NotifyMembers { get; set; } = true;
+        }
     }
 }

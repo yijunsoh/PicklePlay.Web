@@ -1,0 +1,82 @@
+@model PicklePlay.ViewModels.CommunityAdminDashboardViewModel
+
+@* Delete Community Modal *@
+<div class="modal fade" id="deleteCommunityModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Delete Community
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone. The community and all its data will be permanently removed.
+                </div>
+                
+                <div id="deletionRules" class="mb-3">
+                    <h6>Deletion Requirements:</h6>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex align-items-center">
+                            <span id="ruleNoPending" class="text-muted">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                No pending join requests (for private communities)
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <span id="ruleNoActiveGames" class="text-muted">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                No active games or competitions
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <span id="ruleNoUpcomingCompetitions" class="text-muted">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                No upcoming competitions
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <form id="deleteCommunityForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CommunityId" value="@Model.CommunityId" />
+                    
+                    <div class="mb-3">
+                        <label for="confirmationName" class="form-label">
+                            Type <strong>"@Model.CommunityName"</strong> to confirm:
+                        </label>
+                        <input type="text" id="confirmationName" name="ConfirmationName" 
+                               class="form-control" placeholder="Enter community name" required>
+                        <div class="invalid-feedback">Please type the exact community name to confirm deletion.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="deleteReason" class="form-label">
+                            Reason for deletion <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="deleteReason" name="DeleteReason" class="form-control" 
+                                  rows="3" placeholder="Why are you deleting this community?" 
+                                  required maxlength="500"></textarea>
+                        <div class="form-text">Please provide a reason for deletion (required, max 500 characters)</div>
+                        <div class="invalid-feedback">Please provide a reason for deletion.</div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notifyMembers" name="NotifyMembers" value="true" checked>
+                        <label class="form-check-label" for="notifyMembers">
+                            Notify members about community deletion
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                    <i class="fas fa-trash-alt me-2"></i>Delete Community
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
