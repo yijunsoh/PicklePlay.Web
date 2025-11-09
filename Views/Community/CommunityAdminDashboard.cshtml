@@ -144,6 +144,55 @@
             height: 3rem;
             color: var(--primary);
         }
+
+        /* Image Preview Styles */
+.image-preview-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.image-preview-container:hover {
+    border-color: var(--primary);
+    background: #e9f5ee;
+}
+
+.image-preview-container.has-image {
+    border-style: solid;
+    border-color: var(--primary);
+}
+
+.upload-placeholder {
+    color: #6c757d;
+    text-align: center;
+    padding: 2rem;
+}
+
+.upload-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* File input styling */
+.form-control[type="file"] {
+    padding: 0.5rem;
+}
+
+.form-control[type="file"]::file-selector-button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    margin-right: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+    background: var(--primary-light);
+}
     </style>
 }
 
@@ -194,21 +243,126 @@
                 </div>
             </div>
 
-            @* === Community Settings === *@
-            <div class="section-card">
-                <h4><i class="fas fa-cog me-2"></i>Community Settings</h4>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary"><i class="fas fa-image me-2"></i>Set Profile Picture</button>
+          @* === Community Settings === *@
+<div class="section-card">
+    <h4><i class="fas fa-cog me-2"></i>Community Settings</h4>
+    
+    @* Profile Image Section *@
+    <div class="mb-4">
+        <label class="form-label fw-bold">Community Profile Picture</label>
+        <div class="d-flex align-items-start gap-3">
+            @* Current Image Preview *@
+            <div class="text-center">
+                <div id="currentImagePreview" class="border rounded p-2 mb-2" style="width: 120px; height: 120px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                    @if (!string.IsNullOrEmpty(Model.CommunityPic))
+                    {
+                        <img id="profileImagePreview" src="@Model.CommunityPic" alt="Community Profile" 
+                             class="img-fluid rounded" style="max-width: 100%; max-height: 100%; object-fit: cover;">
+                    }
+                    else
+                    {
+                        <div class="text-muted">
+                            <i class="fas fa-users fa-2x"></i>
+                            <div class="small mt-1">No Image</div>
+                        </div>
+                    }
+                </div>
+                <small class="text-muted">Current Image</small>
+            </div>
 
-                    @* AMENDED BUTTON: opens shared invite modal for this community *@
-                    <button class="btn btn-outline-info" onclick="openInviteModal(@Model.CommunityId)">
-                        <i class="fas fa-user-plus me-2"></i>Invite Members
-                    </button>
+            @* Upload Controls *@
+            <div class="flex-grow-1">
+                <form id="profileImageForm" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CommunityId" value="@Model.CommunityId" />
+                    <input type="hidden" name="CurrentImageUrl" value="@Model.CommunityPic" />
+                    
+                    <div class="mb-3">
+                        <input type="file" id="profileImageInput" name="ProfileImage" 
+                               class="form-control" accept=".jpg,.jpeg,.png,.gif,.bmp">
+                        <div class="form-text">Select JPG, PNG, GIF or BMP (Max 5MB)</div>
+                    </div>
+                    
+                    @* New Image Preview *@
+                    <div id="newImagePreview" class="border rounded p-2 mb-2 text-center" 
+                         style="width: 120px; height: 120px; background: #f8f9fa; display: none;">
+                        <img id="newImagePreviewImg" src="" alt="New Image Preview" 
+                             class="img-fluid rounded" style="max-width: 100%; max-height: 100%; object-fit: cover;">
+                    </div>
+                    
+                    <div class="btn-group w-100">
+                        <button type="submit" class="btn btn-success btn-sm" id="saveImageBtn">
+                            <i class="fas fa-save me-1"></i>Save Image
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" id="removeImageBtn" 
+                                @(string.IsNullOrEmpty(Model.CommunityPic) ? "disabled" : "")>
+                            <i class="fas fa-trash me-1"></i>Remove
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-                    <button class="btn btn-outline-secondary"><i class="fas fa-lock me-2"></i>Change Privacy (@Model.CommunityType)</button>
-                    <button class="btn btn-danger mt-3"><i class="fas fa-trash-alt me-2"></i>Delete/Suspend Community</button>
+    <hr>
+
+    @* Privacy Settings Section *@
+    <div class="mb-3">
+        <label class="form-label fw-bold">Privacy Settings</label>
+        <form id="privacySettingsForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CommunityId" value="@Model.CommunityId" />
+            
+            <div class="mb-3">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="CommunityType" 
+                           id="publicCommunity" value="Public" 
+                           @(Model.CommunityType == "Public" ? "checked" : "")>
+                    <label class="form-check-label" for="publicCommunity">
+                        <i class="fas fa-globe me-1"></i>Public
+                    </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="CommunityType" 
+                           id="privateCommunity" value="Private"
+                           @(Model.CommunityType == "Private" ? "checked" : "")>
+                    <label class="form-check-label" for="privateCommunity">
+                        <i class="fas fa-lock me-1"></i>Private
+                    </label>
                 </div>
             </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>@(Model.CommunityType == "Public" ? "Public" : "Private") Community:</strong>
+                @if (Model.CommunityType == "Public")
+                {
+                    <span>Anyone can view and join this community.</span>
+                }
+                else
+                {
+                    <span>Users must request to join and be approved by admins.</span>
+                }
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100" id="savePrivacyBtn">
+                <i class="fas fa-save me-2"></i>Update Privacy Settings 
+            </button>
+        </form>
+    </div>
+
+    <hr>
+
+    @* Invite Members Button *@
+    <div class="d-grid">
+        <button class="btn btn-outline-success" onclick="openInviteModal(@Model.CommunityId)">
+            <i class="fas fa-user-plus me-2"></i>Invite Members
+        </button>
+        <button class="btn btn-danger mt-2">
+            <i class="fas fa-trash-alt me-2"></i>Delete/Suspend Community
+        </button>
+    </div>
+</div>
 
             @* === Announcement Dashboard === *@
             <div class="section-card">
@@ -499,7 +653,7 @@
                  mainContent.insertAdjacentHTML('afterbegin', alertHTML);
             }
            
-            
+            // Auto-dismiss after 5 seconds
             setTimeout(() => {
                 const alert = document.querySelector('.alert-dismissible');
                 if (alert) {
@@ -613,7 +767,6 @@
                                         ${dropdownItems}
                                     </ul>
                                 </div>`;
-
 
                             return `
                                 <tr>
@@ -781,6 +934,243 @@
             }
         }
         
+        // === PROFILE IMAGE UPLOAD FUNCTIONALITY ===
+        
+        // Profile Image Preview
+        const profileImageInput = document.getElementById('profileImageInput');
+        const newImagePreview = document.getElementById('newImagePreview');
+        const newImagePreviewImg = document.getElementById('newImagePreviewImg');
+        
+        if (profileImageInput) {
+            profileImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        showAlert('File size too large. Maximum size is 5MB.', 'error');
+                        this.value = ''; // Clear the file input
+                        newImagePreview.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Validate file type
+                    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!allowedExtensions.includes(fileExtension)) {
+                        showAlert('Invalid file type. Only JPG, JPEG, PNG, GIF, and BMP are allowed.', 'error');
+                        this.value = ''; // Clear the file input
+                        newImagePreview.style.display = 'none';
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        newImagePreviewImg.src = e.target.result;
+                        newImagePreview.style.display = 'flex';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    newImagePreview.style.display = 'none';
+                }
+            });
+        }
+        
+        // Profile Image Form Submission
+        const profileImageForm = document.getElementById('profileImageForm');
+        if (profileImageForm) {
+            profileImageForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const saveImageBtn = document.getElementById('saveImageBtn');
+                const originalBtnText = saveImageBtn.innerHTML;
+                
+                // Show loading state
+                saveImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+                saveImageBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('@Url.Action("UpdateProfileImage", "Communities")', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        
+                        // Update the current image preview
+                        const currentImagePreview = document.getElementById('profileImagePreview');
+                        const currentImageContainer = document.getElementById('currentImagePreview');
+                        
+                        if (result.imageUrl) {
+                            if (currentImagePreview) {
+                                currentImagePreview.src = result.imageUrl;
+                            } else {
+                                // Create new image element if it doesn't exist
+                                const newImg = document.createElement('img');
+                                newImg.id = 'profileImagePreview';
+                                newImg.src = result.imageUrl;
+                                newImg.alt = 'Community Profile';
+                                newImg.className = 'img-fluid rounded';
+                                newImg.style.maxWidth = '100%';
+                                newImg.style.maxHeight = '100%';
+                                newImg.style.objectFit = 'cover';
+                                
+                                currentImageContainer.innerHTML = '';
+                                currentImageContainer.appendChild(newImg);
+                            }
+                        } else {
+                            // No image - show placeholder
+                            currentImageContainer.innerHTML = `
+                                <div class="text-muted">
+                                    <i class="fas fa-users fa-2x"></i>
+                                    <div class="small mt-1">No Image</div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Reset form and hide new image preview
+                        profileImageForm.reset();
+                        newImagePreview.style.display = 'none';
+                        document.getElementById('removeImageBtn').disabled = !result.imageUrl;
+                        
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error updating profile image:', error);
+                    showAlert('An error occurred while updating the profile image.', 'error');
+                } finally {
+                    saveImageBtn.innerHTML = originalBtnText;
+                    saveImageBtn.disabled = false;
+                }
+            });
+        }
+        
+        // Remove Image Button
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', async function() {
+                if (!confirm('Are you sure you want to remove the community profile image?')) {
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('CommunityId', '@Model.CommunityId');
+                formData.append('CurrentImageUrl', '');
+                formData.append('ProfileImage', ''); // Empty file
+                
+                const originalBtnText = removeImageBtn.innerHTML;
+                removeImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Removing...';
+                removeImageBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('@Url.Action("UpdateProfileImage", "Communities")', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        
+                        // Update UI
+                        const currentImageContainer = document.getElementById('currentImagePreview');
+                        currentImageContainer.innerHTML = `
+                            <div class="text-muted">
+                                <i class="fas fa-users fa-2x"></i>
+                                <div class="small mt-1">No Image</div>
+                            </div>
+                        `;
+                        
+                        removeImageBtn.disabled = true;
+                        profileImageForm.reset();
+                        newImagePreview.style.display = 'none';
+                        
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error removing profile image:', error);
+                    showAlert('An error occurred while removing the profile image.', 'error');
+                } finally {
+                    removeImageBtn.innerHTML = originalBtnText;
+                    removeImageBtn.disabled = false;
+                }
+            });
+        }
+        
+        // === PRIVACY SETTINGS FUNCTIONALITY ===
+        
+        // Privacy Settings Form
+        const privacySettingsForm = document.getElementById('privacySettingsForm');
+        if (privacySettingsForm) {
+            privacySettingsForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const savePrivacyBtn = document.getElementById('savePrivacyBtn');
+                const originalBtnText = savePrivacyBtn.innerHTML;
+                
+                // Show loading state
+                savePrivacyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+                savePrivacyBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('@Url.Action("UpdatePrivacySettings", "Communities")', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showAlert(result.message, 'success');
+                        
+                        // Update the privacy info alert
+                        const privacyAlert = privacySettingsForm.querySelector('.alert');
+                        if (privacyAlert) {
+                            const isPublic = result.communityType === 'Public';
+                            privacyAlert.innerHTML = `
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>${isPublic ? 'Public' : 'Private'} Community:</strong>
+                                ${isPublic ? 
+                                    'Anyone can view and join this community.' : 
+                                    'Users must request to join and be approved by admins.'}
+                            `;
+                        }
+                        
+                        // Refresh join requests section if privacy changed
+                        await refreshAllCommunityData();
+                        
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error updating privacy settings:', error);
+                    showAlert('An error occurred while updating privacy settings.', 'error');
+                } finally {
+                    savePrivacyBtn.innerHTML = originalBtnText;
+                    savePrivacyBtn.disabled = false;
+                }
+            });
+        }
+        
         // === MEMBER MANAGEMENT FUNCTIONS ===
         
         // Assign role function 
@@ -942,7 +1332,6 @@
         function rejectRequest(requestId) {
             alert(`API CALL: Rejecting Join Request ID ${requestId}`);
         }
-
 
         // Set minimum datetime for expiry date to current time
         document.addEventListener('DOMContentLoaded', function() {

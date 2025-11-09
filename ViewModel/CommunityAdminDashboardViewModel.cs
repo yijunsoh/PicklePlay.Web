@@ -124,5 +124,24 @@ namespace PicklePlay.ViewModels
             public int CommunityId { get; set; }
             public int UserId { get; set; }
         }
+
+        public class PrivacySettingsViewModel
+        {
+            [Required]
+            public int CommunityId { get; set; }
+
+            [Required(ErrorMessage = "Community type is required")]
+            public string CommunityType { get; set; } = "Public";
+        }
+
+        public class ProfileImageViewModel
+        {
+            [Required]
+            public int CommunityId { get; set; }
+
+            public IFormFile? ProfileImage { get; set; }
+
+            public string? CurrentImageUrl { get; set; }
+        }
     }
 }

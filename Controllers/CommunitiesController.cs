@@ -1102,5 +1102,201 @@ namespace PicklePlay.Controllers
                 });
             }
         }
+
+        // POST: /Communities/UpdateProfileImage
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateProfileImage([FromForm] ProfileImageViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
+            }
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                var isCreator = await _context.Communities
+                    .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+
+                if (currentUserMembership == null && !isCreator)
+                {
+                    return Forbid("You don't have permission to update the community profile image.");
+                }
+
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
+
+                if (community == null)
+                {
+                    return NotFound(new { success = false, message = "Community not found." });
+                }
+
+                string? imageUrl = null;
+
+                // Handle image upload
+                if (model.ProfileImage != null && model.ProfileImage.Length > 0)
+                {
+                    // Validate file type
+                    var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp" };
+                    var fileExtension = Path.GetExtension(model.ProfileImage.FileName).ToLowerInvariant();
+
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { success = false, message = "Invalid file type. Only JPG, JPEG, PNG, GIF, and BMP are allowed." });
+                    }
+
+                    // Validate file size (max 5MB)
+                    if (model.ProfileImage.Length > 5 * 1024 * 1024)
+                    {
+                        return BadRequest(new { success = false, message = "File size too large. Maximum size is 5MB." });
+                    }
+
+                    // Create uploads directory if it doesn't exist
+                    var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "communities");
+                    if (!Directory.Exists(uploadsDir))
+                    {
+                        Directory.CreateDirectory(uploadsDir);
+                    }
+
+                    // Generate unique filename
+                    var fileName = $"community_{community.CommunityId}_{Guid.NewGuid()}{fileExtension}";
+                    var filePath = Path.Combine(uploadsDir, fileName);
+
+                    // Save the file
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await model.ProfileImage.CopyToAsync(stream);
+                    }
+
+                    // Set the image URL (relative path)
+                    imageUrl = $"/uploads/communities/{fileName}";
+
+                    // Delete old image if exists
+                    if (!string.IsNullOrEmpty(community.CommunityPic))
+                    {
+                        var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", community.CommunityPic.TrimStart('/'));
+                        if (System.IO.File.Exists(oldFilePath))
+                        {
+                            System.IO.File.Delete(oldFilePath);
+                        }
+                    }
+
+                    community.CommunityPic = imageUrl;
+                }
+                else if (model.ProfileImage == null && string.IsNullOrEmpty(model.CurrentImageUrl))
+                {
+                    // Remove existing image if no new image and no current image URL
+                    if (!string.IsNullOrEmpty(community.CommunityPic))
+                    {
+                        var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", community.CommunityPic.TrimStart('/'));
+                        if (System.IO.File.Exists(oldFilePath))
+                        {
+                            System.IO.File.Delete(oldFilePath);
+                        }
+                        community.CommunityPic = null;
+                    }
+                }
+
+                _context.Communities.Update(community);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Profile image updated successfully!",
+                    imageUrl = community.CommunityPic
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error updating profile image: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating the profile image."
+                });
+            }
+        }
+
+        // POST: /Communities/UpdatePrivacySettings
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdatePrivacySettings([FromForm] PrivacySettingsViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
+            }
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                var isCreator = await _context.Communities
+                    .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+
+                if (currentUserMembership == null && !isCreator)
+                {
+                    return Forbid("You don't have permission to update community privacy settings.");
+                }
+
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
+
+                if (community == null)
+                {
+                    return NotFound(new { success = false, message = "Community not found." });
+                }
+
+                // Update community type
+                community.CommunityType = model.CommunityType;
+                _context.Communities.Update(community);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Community privacy settings updated to {model.CommunityType} successfully!",
+                    communityType = model.CommunityType
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error updating privacy settings: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating privacy settings."
+                });
+            }
+        }
     }
 }

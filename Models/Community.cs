@@ -53,6 +53,13 @@ namespace PicklePlay.Models
         [ForeignKey("CreateByUserId")]
         public virtual User Creator { get; set; } = null!;
 
+        // Add these properties to your Community class in Community.cs
+        [NotMapped] // This property won't be stored in the database
+        public IFormFile? ProfileImageFile { get; set; }
+
+        [NotMapped]
+        public string? TempImageUrl { get; set; } // For preview purposes
+
         public virtual ICollection<CommunityMember> Memberships { get; set; } = new List<CommunityMember>();
         public virtual ICollection<CommunityBlockList> BlockedUsers { get; set; } = new List<CommunityBlockList>();
         public virtual ICollection<CommunityAnnouncement> Announcements { get; set; } = new List<CommunityAnnouncement>();
