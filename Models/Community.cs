@@ -40,7 +40,7 @@ namespace PicklePlay.Models
         [Required]
         [MaxLength(20)]
         [Column("status")]
-        public string Status { get; set; } = "Active"; // Active / Inactive / Suspended
+        public string Status { get; set; } = "Active"; // Active / Inactive / Suspended / Pending / Rejected
 
         [Column("lastActivityDate")]
         public DateTime? LastActivityDate { get; set; }

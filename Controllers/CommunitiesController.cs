@@ -50,19 +50,40 @@ namespace PicklePlay.Controllers
                 .Select(cm => cm.CommunityId)
                 .ToListAsync();
 
-            // --- 3. Fetch Pending Requests ---
+            // --- 3. Fetch Pending AND Rejected Requests ---
             var pendingRequests = new List<object>();
+            var rejectedRequests = new List<object>();
+
             if (currentUserId > 0)
             {
-                pendingRequests = await _context.CommunityRequests
-                    .Where(cr => cr.RequestStatus == "Pending" && cr.RequestByUserId == currentUserId)
-                    .Select(cr => new
+                // Pending requests
+                pendingRequests = await _context.CommunityMembers
+                    .Include(cm => cm.Community)
+                    .Where(cm => cm.Status == "Pending" && cm.UserId == currentUserId)
+                    .Select(cm => new
                     {
-                        requestId = cr.RequestId,
-                        name = cr.CommunityName,
-                        location = cr.CommunityLocation,
-                        type = cr.CommunityType,
-                        requestDate = cr.RequestDate
+                        requestId = cm.MemberId,
+                        name = cm.Community.CommunityName,
+                        location = cm.Community.CommunityLocation,
+                        type = cm.Community.CommunityType,
+                        requestDate = cm.JoinDate,
+                        status = cm.Status
+                    })
+                    .ToListAsync<object>();
+
+                // Rejected requests (for notification purposes)
+                rejectedRequests = await _context.CommunityMembers
+                    .Include(cm => cm.Community)
+                    .Where(cm => cm.Status == "Rejected" && cm.UserId == currentUserId)
+                    .Select(cm => new
+                    {
+                        requestId = cm.MemberId,
+                        communityId = cm.CommunityId,
+                        name = cm.Community.CommunityName,
+                        location = cm.Community.CommunityLocation,
+                        type = cm.Community.CommunityType,
+                        requestDate = cm.JoinDate,
+                        status = cm.Status
                     })
                     .ToListAsync<object>();
             }
@@ -84,9 +105,15 @@ namespace PicklePlay.Controllers
                 })
                 .ToListAsync<object>();
 
-            // --- 5. Fetch and Select Suggested Communities (Max 9, excluding joined/pending) ---
+            // --- 5. Fetch and Select Suggested Communities (Max 9, excluding joined/pending/rejected) ---
+            var excludedCommunityIds = await _context.CommunityMembers
+                .Where(cm => cm.UserId == currentUserId &&
+                            (cm.Status == "Active" || cm.Status == "Pending" || cm.Status == "Rejected"))
+                .Select(cm => cm.CommunityId)
+                .ToListAsync();
+
             var suggestedCommunitiesQuery = _context.Communities
-                .Where(c => !activeMemberCommunityIds.Contains(c.CommunityId) && c.Status == "Active")
+                .Where(c => !excludedCommunityIds.Contains(c.CommunityId) && c.Status == "Active")
                 .Select(c => new
                 {
                     id = c.CommunityId,
@@ -94,20 +121,21 @@ namespace PicklePlay.Controllers
                     description = c.Description,
                     location = c.CommunityLocation,
                     type = c.CommunityType,
-                    userRole = (string)null!, // Fixes CS8600 Warning
+                    userRole = (string)null!,
                     memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
                     gameCount = 0,
                     icon = "compass"
                 });
 
             var suggestedCommunities = await suggestedCommunitiesQuery
-                .OrderBy(c => Guid.NewGuid()) // Random ordering translatable to SQL
+                .OrderBy(c => Guid.NewGuid())
                 .Take(9)
                 .ToListAsync<object>();
 
             return Ok(new
             {
                 pendingRequests = pendingRequests,
+                rejectedRequests = rejectedRequests, // Add rejected requests to response
                 activeCommunities = activeCommunities,
                 suggestedCommunities = suggestedCommunities
             });
@@ -129,12 +157,22 @@ namespace PicklePlay.Controllers
             int userId = currentUserIdInt.Value;
 
             // 2. Community Existence Check
-            if (!await _context.Communities.AnyAsync(c => c.CommunityId == communityId))
+            var community = await _context.Communities.FirstOrDefaultAsync(c => c.CommunityId == communityId);
+            if (community == null)
             {
                 return NotFound(new { success = false, message = "Community not found." });
             }
 
-            // 3. Check for existing membership (Active or Inactive)
+            // 3. Check if user is blocked from this community
+            var isBlocked = await _context.CommunityBlockLists
+                .AnyAsync(b => b.CommunityId == communityId && b.UserId == userId);
+
+            if (isBlocked)
+            {
+                return BadRequest(new { success = false, message = "You are blocked from joining this community." });
+            }
+
+            // 4. Check for existing membership (Active, Inactive, or Pending)
             var existingMembership = await _context.CommunityMembers
                 .FirstOrDefaultAsync(cm => cm.CommunityId == communityId && cm.UserId == userId);
 
@@ -144,11 +182,26 @@ namespace PicklePlay.Controllers
                 {
                     return BadRequest(new { success = false, message = "You are already an active member of this community." });
                 }
+                else if (existingMembership.Status == "Pending")
+                {
+                    return BadRequest(new { success = false, message = "You already have a pending request to join this community." });
+                }
 
-                // 4. REACTIVATE Inactive Membership
-                existingMembership.Status = "Active";
-                existingMembership.JoinDate = DateTime.UtcNow;
-                _context.CommunityMembers.Update(existingMembership);
+                // REACTIVATE Inactive Membership - but for private communities, this should be a new request
+                if (community.CommunityType == "Private")
+                {
+                    // For private communities, changing from Inactive to Active requires admin approval
+                    existingMembership.Status = "Pending";
+                    existingMembership.JoinDate = DateTime.UtcNow;
+                    _context.CommunityMembers.Update(existingMembership);
+                }
+                else
+                {
+                    // For public communities, allow immediate reactivation
+                    existingMembership.Status = "Active";
+                    existingMembership.JoinDate = DateTime.UtcNow;
+                    _context.CommunityMembers.Update(existingMembership);
+                }
             }
             else
             {
@@ -158,7 +211,7 @@ namespace PicklePlay.Controllers
                     CommunityId = communityId,
                     UserId = userId,
                     CommunityRole = "Member",
-                    Status = "Active",
+                    Status = community.CommunityType == "Private" ? "Pending" : "Active", // Set status based on community type
                     JoinDate = DateTime.UtcNow
                 };
                 _context.CommunityMembers.Add(membership);
@@ -168,11 +221,17 @@ namespace PicklePlay.Controllers
             {
                 await _context.SaveChangesAsync();
 
+                string message = community.CommunityType == "Private"
+                    ? "Request to join community submitted! Waiting for admin approval."
+                    : "Successfully joined the community!";
+
                 return Ok(new
                 {
                     success = true,
-                    message = "Successfully joined the community!",
-                    communityId = communityId
+                    message = message,
+                    communityId = communityId,
+                    isPrivateCommunity = community.CommunityType == "Private",
+                    requiresApproval = community.CommunityType == "Private"
                 });
             }
             catch (Exception ex)
@@ -183,6 +242,191 @@ namespace PicklePlay.Controllers
                     success = false,
                     message = "An unexpected error occurred on the server.",
                     error = "Internal Server Error"
+                });
+            }
+        }
+
+        // POST: /Communities/AcceptJoinRequest
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AcceptJoinRequest(int requestId)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Find the pending membership request
+                var membershipRequest = await _context.CommunityMembers
+                    .Include(m => m.Community)
+                    .FirstOrDefaultAsync(m => m.MemberId == requestId && m.Status == "Pending");
+
+                if (membershipRequest == null)
+                {
+                    return NotFound(new { success = false, message = "Join request not found." });
+                }
+
+                // Verify the current user has admin privileges for this community
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == membershipRequest.CommunityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to accept join requests in this community.");
+                }
+
+                // Update the membership status to Active
+                membershipRequest.Status = "Active";
+                _context.CommunityMembers.Update(membershipRequest);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Join request accepted successfully!",
+                    requestId = requestId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error accepting join request: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while accepting the join request."
+                });
+            }
+        }
+
+        // POST: /Communities/RejectJoinRequest
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectJoinRequest(int requestId)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Find the pending membership request with user and community info
+                var membershipRequest = await _context.CommunityMembers
+                    .Include(m => m.Community)
+                    .Include(m => m.User)
+                    .FirstOrDefaultAsync(m => m.MemberId == requestId && m.Status == "Pending");
+
+                if (membershipRequest == null)
+                {
+                    return NotFound(new { success = false, message = "Join request not found." });
+                }
+
+                // Verify the current user has admin privileges for this community
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == membershipRequest.CommunityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to reject join requests in this community.");
+                }
+
+                // Store user info for notification before updating
+                var rejectedUserId = membershipRequest.UserId;
+                var rejectedUserName = membershipRequest.User?.Username ?? "User";
+                var communityName = membershipRequest.Community?.CommunityName ?? "Community";
+
+                // Update status to Rejected instead of removing
+                membershipRequest.Status = "Rejected";
+                _context.CommunityMembers.Update(membershipRequest);
+
+                // Send notification to the rejected user
+                var notification = new Notification
+                {
+                    UserId = rejectedUserId,
+                    Message = $"Your request to join '{communityName}' has been rejected by the community admin.",
+                    LinkUrl = Url.Action("Community", "Home"),
+                    IsRead = false,
+                    DateCreated = DateTime.UtcNow
+                };
+                _context.Notifications.Add(notification);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Join request rejected successfully!",
+                    requestId = requestId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error rejecting join request: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while rejecting the join request."
+                });
+            }
+        }
+
+        // POST: /Communities/RemoveRejectedRequest
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveRejectedRequest(int requestId)
+        {
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            try
+            {
+                // Find the rejected membership request
+                var rejectedRequest = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(m => m.MemberId == requestId && m.Status == "Rejected" && m.UserId == currentUserId);
+
+                if (rejectedRequest == null)
+                {
+                    return NotFound(new { success = false, message = "Rejected request not found." });
+                }
+
+                // Remove the rejected request
+                _context.CommunityMembers.Remove(rejectedRequest);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Rejected request removed successfully!",
+                    requestId = requestId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error removing rejected request: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while removing the rejected request."
                 });
             }
         }
@@ -1234,6 +1478,7 @@ namespace PicklePlay.Controllers
         }
 
         // POST: /Communities/UpdatePrivacySettings
+        // POST: /Communities/UpdatePrivacySettings
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdatePrivacySettings([FromForm] PrivacySettingsViewModel model)
@@ -1276,6 +1521,22 @@ namespace PicklePlay.Controllers
                     return NotFound(new { success = false, message = "Community not found." });
                 }
 
+                // SERVER-SIDE VALIDATION: Prevent Private to Public change if pending requests exist
+                if (community.CommunityType == "Private" && model.CommunityType == "Public")
+                {
+                    var pendingRequestsCount = await _context.CommunityMembers
+                        .CountAsync(cm => cm.CommunityId == model.CommunityId && cm.Status == "Pending");
+
+                    if (pendingRequestsCount > 0)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            message = $"Cannot change to Public community while there are {pendingRequestsCount} pending join request(s). Please resolve all pending requests first."
+                        });
+                    }
+                }
+
                 // Update community type
                 community.CommunityType = model.CommunityType;
                 _context.Communities.Update(community);
@@ -1299,176 +1560,176 @@ namespace PicklePlay.Controllers
             }
         }
 
-  // POST: /Communities/DeleteCommunity
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> DeleteCommunity([FromForm] DeleteCommunityViewModel model)
-{
-    if (!ModelState.IsValid)
-    {
-        return BadRequest(new { success = false, message = "Invalid data submitted." });
-    }
-
-    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-    {
-        return Unauthorized(new { success = false, message = "User not authenticated." });
-    }
-
-    int userId = currentUserIdInt.Value;
-
-    try
-    {
-        var community = await _context.Communities
-            .Include(c => c.Memberships)
-            .Include(c => c.Announcements)
-            .Include(c => c.BlockedUsers)
-            .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
-
-        if (community == null)
+        // POST: /Communities/DeleteCommunity
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteCommunity([FromForm] DeleteCommunityViewModel model)
         {
-            return NotFound(new { success = false, message = "Community not found." });
-        }
-
-        // Verify user is community admin
-        var userMembership = await _context.CommunityMembers
-            .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
-                                     cm.UserId == userId &&
-                                     cm.Status == "Active" &&
-                                     cm.CommunityRole == "Admin");
-
-        var isCreator = community.CreateByUserId == userId;
-
-        if (userMembership == null && !isCreator)
-        {
-            return Forbid("Only community admins can delete this community.");
-        }
-
-        // Verify community name matches for confirmation
-        if (!community.CommunityName.Equals(model.ConfirmationName, StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest(new { success = false, message = "Community name does not match. Please type the exact community name to confirm deletion." });
-        }
-
-        // Check for pending join requests (for private communities)
-        if (community.CommunityType == "Private")
-        {
-            var pendingRequests = community.Memberships
-                .Where(m => m.Status == "Pending")
-                .Any();
-
-            if (pendingRequests)
+            if (!ModelState.IsValid)
             {
-                return BadRequest(new { success = false, message = "Cannot delete private community while there are pending join requests. Please resolve all pending requests first." });
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
+            }
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var community = await _context.Communities
+                    .Include(c => c.Memberships)
+                    .Include(c => c.Announcements)
+                    .Include(c => c.BlockedUsers)
+                    .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
+
+                if (community == null)
+                {
+                    return NotFound(new { success = false, message = "Community not found." });
+                }
+
+                // Verify user is community admin
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                var isCreator = community.CreateByUserId == userId;
+
+                if (userMembership == null && !isCreator)
+                {
+                    return Forbid("Only community admins can delete this community.");
+                }
+
+                // Verify community name matches for confirmation
+                if (!community.CommunityName.Equals(model.ConfirmationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { success = false, message = "Community name does not match. Please type the exact community name to confirm deletion." });
+                }
+
+                // Check for pending join requests (for private communities)
+                if (community.CommunityType == "Private")
+                {
+                    var pendingRequests = community.Memberships
+                        .Where(m => m.Status == "Pending")
+                        .Any();
+
+                    if (pendingRequests)
+                    {
+                        return BadRequest(new { success = false, message = "Cannot delete private community while there are pending join requests. Please resolve all pending requests first." });
+                    }
+                }
+
+                // Check for active games/competitions associated with this community
+                var activeGames = await _context.Schedules
+                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                               (s.Status == ScheduleStatus.Active || s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.InProgress))
+                    .AnyAsync();
+
+                if (activeGames)
+                {
+                    return BadRequest(new { success = false, message = "Cannot delete community while there are active games or competitions associated with it. Please cancel or complete all active events first." });
+                }
+
+                // Check for upcoming competitions
+                var upcomingCompetitions = await _context.Schedules
+                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
+                               s.ScheduleType == ScheduleType.Competition &&
+                               s.StartTime > DateTime.UtcNow &&
+                               s.Status != ScheduleStatus.Cancelled)
+                    .AnyAsync();
+
+                if (upcomingCompetitions)
+                {
+                    return BadRequest(new { success = false, message = "Cannot delete community while there are upcoming competitions. Please cancel all upcoming competitions first." });
+                }
+
+                // Get ALL active members to notify (INCLUDING the deletor)
+                var activeMembers = community.Memberships
+                    .Where(m => m.Status == "Active")
+                    .Select(m => m.UserId)
+                    .ToList();
+
+                // SOFT DELETE: Update status to "Deleted" and store deletion metadata
+                community.Status = "Deleted";
+                community.CommunityName = $"[DELETED] {community.CommunityName}";
+
+                // UPDATED: Format the reason field as "This community was deleted on YYYY-MM-DD + reason"
+                var deletionDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                community.DeletionReason = $"This community was deleted on {deletionDate}. Reason: {model.DeleteReason}";
+
+                community.DeletedByUserId = userId;
+                community.DeletionDate = DateTime.UtcNow;
+
+                _context.Communities.Update(community);
+
+                // Archive or remove related data
+                _context.CommunityAnnouncements.RemoveRange(community.Announcements);
+                _context.CommunityBlockLists.RemoveRange(community.BlockedUsers);
+
+                // Update all memberships to inactive
+                foreach (var membership in community.Memberships)
+                {
+                    membership.Status = "Inactive";
+                }
+
+                // SEND NOTIFICATIONS TO ALL FORMER MEMBERS (INCLUDING DELETOR)
+                if (model.NotifyMembers && activeMembers.Any())
+                {
+                    var currentUser = await _context.Users.FindAsync(userId);
+                    var deleterName = currentUser?.Username ?? "Admin";
+                    var originalCommunityName = community.CommunityName.Replace("[DELETED] ", "");
+
+                    foreach (var memberId in activeMembers)
+                    {
+                        // Create different message for deletor vs other members
+                        string message;
+                        if (memberId == userId)
+                        {
+                            // Message for the person who deleted the community
+                            message = $"You have successfully deleted the community '{originalCommunityName}'. Reason: {model.DeleteReason}";
+                        }
+                        else
+                        {
+                            // Message for other members
+                            message = $"The community '{originalCommunityName}' has been deleted by {deleterName}. Reason: {model.DeleteReason}";
+                        }
+
+                        var notification = new Notification
+                        {
+                            UserId = memberId,
+                            Message = message,
+                            // LinkUrl = Url.Action("Community", "Home"), // Redirect to communities list
+                            IsRead = false,
+                            DateCreated = DateTime.UtcNow
+                        };
+                        _context.Notifications.Add(notification);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Community has been successfully deleted.",
+                    communityId = model.CommunityId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error deleting community: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while deleting the community."
+                });
             }
         }
-
-        // Check for active games/competitions associated with this community
-        var activeGames = await _context.Schedules
-            .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
-                       (s.Status == ScheduleStatus.Active || s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.InProgress))
-            .AnyAsync();
-
-        if (activeGames)
-        {
-            return BadRequest(new { success = false, message = "Cannot delete community while there are active games or competitions associated with it. Please cancel or complete all active events first." });
-        }
-
-        // Check for upcoming competitions
-        var upcomingCompetitions = await _context.Schedules
-            .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
-                       s.ScheduleType == ScheduleType.Competition &&
-                       s.StartTime > DateTime.UtcNow &&
-                       s.Status != ScheduleStatus.Cancelled)
-            .AnyAsync();
-
-        if (upcomingCompetitions)
-        {
-            return BadRequest(new { success = false, message = "Cannot delete community while there are upcoming competitions. Please cancel all upcoming competitions first." });
-        }
-
-        // Get ALL active members to notify (INCLUDING the deletor)
-        var activeMembers = community.Memberships
-            .Where(m => m.Status == "Active")
-            .Select(m => m.UserId)
-            .ToList();
-
-        // SOFT DELETE: Update status to "Deleted" and store deletion metadata
-        community.Status = "Deleted";
-        community.CommunityName = $"[DELETED] {community.CommunityName}";
-        
-        // UPDATED: Format the reason field as "This community was deleted on YYYY-MM-DD + reason"
-        var deletionDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        community.DeletionReason = $"This community was deleted on {deletionDate}. Reason: {model.DeleteReason}";
-        
-        community.DeletedByUserId = userId;
-        community.DeletionDate = DateTime.UtcNow;
-
-        _context.Communities.Update(community);
-
-        // Archive or remove related data
-        _context.CommunityAnnouncements.RemoveRange(community.Announcements);
-        _context.CommunityBlockLists.RemoveRange(community.BlockedUsers);
-
-        // Update all memberships to inactive
-        foreach (var membership in community.Memberships)
-        {
-            membership.Status = "Inactive";
-        }
-
-        // SEND NOTIFICATIONS TO ALL FORMER MEMBERS (INCLUDING DELETOR)
-        if (model.NotifyMembers && activeMembers.Any())
-        {
-            var currentUser = await _context.Users.FindAsync(userId);
-            var deleterName = currentUser?.Username ?? "Admin";
-            var originalCommunityName = community.CommunityName.Replace("[DELETED] ", "");
-            
-            foreach (var memberId in activeMembers)
-            {
-                // Create different message for deletor vs other members
-                string message;
-                if (memberId == userId)
-                {
-                    // Message for the person who deleted the community
-                    message = $"You have successfully deleted the community '{originalCommunityName}'. Reason: {model.DeleteReason}";
-                }
-                else
-                {
-                    // Message for other members
-                    message = $"The community '{originalCommunityName}' has been deleted by {deleterName}. Reason: {model.DeleteReason}";
-                }
-                
-                var notification = new Notification
-                {
-                    UserId = memberId,
-                    Message = message,
-                    // LinkUrl = Url.Action("Community", "Home"), // Redirect to communities list
-                    IsRead = false,
-                    DateCreated = DateTime.UtcNow
-                };
-                _context.Notifications.Add(notification);
-            }
-        }
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            success = true,
-            message = "Community has been successfully deleted.",
-            communityId = model.CommunityId
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Database error deleting community: {ex.Message}");
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "An unexpected error occurred while deleting the community."
-        });
-    }
-}
 
         // GET: /Communities/CheckCommunityDeletionRules
         [HttpGet]
