@@ -36,6 +36,7 @@ namespace PicklePlay.ViewModels
 
         // Viewer role (shown in header instead of ViewBag)
         public string CurrentUserRole { get; set; } = "Member";
+        public List<BlockedUserItem> BlockedUsers { get; set; } = new();
 
         // --- Nested item models ---
         public class AnnouncementItem
@@ -160,6 +161,17 @@ namespace PicklePlay.ViewModels
             public string DeleteReason { get; set; } = null!; // Now required
 
             public bool NotifyMembers { get; set; } = true;
+        }
+
+        // Add this nested class to CommunityAdminDashboardViewModel
+        public class BlockedUserItem
+        {
+            public int BlockId { get; set; }
+            public int UserId { get; set; }
+            public string UserName { get; set; } = string.Empty;
+            public string BlockedByUserName { get; set; } = string.Empty;
+            public string? BlockReason { get; set; }
+            public DateTime BlockDate { get; set; }
         }
     }
 }

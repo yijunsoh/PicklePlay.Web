@@ -29,6 +29,11 @@ namespace PicklePlay.Models
         [Column("block_date")]
         public DateTime BlockDate { get; set; } = DateTime.UtcNow; // Date of block
 
+        [Required]
+        [MaxLength(20)]
+        [Column("status")]
+        public string Status { get; set; } = "Active"; // Active / Inactive
+
         // Navigation Properties
 
         [ForeignKey("CommunityId")]

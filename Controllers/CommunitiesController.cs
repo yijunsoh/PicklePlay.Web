@@ -566,7 +566,8 @@ namespace PicklePlay.Controllers
             var c = await _context.Communities
                 .Include(x => x.Creator)
                 .Include(x => x.Memberships).ThenInclude(m => m.User)
-                .Include(x => x.BlockedUsers)
+                .Include(x => x.BlockedUsers).ThenInclude(b => b.BlockedUser)
+                .Include(x => x.BlockedUsers).ThenInclude(b => b.BlockingAdmin)
                 .Include(x => x.Announcements).ThenInclude(a => a.Poster)
                 .FirstOrDefaultAsync(x => x.CommunityId == communityId);
 
@@ -611,7 +612,7 @@ namespace PicklePlay.Controllers
                 MemberCountTotal = c.Memberships.Count(),
                 AdminCount = c.Memberships.Count(m => m.Status == "Active" && m.CommunityRole == "Admin"),
                 ModeratorCount = c.Memberships.Count(m => m.Status == "Active" && m.CommunityRole == "Moderator"),
-                BlockedUserCount = c.BlockedUsers?.Count ?? 0,
+                BlockedUserCount = c.BlockedUsers?.Where(b => b.Status == "Active").Count() ?? 0,
                 AnnouncementCount = c.Announcements?.Count ?? 0,
 
                 LatestAnnouncements = c.Announcements?
@@ -621,7 +622,7 @@ namespace PicklePlay.Controllers
                     {
                         Id = a.AnnouncementId,
                         Title = a.Title,
-                        Content = a.Content, // ADDED THIS LINE
+                        Content = a.Content,
                         PostDate = a.PostDate,
                         PosterUserId = a.PosterUserId,
                         PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}"
@@ -647,7 +648,21 @@ namespace PicklePlay.Controllers
                         UserId = m.UserId,
                         Username = m.User?.Username ?? $"User #{m.UserId}",
                         RequestedDate = m.JoinDate
-                    }).ToList()
+                    }).ToList(),
+
+                // *** ADDED: Populate BlockedUsers ***
+                BlockedUsers = c.BlockedUsers?
+                    .Where(b => b.Status == "Active")
+                    .OrderByDescending(b => b.BlockDate)
+                    .Select(b => new CommunityAdminDashboardViewModel.BlockedUserItem
+                    {
+                        BlockId = b.BlockId,
+                        UserId = b.UserId,
+                        UserName = b.BlockedUser?.Username ?? $"User #{b.UserId}",
+                        BlockedByUserName = b.BlockingAdmin?.Username ?? $"User #{b.BlockByAdminId}",
+                        BlockReason = b.BlockReason,
+                        BlockDate = b.BlockDate
+                    }).ToList() ?? new List<CommunityAdminDashboardViewModel.BlockedUserItem>()
             };
 
             // ---- Correctly determine viewer's role ----
@@ -673,7 +688,7 @@ namespace PicklePlay.Controllers
             return View("~/Views/Community/CommunityAdminDashboard.cshtml", vm);
         }
 
-        // GET: /Communities/GetCommunityAdminData
+       // GET: /Communities/GetCommunityAdminData
         [HttpGet]
         public async Task<IActionResult> GetCommunityAdminData(int communityId)
         {
@@ -682,6 +697,9 @@ namespace PicklePlay.Controllers
                 .Include(c => c.Memberships)
                     .ThenInclude(m => m.User)
                 .Include(c => c.BlockedUsers)
+                    .ThenInclude(b => b.BlockedUser) // Include blocked user details
+                .Include(c => c.BlockedUsers)
+                    .ThenInclude(b => b.BlockingAdmin) // Include admin who blocked
                 .Include(c => c.Announcements)
                     .ThenInclude(a => a.Poster)
                 .FirstOrDefaultAsync(c => c.CommunityId == communityId);
@@ -706,7 +724,7 @@ namespace PicklePlay.Controllers
                 MemberCountTotal = community.Memberships.Count(),
                 AdminCount = community.Memberships.Count(m => m.CommunityRole == "Admin" && m.Status == "Active"),
                 ModeratorCount = community.Memberships.Count(m => m.CommunityRole == "Moderator" && m.Status == "Active"),
-                BlockedUserCount = community.BlockedUsers.Count(),
+                BlockedUserCount = community.BlockedUsers.Count(b => b.Status == "Active"), // Only count active blocks
                 AnnouncementCount = community.Announcements.Count(),
 
                 LatestAnnouncements = community.Announcements
@@ -748,7 +766,35 @@ namespace PicklePlay.Controllers
                         Status = m.Status, // Added status for consistency
                         JoinDate = m.JoinDate
                     })
+                    .ToList(),
+
+                    JoinRequests = community.Memberships
+                    .Where(m => m.Status == "Pending")
+                    .OrderByDescending(m => m.JoinDate)
+                    .Select(m => new CommunityAdminDashboardViewModel.JoinRequestItem
+                    {
+                        RequestId = m.MemberId,
+                        UserId = m.UserId,
+                        Username = m.User?.Username ?? $"User #{m.UserId}",
+                        RequestedDate = m.JoinDate
+                    })
+                    .ToList(),
+
+                // --- ADDED: Blocked Users List ---
+                BlockedUsers = community.BlockedUsers
+                    .Where(b => b.Status == "Active") // Only show active blocks
+                    .OrderByDescending(b => b.BlockDate)
+                    .Select(b => new CommunityAdminDashboardViewModel.BlockedUserItem
+                    {
+                        BlockId = b.BlockId,
+                        UserId = b.UserId,
+                        UserName = b.BlockedUser?.Username ?? $"User #{b.UserId}",
+                        BlockedByUserName = b.BlockingAdmin?.Username ?? $"User #{b.BlockByAdminId}",
+                        BlockReason = b.BlockReason,
+                        BlockDate = b.BlockDate
+                    })
                     .ToList()
+
             };
 
             return Ok(new { success = true, data = vm });
@@ -830,85 +876,96 @@ namespace PicklePlay.Controllers
             }
         }
 
-        // POST: /Communities/AssignRole
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
+       // POST: /Communities/AssignRole
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int currentUserId = currentUserIdInt.Value;
+
+    // Validate role
+    if (string.IsNullOrWhiteSpace(request.NewRole) || (request.NewRole != "Admin" && request.NewRole != "Member"))
+    {
+        return BadRequest(new { success = false, message = "Invalid role specified. Must be Admin or Member." });
+    }
+
+    try
+    {
+        // Verify the current user has admin privileges
+        var currentUserMembership = await _context.CommunityMembers
+            .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                     cm.UserId == currentUserId &&
+                                     cm.Status == "Active" &&
+                                     cm.CommunityRole == "Admin");
+
+        if (currentUserMembership == null)
         {
-            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-            {
-                return Unauthorized(new { success = false, message = "User not authenticated." });
-            }
-
-            int currentUserId = currentUserIdInt.Value;
-
-            // Validate role
-            if (string.IsNullOrWhiteSpace(request.NewRole) || (request.NewRole != "Admin" && request.NewRole != "Member"))
-            {
-                return BadRequest(new { success = false, message = "Invalid role specified. Must be Admin or Member." });
-            }
-
-            try
-            {
-                // Verify the current user has admin privileges
-                var currentUserMembership = await _context.CommunityMembers
-                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
-                                             cm.UserId == currentUserId &&
-                                             cm.Status == "Active" &&
-                                             cm.CommunityRole == "Admin");
-
-                if (currentUserMembership == null)
-                {
-                    return Forbid("You don't have permission to assign roles in this community.");
-                }
-
-                // Find the target membership
-                var targetMembership = await _context.CommunityMembers
-                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
-                                             cm.UserId == request.UserId &&
-                                             cm.Status == "Active");
-
-                if (targetMembership == null)
-                {
-                    return NotFound(new { success = false, message = "Member not found or inactive." });
-                }
-
-                // Prevent role changes on community creator
-                var community = await _context.Communities
-                    .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
-
-                if (community != null && targetMembership.UserId == community.CreateByUserId)
-                {
-                    return BadRequest(new { success = false, message = "Cannot change the role of the community creator." });
-                }
-
-                // ALLOW self-role changes (admin can demote themselves to member)
-                // Update the role
-                string oldRole = targetMembership.CommunityRole;
-                targetMembership.CommunityRole = request.NewRole;
-                _context.CommunityMembers.Update(targetMembership);
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    message = $"Member role has been successfully changed from {oldRole} to {request.NewRole}.",
-                    userId = request.UserId,
-                    newRole = request.NewRole
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Database error assigning role: {ex.Message}");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "An unexpected error occurred while updating the member role."
-                });
-            }
+            return Forbid("You don't have permission to assign roles in this community.");
         }
+
+        // Find the target membership
+        var targetMembership = await _context.CommunityMembers
+            .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                     cm.UserId == request.UserId &&
+                                     cm.Status == "Active");
+
+        if (targetMembership == null)
+        {
+            return NotFound(new { success = false, message = "Member not found or inactive." });
+        }
+
+        // Prevent role changes on community creator
+        var community = await _context.Communities
+            .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
+
+        if (community != null && targetMembership.UserId == community.CreateByUserId)
+        {
+            return BadRequest(new { success = false, message = "Cannot change the role of the community creator." });
+        }
+
+        // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
+        if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
+        {
+            return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
+        }
+
+        // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
+        if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
+        {
+            return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
+        }
+
+        // Update the role
+        string oldRole = targetMembership.CommunityRole;
+        targetMembership.CommunityRole = request.NewRole;
+        _context.CommunityMembers.Update(targetMembership);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            message = $"Member role has been successfully changed from {oldRole} to {request.NewRole}.",
+            userId = request.UserId,
+            newRole = request.NewRole
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database error assigning role: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An unexpected error occurred while updating the member role."
+        });
+    }
+}
 
 
 
@@ -1040,25 +1097,45 @@ namespace PicklePlay.Controllers
                     return BadRequest(new { success = false, message = "Cannot block the community creator." });
                 }
 
-                // Check if user is already blocked
+                // Check if user is already blocked (with Active status)
                 var existingBlock = await _context.CommunityBlockLists
-                    .FirstOrDefaultAsync(b => b.CommunityId == communityId && b.UserId == userId);
+                    .FirstOrDefaultAsync(b => b.CommunityId == communityId &&
+                                            b.UserId == userId &&
+                                            b.Status == "Active");
 
                 if (existingBlock != null)
                 {
                     return BadRequest(new { success = false, message = "This user is already blocked." });
                 }
 
-                // Add to blocked users table
-                var blockedUser = new CommunityBlockList
+                // If there's an existing inactive block, reactivate it
+                var inactiveBlock = await _context.CommunityBlockLists
+                    .FirstOrDefaultAsync(b => b.CommunityId == communityId &&
+                                            b.UserId == userId &&
+                                            b.Status == "Inactive");
+
+                if (inactiveBlock != null)
                 {
-                    CommunityId = communityId,
-                    UserId = userId,
-                    BlockByAdminId = currentUserId,
-                    BlockReason = blockReason ?? "Blocked by admin",
-                    BlockDate = DateTime.UtcNow
-                };
-                _context.CommunityBlockLists.Add(blockedUser);
+                    inactiveBlock.Status = "Active";
+                    inactiveBlock.BlockByAdminId = currentUserId;
+                    inactiveBlock.BlockReason = blockReason ?? "Blocked by admin";
+                    inactiveBlock.BlockDate = DateTime.UtcNow;
+                    _context.CommunityBlockLists.Update(inactiveBlock);
+                }
+                else
+                {
+                    // Add to blocked users table
+                    var blockedUser = new CommunityBlockList
+                    {
+                        CommunityId = communityId,
+                        UserId = userId,
+                        BlockByAdminId = currentUserId,
+                        BlockReason = blockReason ?? "Blocked by admin",
+                        BlockDate = DateTime.UtcNow,
+                        Status = "Active" // Set status to Active
+                    };
+                    _context.CommunityBlockLists.Add(blockedUser);
+                }
 
                 // Also set membership to inactive
                 targetMembership.Status = "Inactive";
@@ -1083,7 +1160,6 @@ namespace PicklePlay.Controllers
                 });
             }
         }
-
         // POST: /Communities/UnblockMember
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -1111,17 +1187,20 @@ namespace PicklePlay.Controllers
                     return Forbid("You don't have permission to unblock members in this community.");
                 }
 
-                // Find the block record
+                // Find the active block record
                 var blockRecord = await _context.CommunityBlockLists
-                    .FirstOrDefaultAsync(b => b.CommunityId == communityId && b.UserId == userId);
+                    .FirstOrDefaultAsync(b => b.CommunityId == communityId &&
+                                            b.UserId == userId &&
+                                            b.Status == "Active");
 
                 if (blockRecord == null)
                 {
-                    return NotFound(new { success = false, message = "User is not blocked in this community." });
+                    return NotFound(new { success = false, message = "User is not currently blocked in this community." });
                 }
 
-                // Remove from blocked users table
-                _context.CommunityBlockLists.Remove(blockRecord);
+                // Soft delete by setting status to Inactive instead of removing
+                blockRecord.Status = "Inactive";
+                _context.CommunityBlockLists.Update(blockRecord);
 
                 await _context.SaveChangesAsync();
 

@@ -480,108 +480,118 @@
             }
 
             @* === Member Management Section (Below Requests) === *@
-            <div class="section-card">
-                <h4>
-                    <span><i class="fas fa-users-cog me-2"></i>Member Management</span>
-                    <span class="badge bg-secondary ms-2">Active: @Model.Members.Count(m => m.Status ==
-                                                "Active")</span>
-                </h4>
+<div class="section-card">
+    <h4>
+        <span><i class="fas fa-users-cog me-2"></i>Member Management</span>
+        <span class="badge bg-secondary ms-2">Active: @Model.Members.Count(m => m.Status == "Active")</span>
+    </h4>
 
-                <div class="table-responsive" style="overflow: visible;">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Joined</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="memberTableBody"> @* ADDED ID HERE *@
-                            @if (Model.Members?.Any(m => m.Status == "Active") == true)
-                            {
-                                @foreach (var member in Model.Members.Where(m => m.Status == "Active"))
+    <div class="table-responsive" style="overflow: visible;">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="memberTableBody">
+                @if (Model.Members?.Any(m => m.Status == "Active") == true)
+                {
+                    @foreach (var member in Model.Members.Where(m => m.Status == "Active"))
+                    {
+                        var roleClass = member.Role == "Admin" ? "role-admin" : "role-member";
+                        var isCommunityCreator = member.UserId == Model.CreatedByUserId;
+
+                        <tr>
+                            <td>
+                                @member.UserName
+                                @if (isCommunityCreator)
                                 {
-                                    var roleClass = member.Role == "Admin" ? "role-admin" : "role-member";
-                                    var isCommunityCreator = member.UserId == Model.CreatedByUserId;
-
-                                    <tr>
-                                        <td>
-                                            @member.UserName
-                                            @if (isCommunityCreator)
-                                            {
-                                                <span class="badge bg-primary ms-1">Creator</span>
-                                            }
-                                        </td>
-                                        <td><span class="@roleClass">@member.Role</span></td>
-                                        <td><span class="status-active">Active</span></td>
-                                        @* <td>@member.JoinDate.ToString("yyyy-MM-dd")</td> *@
-                                        <td> @member.JoinDate.ToString("MMM d, yyyy, hh:mm tt")</td>
-
-                                        <td class="text-end">
-                                            @if (!isCommunityCreator) @* Only show actions for non-creators *@
-                                            {
-                                                <div class="dropdown">
-                                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                                        data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
-                                                        Manage
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end">
-                                                        @if (member.Role != "Admin")
-                                                        {
-                                                            <li>
-                                                                <a class="dropdown-item text-primary" href="#"
-                                                                    onclick="assignRole(@member.UserId, 'Admin','@member.UserName')">
-                                                                    <i class="fas fa-crown me-2"></i>Make Admin
-                                                                </a>
-                                                            </li>
-                                                        }
-                                                        @if (member.Role == "Admin")
-                                                        {
-                                                            <li>
-                                                                <a class="dropdown-item text-info" href="#"
-                                                                    onclick="assignRole(@member.UserId, 'Member', '@member.UserName')">
-                                                                    <i class="fas fa-user-tag me-2"></i>Demote to Member
-                                                                </a>
-                                                            </li>
-                                                        }
-                                                        <li>
-                                                            <hr class="dropdown-divider" />
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item text-danger" href="#"
-                                                                onclick="kickMember(@member.UserId, '@member.UserName')">
-                                                                <i class="fas fa-user-minus me-2"></i>Remove Member
-                                                            </a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item text-danger" href="#"
-                                                                onclick="blockMember(@member.UserId, '@member.UserName')">
-                                                                <i class="fas fa-ban me-2"></i>Block/Ban
-                                                            </a>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">No actions</span>
-                                            }
-                                        </td>
-                                    </tr>
+                                    <span class="badge bg-primary ms-1">Creator</span>
                                 }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="5" class="text-muted">No active members yet.</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                            </td>
+                            <td><span class="@roleClass">@member.Role</span></td>
+                            <td><span class="status-active">Active</span></td>
+                            <td>@member.JoinDate.ToString("MMM d, yyyy, hh:mm tt")</td>
+
+                            <td class="text-end">
+                                @if (!isCommunityCreator) @* Only show actions for non-creators *@
+                                {
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
+                                            data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                                            Manage
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            @if (member.Role == "Member")
+                                            {
+                                                @* For Members: Show Make Admin, Remove, Block *@
+                                                <li>
+                                                    <a class="dropdown-item text-primary" href="#"
+                                                        onclick="assignRole(@member.UserId, 'Admin','@member.UserName')">
+                                                        <i class="fas fa-crown me-2"></i>Make Admin
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <hr class="dropdown-divider" />
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#"
+                                                        onclick="kickMember(@member.UserId, '@member.UserName')">
+                                                        <i class="fas fa-user-minus me-2"></i>Remove Member
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#"
+                                                        onclick="blockMember(@member.UserId, '@member.UserName')">
+                                                        <i class="fas fa-ban me-2"></i>Block/Ban
+                                                    </a>
+                                                </li>
+                                            }
+                                            else if (member.Role == "Admin")
+                                            {
+                                                @* For Admins: Show ONLY Demote to Member *@
+                                                var isCurrentUser = member.UserId == Model.CurrentUserId;
+                                                <li>
+                                                    @if (isCurrentUser)
+                                                    {
+                                                        <a class="dropdown-item text-info disabled" href="#" title="You cannot demote yourself.">
+                                                            <i class="fas fa-user-tag me-2"></i>Demote to Member
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <a class="dropdown-item text-info" href="#" onclick="assignRole(@member.UserId, 'Member', '@member.UserName')">
+                                                            <i class="fas fa-user-tag me-2"></i>Demote to Member
+                                                        </a>
+                                                    }
+                                                </li>
+                                                @* Remove and Block buttons are HIDDEN for Admins *@
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No actions</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-muted">No active members yet.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 
             @* === Recent Announcements Section === *@
             <div class="section-card">
@@ -618,11 +628,52 @@
 
             @* === Blocked Users Section === *@
             <div class="section-card">
-                <h4><i class="fas fa-ban me-2"></i>Blocked Users</h4>
-                <div class="empty-state">
-                    <i class="fas fa-ban"></i>
-                    <p>No blocked users.</p>
-                </div>
+                <h4>
+                    <i class="fas fa-ban me-2"></i>Blocked Users
+                    <span class="badge bg-danger">@Model.BlockedUserCount</span>
+                </h4>
+
+                @if (Model.BlockedUsers != null && Model.BlockedUsers.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Blocked By</th>
+                                    <th>Reason</th>
+                                    <th>Date Blocked</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var blockedUser in Model.BlockedUsers)
+                                {
+                                    <tr>
+                                        <td>@blockedUser.UserName</td>
+                                        <td>@blockedUser.BlockedByUserName</td>
+                                        <td>@(blockedUser.BlockReason ?? "No reason provided")</td>
+                                        <td>@blockedUser.BlockDate.ToString("MMM dd, yyyy h:mm tt")</td>
+                                        <td class="text-end">
+                                            <button class="btn btn-success btn-sm"
+                                                onclick="unblockMember(@blockedUser.UserId, '@blockedUser.UserName.Replace("'", "\\'")')"
+                                                title="Unblock User">
+                                                <i class="fas fa-unlock"></i> Unblock
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="fas fa-ban"></i>
+                        <p>No users are currently blocked from this community.</p>
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -682,11 +733,11 @@ viewData: new ViewDataDictionary(ViewData)
 
             const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
             const alertHTML = `
-                            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-                                ${message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        `;
+                                        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                                            ${message}
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                        </div>
+                                    `;
             const mainContent = document.querySelector('.main-content-admin .container');
             if (mainContent) {
                 mainContent.insertAdjacentHTML('afterbegin', alertHTML);
@@ -764,63 +815,63 @@ viewData: new ViewDataDictionary(ViewData)
                             if (!isCommunityCreator) {
                                 if (member.role !== "Admin") {
                                     dropdownItems += `
-                                                    <li>
-                                                        <a class="dropdown-item text-primary" href="#"
-                                                           onclick="assignRole(${member.userId}, 'Admin', '${member.userName}')">
-                                                            <i class="fas fa-crown me-2"></i>Make Admin
-                                                        </a>
-                                                    </li>`;
+                                                                <li>
+                                                                    <a class="dropdown-item text-primary" href="#"
+                                                                       onclick="assignRole(${member.userId}, 'Admin', '${member.userName}')">
+                                                                        <i class="fas fa-crown me-2"></i>Make Admin
+                                                                    </a>
+                                                                </li>`;
                                 }
                                 if (member.role === "Admin") {
                                     dropdownItems += `
-                                                    <li>
-                                                        <a class="dropdown-item text-info" href="#"
-                                                           onclick="assignRole(${member.userId}, 'Member', '${member.userName}')">
-                                                            <i class="fas fa-user-tag me-2"></i>Demote to Member
-                                                        </a>
-                                                    </li>`;
+                                                                <li>
+                                                                    <a class="dropdown-item text-info" href="#"
+                                                                       onclick="assignRole(${member.userId}, 'Member', '${member.userName}')">
+                                                                        <i class="fas fa-user-tag me-2"></i>Demote to Member
+                                                                    </a>
+                                                                </li>`;
                                 }
                                 dropdownItems += `<li><hr class="dropdown-divider" /></li>
-                                                    <li>
-                                                        <a class="dropdown-item text-danger" href="#"
-                                                           onclick="kickMember(${member.userId}, '${member.userName}')">
-                                                            <i class="fas fa-user-minus me-2"></i>Remove Member
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item text-danger" href="#"
-                                                           onclick="blockMember(${member.userId}, '${member.userName}')">
-                                                            <i class="fas fa-ban me-2"></i>Block/Ban
-                                                        </a>
-                                                    </li>`;
+                                                                <li>
+                                                                    <a class="dropdown-item text-danger" href="#"
+                                                                       onclick="kickMember(${member.userId}, '${member.userName}')">
+                                                                        <i class="fas fa-user-minus me-2"></i>Remove Member
+                                                                    </a>
+                                                                </li>
+                                                                <li>
+                                                                    <a class="dropdown-item text-danger" href="#"
+                                                                       onclick="blockMember(${member.userId}, '${member.userName}')">
+                                                                        <i class="fas fa-ban me-2"></i>Block/Ban
+                                                                    </a>
+                                                                </li>`;
                             }
 
                             const actionsCell = isCommunityCreator ?
                                 `<span class="text-muted">No actions</span>` :
                                 `<div class="dropdown">
-                                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" 
-                                                        data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
-                                                    Manage
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end">
-                                                    ${dropdownItems}
-                                                </ul>
-                                            </div>`;
+                                                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" 
+                                                                    data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                                                                Manage
+                                                            </button>
+                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                                ${dropdownItems}
+                                                            </ul>
+                                                        </div>`;
 
                             return `
-                                            <tr>
-                                                <td>
-                                                    ${member.userName}
-                                                    ${isCommunityCreator ? '<span class="badge bg-primary ms-1">Creator</span>' : ''}
-                                                </td>
-                                                <td><span class="${roleClass}">${member.role}</span></td>
-                                                <td><span class="status-active">Active</span></td>
-                                                <td>${formatDate(member.joinDate)}</td>
-                                                <td class="text-end">
-                                                    ${actionsCell}
-                                                </td>
-                                            </tr>
-                                        `;
+                                                        <tr>
+                                                            <td>
+                                                                ${member.userName}
+                                                                ${isCommunityCreator ? '<span class="badge bg-primary ms-1">Creator</span>' : ''}
+                                                            </td>
+                                                            <td><span class="${roleClass}">${member.role}</span></td>
+                                                            <td><span class="status-active">Active</span></td>
+                                                            <td>${formatDate(member.joinDate)}</td>
+                                                            <td class="text-end">
+                                                                ${actionsCell}
+                                                            </td>
+                                                        </tr>
+                                                    `;
                         }).join('');
 
                         tbody.innerHTML = rowsHTML;
@@ -848,6 +899,85 @@ viewData: new ViewDataDictionary(ViewData)
             await refreshMemberData();
             await refreshAnnouncementsList();
             await refreshJoinRequestsList();
+            await refreshBlockedUsersList(); // Add this line
+        }
+
+        // Function to refresh blocked users list
+        async function refreshBlockedUsersList() {
+            try {
+                const response = await fetch('@Url.Action("GetCommunityAdminData", "Communities")?communityId=@Model.CommunityId');
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const blockedUsers = result.data.blockedUsers || [];
+                    const blockedUsersSection = document.querySelector('.section-card h4 i.fa-ban')?.closest('.section-card');
+                    if (!blockedUsersSection) return;
+
+                    // Remove existing content
+                    const existingTable = blockedUsersSection.querySelector('.table-responsive');
+                    const existingEmptyState = blockedUsersSection.querySelector('.empty-state');
+                    if (existingTable) existingTable.remove();
+                    if (existingEmptyState) existingEmptyState.remove();
+
+                    if (blockedUsers.length > 0) {
+                        // Create table HTML
+                        const tableHTML = `
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Blocked By</th>
+                                                <th>Reason</th>
+                                                <th>Date Blocked</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="blockedUsersTableBody">
+                                            ${blockedUsers.map(blockedUser => `
+                                                <tr>
+                                                    <td>${blockedUser.userName}</td>
+                                                    <td>${blockedUser.blockedByUserName}</td>
+                                                    <td>${blockedUser.blockReason || 'No reason provided'}</td>
+                                                    <td>${formatDate(blockedUser.blockDate)}</td>
+                                                    <td class="text-end">
+                                                        <button class="btn btn-success btn-sm" 
+                                                                onclick="unblockMember(${blockedUser.userId}, '${blockedUser.userName}')"
+                                                                title="Unblock User">
+                                                            <i class="fas fa-unlock"></i> Unblock
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+
+                        // Add table after the header
+                        const header = blockedUsersSection.querySelector('h4');
+                        header.insertAdjacentHTML('afterend', tableHTML);
+                    } else {
+                        // Show empty state
+                        const emptyStateHTML = `
+                                <div class="empty-state">
+                                    <i class="fas fa-ban"></i>
+                                    <p>No users are currently blocked from this community.</p>
+                                </div>
+                            `;
+                        const header = blockedUsersSection.querySelector('h4');
+                        header.insertAdjacentHTML('afterend', emptyStateHTML);
+                    }
+
+                    // Update the badge count
+                    const badge = blockedUsersSection.querySelector('.badge.bg-danger');
+                    if (badge) {
+                        badge.textContent = blockedUsers.length;
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing blocked users:', error);
+            }
         }
 
         // Function to refresh join requests list
@@ -867,21 +997,21 @@ viewData: new ViewDataDictionary(ViewData)
                     if (tableBody) {
                         if (joinRequests && joinRequests.length > 0) {
                             const rowsHTML = joinRequests.map(request => `
-                                        <tr>
-                                            <td>${request.username}</td>
-                                            <td>${formatDate(request.requestedDate)}</td>
-                                            <td class="text-end">
-                                                <div class="btn-action-group justify-content-end">
-                                                    <button class="btn btn-sm btn-success" onclick="acceptRequest(${request.requestId})">
-                                                        <i class="fas fa-check"></i> Accept
-                                                    </button>
-                                                    <button class="btn btn-sm btn-danger" onclick="rejectRequest(${request.requestId})">
-                                                        <i class="fas fa-times"></i> Reject
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `).join('');
+                                                    <tr>
+                                                        <td>${request.username}</td>
+                                                        <td>${formatDate(request.requestedDate)}</td>
+                                                        <td class="text-end">
+                                                            <div class="btn-action-group justify-content-end">
+                                                                <button class="btn btn-sm btn-success" onclick="acceptRequest(${request.requestId})">
+                                                                    <i class="fas fa-check"></i> Accept
+                                                                </button>
+                                                                <button class="btn btn-sm btn-danger" onclick="rejectRequest(${request.requestId})">
+                                                                    <i class="fas fa-times"></i> Reject
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                `).join('');
 
                             tableBody.innerHTML = rowsHTML;
                         } else {
@@ -980,58 +1110,6 @@ viewData: new ViewDataDictionary(ViewData)
             }
         }
 
-        // Updated acceptRequest function - removes only the accepted row
-        async function acceptRequest(requestId) {
-            if (!confirm('Are you sure you want to accept this join request?')) {
-                return;
-            }
-
-            try {
-                const formData = new FormData();
-                formData.append('requestId', requestId);
-                formData.append('__RequestVerificationToken', getAntiForgeryToken());
-
-                const response = await fetch('@Url.Action("AcceptJoinRequest", "Communities")', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showAlert(result.message, 'success');
-
-                    // Remove only the accepted row from the table
-                    const row = document.querySelector(`tr:has(button[onclick*="acceptRequest(${requestId})"])`);
-                    if (row) {
-                        row.remove();
-                    }
-
-                    // Update the badge count
-                    const badge = document.querySelector('.section-card h4 i.fa-hand-paper')?.closest('.section-card')?.querySelector('.badge.bg-danger');
-                    if (badge) {
-                        const currentCount = parseInt(badge.textContent) || 0;
-                        badge.textContent = Math.max(0, currentCount - 1);
-                    }
-
-                    // If no more requests, show empty message
-                    const tableBody = document.querySelector('.section-card h4 i.fa-hand-paper')?.closest('.section-card')?.querySelector('tbody');
-                    if (tableBody && tableBody.querySelectorAll('tr').length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="3" class="text-muted">No pending join requests at this time.</td></tr>';
-                    }
-
-                    // Refresh member list to show the new member
-                    await refreshMemberData();
-
-                } else {
-                    showAlert(result.message, 'error');
-                }
-            } catch (error) {
-                console.error('Error accepting join request:', error);
-                showAlert('An error occurred while accepting the join request.', 'error');
-            }
-        }
-
         // Announcement Form Handling
         document.getElementById('createAnnouncementForm').addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -1118,16 +1196,16 @@ viewData: new ViewDataDictionary(ViewData)
                     if (announcements && announcements.length > 0) {
                         // Create new announcements list
                         const announcementsHTML = announcements.map(announcement => `
-                                        <div class="announcement-item" data-announcement-id="${announcement.id}">
-                                            <h5>${announcement.title}</h5>
-                                            <p>${announcement.content || 'No content available'}</p>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <small>Posted by: ${announcement.posterName}</small>
-                                                <small>${formatDate(announcement.postDate)}</small>
-                                            </div>
-                                            ${isToday(announcement.postDate) ? '<span class="badge bg-success">New</span>' : ''}
-                                        </div>
-                                    `).join('');
+                                                    <div class="announcement-item" data-announcement-id="${announcement.id}">
+                                                        <h5>${announcement.title}</h5>
+                                                        <p>${announcement.content || 'No content available'}</p>
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <small>Posted by: ${announcement.posterName}</small>
+                                                            <small>${formatDate(announcement.postDate)}</small>
+                                                        </div>
+                                                        ${isToday(announcement.postDate) ? '<span class="badge bg-success">New</span>' : ''}
+                                                    </div>
+                                                `).join('');
                         const newContainer = document.createElement('div');
                         newContainer.id = 'announcementsList';
                         newContainer.innerHTML = announcementsHTML;
@@ -1138,11 +1216,11 @@ viewData: new ViewDataDictionary(ViewData)
                     } else {
                         // Show empty state
                         const emptyStateHTML = `
-                                        <div class="empty-state">
-                                            <i class="fas fa-bullhorn"></i>
-                                            <p>No announcements yet. Create one to get started!</p>
-                                        </div>
-                                    `;
+                                                    <div class="empty-state">
+                                                        <i class="fas fa-bullhorn"></i>
+                                                        <p>No announcements yet. Create one to get started!</p>
+                                                    </div>
+                                                `;
                         const header = announcementsSection.querySelector('h4');
                         header.insertAdjacentHTML('afterend', emptyStateHTML);
                     }
@@ -1150,282 +1228,6 @@ viewData: new ViewDataDictionary(ViewData)
             } catch (error) {
                 console.error('Error refreshing announcements:', error);
                 showAlert('Error refreshing announcements list.', 'error');
-            }
-        }
-
-        // === PROFILE IMAGE UPLOAD FUNCTIONALITY ===
-
-        // Profile Image Preview
-        const profileImageInput = document.getElementById('profileImageInput');
-        const newImagePreview = document.getElementById('newImagePreview');
-        const newImagePreviewImg = document.getElementById('newImagePreviewImg');
-
-        if (profileImageInput) {
-            profileImageInput.addEventListener('change', function (e) {
-                const file = e.target.files[0];
-                if (file) {
-                    // Validate file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                        showAlert('File size too large. Maximum size is 5MB.', 'error');
-                        this.value = ''; // Clear the file input
-                        newImagePreview.style.display = 'none';
-                        return;
-                    }
-
-                    // Validate file type
-                    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
-                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-                    if (!allowedExtensions.includes(fileExtension)) {
-                        showAlert('Invalid file type. Only JPG, JPEG, PNG, GIF, and BMP are allowed.', 'error');
-                        this.value = ''; // Clear the file input
-                        newImagePreview.style.display = 'none';
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        newImagePreviewImg.src = e.target.result;
-                        newImagePreview.style.display = 'flex';
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    newImagePreview.style.display = 'none';
-                }
-            });
-        }
-
-        // Profile Image Form Submission
-        const profileImageForm = document.getElementById('profileImageForm');
-        if (profileImageForm) {
-            profileImageForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                const formData = new FormData(this);
-                const saveImageBtn = document.getElementById('saveImageBtn');
-                const originalBtnText = saveImageBtn.innerHTML;
-
-                // Show loading state
-                saveImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
-                saveImageBtn.disabled = true;
-
-                try {
-                    const response = await fetch('@Url.Action("UpdateProfileImage", "Communities")', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        }
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        showAlert(result.message, 'success');
-
-                        // Update the current image preview
-                        const currentImagePreview = document.getElementById('profileImagePreview');
-                        const currentImageContainer = document.getElementById('currentImagePreview');
-
-                        if (result.imageUrl) {
-                            if (currentImagePreview) {
-                                currentImagePreview.src = result.imageUrl;
-                            } else {
-                                // Create new image element if it doesn't exist
-                                const newImg = document.createElement('img');
-                                newImg.id = 'profileImagePreview';
-                                newImg.src = result.imageUrl;
-                                newImg.alt = 'Community Profile';
-                                newImg.className = 'img-fluid rounded';
-                                newImg.style.maxWidth = '100%';
-                                newImg.style.maxHeight = '100%';
-                                newImg.style.objectFit = 'cover';
-
-                                currentImageContainer.innerHTML = '';
-                                currentImageContainer.appendChild(newImg);
-                            }
-                        } else {
-                            // No image - show placeholder
-                            currentImageContainer.innerHTML = `
-                                            <div class="text-muted">
-                                                <i class="fas fa-users fa-2x"></i>
-                                                <div class="small mt-1">No Image</div>
-                                            </div>
-                                        `;
-                        }
-
-                        // Reset form and hide new image preview
-                        profileImageForm.reset();
-                        newImagePreview.style.display = 'none';
-                        document.getElementById('removeImageBtn').disabled = !result.imageUrl;
-
-                    } else {
-                        showAlert(result.message, 'error');
-                    }
-
-                } catch (error) {
-                    console.error('Error updating profile image:', error);
-                    showAlert('An error occurred while updating the profile image.', 'error');
-                } finally {
-                    saveImageBtn.innerHTML = originalBtnText;
-                    saveImageBtn.disabled = false;
-                }
-            });
-        }
-
-        // Remove Image Button
-        const removeImageBtn = document.getElementById('removeImageBtn');
-        if (removeImageBtn) {
-            removeImageBtn.addEventListener('click', async function () {
-                if (!confirm('Are you sure you want to remove the community profile image?')) {
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('CommunityId', '@Model.CommunityId');
-                formData.append('CurrentImageUrl', '');
-                formData.append('ProfileImage', ''); // Empty file
-
-                const originalBtnText = removeImageBtn.innerHTML;
-                removeImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Removing...';
-                removeImageBtn.disabled = true;
-
-                try {
-                    const response = await fetch('@Url.Action("UpdateProfileImage", "Communities")', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        }
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        showAlert(result.message, 'success');
-
-                        // Update UI
-                        const currentImageContainer = document.getElementById('currentImagePreview');
-                        currentImageContainer.innerHTML = `
-                                        <div class="text-muted">
-                                            <i class="fas fa-users fa-2x"></i>
-                                            <div class="small mt-1">No Image</div>
-                                        </div>
-                                    `;
-
-                        removeImageBtn.disabled = true;
-                        profileImageForm.reset();
-                        newImagePreview.style.display = 'none';
-
-                    } else {
-                        showAlert(result.message, 'error');
-                    }
-
-                } catch (error) {
-                    console.error('Error removing profile image:', error);
-                    showAlert('An error occurred while removing the profile image.', 'error');
-                } finally {
-                    removeImageBtn.innerHTML = originalBtnText;
-                    removeImageBtn.disabled = false;
-                }
-            });
-        }
-
-        // === PRIVACY SETTINGS FUNCTIONALITY ===
-
-        // Privacy Settings Form
-        // === SIMPLE PRIVACY SETTINGS VALIDATION - FIXED VERSION ===
-
-        const privacySettingsForm = document.getElementById('privacySettingsForm');
-        if (privacySettingsForm) {
-            privacySettingsForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                const formData = new FormData(this);
-                const currentType = '@Model.CommunityType';
-                const newType = formData.get('CommunityType');
-                const savePrivacyBtn = document.getElementById('savePrivacyBtn');
-                const originalBtnText = savePrivacyBtn.innerHTML;
-
-                // Only validate when changing from Private to Public
-                if (currentType === 'Private' && newType === 'Public') {
-                    try {
-                        // Quick check for pending requests
-                        const response = await fetch('@Url.Action("GetCommunityAdminData", "Communities")?communityId=@Model.CommunityId');
-                        const result = await response.json();
-
-                        if (result.success && result.data) {
-                            const pendingRequests = result.data.joinRequests || [];
-                            if (pendingRequests.length > 0) {
-                                // Show error message - using simple alert for now
-                                alert(`❌ Cannot change to Public community. You have ${pendingRequests.length} pending join request(s) that need to be resolved first.`);
-                                return;
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error checking pending requests:', error);
-                    }
-                }
-
-                // If validation passes, submit the form
-                savePrivacyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
-                savePrivacyBtn.disabled = true;
-
-                try {
-                    const response = await fetch('@Url.Action("UpdatePrivacySettings", "Communities")', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        }
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        // Show success message
-                        alert(`✅ ${result.message}`);
-
-                        // Refresh community data without full page reload
-                        await refreshAllCommunityData();
-
-                        // Update the privacy info display
-                        updatePrivacyDisplay(result.communityType);
-
-                    } else {
-                        // Show server error message
-                        alert(`❌ ${result.message}`);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('❌ An error occurred while updating privacy settings.');
-                } finally {
-                    savePrivacyBtn.innerHTML = originalBtnText;
-                    savePrivacyBtn.disabled = false;
-                }
-            });
-        }
-
-        // Function to update privacy display without refresh
-        function updatePrivacyDisplay(newType) {
-            // Update the privacy info alert
-            const privacyAlert = document.querySelector('#privacySettingsForm .alert');
-            if (privacyAlert) {
-                const isPublic = newType === 'Public';
-                privacyAlert.innerHTML = `
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>${isPublic ? 'Public' : 'Private'} Community:</strong>
-                ${isPublic ?
-                        'Anyone can view and join this community.' :
-                        'Users must request to join and be approved by admins.'}
-            `;
-            }
-
-            // Update radio buttons
-            const publicRadio = document.getElementById('publicCommunity');
-            const privateRadio = document.getElementById('privateCommunity');
-            if (publicRadio && privateRadio) {
-                publicRadio.checked = newType === 'Public';
-                privateRadio.checked = newType === 'Private';
             }
         }
 
@@ -1500,86 +1302,142 @@ viewData: new ViewDataDictionary(ViewData)
 
         // Block member function
         async function blockMember(userId, userName) {
-            // Create and show custom modal for block reason
-            const modalHTML = `
-                            <div class="modal fade" id="blockModal" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Block User</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p>You are about to block <strong>${userName}</strong>.</p>
-                                            <div class="mb-3">
-                                                <label for="blockReason" class="form-label">Reason for blocking (optional):</label>
-                                                <textarea class="form-control" id="blockReason" rows="3" placeholder="Enter reason..."></textarea>
-                                            </div>
-                                            <div class="alert alert-warning">
-                                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                                <strong>Warning:</strong> This will remove the user from the community and prevent them from rejoining.
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-danger" id="confirmBlockBtn">Confirm Block</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-            // Remove existing modal if any
-            const existingModal = document.getElementById('blockModal');
-            if (existingModal) {
-                existingModal.remove();
+    try {
+        // First check if the target user is an admin
+        const response = await fetch('@Url.Action("GetCommunityAdminData", "Communities")?communityId=@Model.CommunityId');
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            const targetMember = result.data.members.find(m => m.userId === userId && m.status === "Active");
+            
+            // NEW RULE: Prevent blocking admins with alert
+            if (targetMember && targetMember.role === "Admin") {
+                showAlert(`Cannot block ${userName} because they are an admin. Please demote them to member first before blocking.`, 'error');
+                return;
             }
 
-            // Add modal to page
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-            // Show modal
-            const blockModal = new bootstrap.Modal(document.getElementById('blockModal'));
-            blockModal.show();
+            // Continue with existing block modal if not admin
+            createBlockModal(userId, userName);
+        }
+    } catch (error) {
+        console.error('Error checking member role:', error);
+        showAlert('Error checking member information.', 'error');
+    }
+}
 
-            // Handle confirm button click
-            document.getElementById('confirmBlockBtn').addEventListener('click', async function () {
-                const blockReason = document.getElementById('blockReason').value;
+// Keep your existing createBlockModal function, just make sure it's defined
+function createBlockModal(userId, userName) {
+    // Your existing block modal creation code here
+    const modalHTML = `
+        <div class="modal fade" id="blockModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Block User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>You are about to block <strong>${userName}</strong>.</p>
+                        <div class="mb-3">
+                            <label for="blockReason" class="form-label">Reason for blocking (optional):</label>
+                            <textarea class="form-control" id="blockReason" rows="3" placeholder="Enter reason..."></textarea>
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This will remove the user from the community and prevent them from rejoining.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmBlockBtn">Confirm Block</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('blockModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
 
-                try {
-                    const response = await fetch('@Url.Action("BlockMember", "Communities")', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': getAntiForgeryToken()
-                        },
-                        body: JSON.stringify({
-                            communityId: @Model.CommunityId,
-                            userId: userId,
-                            blockReason: blockReason
-                        })
-                    });
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const blockModal = new bootstrap.Modal(document.getElementById('blockModal'));
+    blockModal.show();
 
-                    const result = await response.json();
+    // Handle confirm button click
+    document.getElementById('confirmBlockBtn').addEventListener('click', async function () {
+        const blockReason = document.getElementById('blockReason').value;
 
-                    // Hide modal
-                    blockModal.hide();
+        try {
+            const response = await fetch('@Url.Action("BlockMember", "Communities")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
+                body: `communityId=@Model.CommunityId&userId=${userId}&blockReason=${encodeURIComponent(blockReason || '')}`
+            });
 
-                    if (result.success) {
-                        showAlert(result.message, 'success');
-                        // Refresh ALL data (members, stats, blocked list count) from server
-                        await refreshAllCommunityData();
-                    } else {
-                        showAlert(result.message, 'error');
-                    }
-                } catch (error) {
-                    console.error('Error blocking member:', error);
-                    showAlert('An error occurred while blocking the member.', 'error');
+            const result = await response.json();
+
+            // Hide modal
+            blockModal.hide();
+
+            if (result.success) {
+                showAlert(result.message, 'success');
+                // Refresh ALL data (members, stats, blocked list) from server
+                await refreshAllCommunityData();
+            } else {
+                showAlert(result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error blocking member:', error);
+            showAlert('An error occurred while blocking the member.', 'error');
+        }
+    });
+
+    // Clean up modal when hidden
+    document.getElementById('blockModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+        // Unblock member function
+        async function unblockMember(userId, userName) {
+            if (!confirm(`Are you sure you want to unblock ${userName}? They will be able to rejoin the community.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('@Url.Action("UnblockMember", "Communities")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: `communityId=@Model.CommunityId&userId=${userId}`
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    // Refresh the blocked users list
+                    await refreshBlockedUsersList();
+                    // Also refresh member data to update counts
+                    await refreshMemberData();
+                } else {
+                    showAlert(result.message, 'error');
                 }
-            });
-
-            // Clean up modal when hidden
-            document.getElementById('blockModal').addEventListener('hidden.bs.modal', function () {
-                this.remove();
-            });
+            } catch (error) {
+                console.error('Error unblocking member:', error);
+                showAlert('An error occurred while unblocking the member.', 'error');
+            }
         }
 
         // Set minimum datetime for expiry date to current time
@@ -1608,154 +1466,6 @@ viewData: new ViewDataDictionary(ViewData)
                         return target.apply(thisArg, args);
                     }
                 });
-            }
-        });
-
-        // === COMMUNITY DELETION FUNCTIONALITY ===
-
-        // Check deletion rules when modal opens
-        document.getElementById('deleteCommunityModal')?.addEventListener('show.bs.modal', async function () {
-            await checkDeletionRules();
-        });
-
-        // Real-time validation for both name and reason
-        function validateDeletionForm() {
-            const confirmBtn = document.getElementById('confirmDeleteBtn');
-            if (!confirmBtn) return;
-
-            const communityName = '@Model.CommunityName';
-            const inputName = document.getElementById('confirmationName')?.value.trim() || '';
-            const deleteReason = document.getElementById('deleteReason')?.value.trim() || '';
-            const rulesMet = confirmBtn.getAttribute('data-rules-met') === 'true';
-
-            const nameValid = inputName && inputName === communityName;
-            const reasonValid = deleteReason && deleteReason.length > 0;
-
-            confirmBtn.disabled = !nameValid || !reasonValid || !rulesMet;
-        }
-
-        // Add event listeners for both fields when DOM is ready
-        document.addEventListener('DOMContentLoaded', function () {
-            const confirmationName = document.getElementById('confirmationName');
-            const deleteReason = document.getElementById('deleteReason');
-
-            if (confirmationName) {
-                confirmationName.addEventListener('input', validateDeletionForm);
-            }
-            if (deleteReason) {
-                deleteReason.addEventListener('input', validateDeletionForm);
-            }
-        });
-
-        // Check deletion rules
-        async function checkDeletionRules() {
-            try {
-                const response = await fetch('@Url.Action("CheckCommunityDeletionRules", "Communities")?communityId=@Model.CommunityId');
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    const rules = result.data;
-                    const ruleNoPending = document.getElementById('ruleNoPending');
-                    const ruleNoActiveGames = document.getElementById('ruleNoActiveGames');
-                    const ruleNoUpcomingCompetitions = document.getElementById('ruleNoUpcomingCompetitions');
-                    const confirmBtn = document.getElementById('confirmDeleteBtn');
-
-                    if (!ruleNoPending || !ruleNoActiveGames || !ruleNoUpcomingCompetitions || !confirmBtn) return;
-
-                    // Update rules list
-                    if (!rules.hasPendingRequests || rules.communityType !== 'Private') {
-                        ruleNoPending.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>No pending join requests';
-                    } else {
-                        ruleNoPending.innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i>Pending join requests must be resolved';
-                    }
-
-                    if (!rules.hasActiveGames) {
-                        ruleNoActiveGames.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>No active games or competitions';
-                    } else {
-                        ruleNoActiveGames.innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i>Active games/competitions must be cancelled';
-                    }
-
-                    if (!rules.hasUpcomingCompetitions) {
-                        ruleNoUpcomingCompetitions.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>No upcoming competitions';
-                    } else {
-                        ruleNoUpcomingCompetitions.innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i>Upcoming competitions must be cancelled';
-                    }
-
-                    // Enable/disable delete button based on rules
-                    if (rules.canDelete) {
-                        confirmBtn.setAttribute('data-rules-met', 'true');
-                        confirmBtn.title = 'All deletion requirements are met';
-
-                        // Re-validate form with new rules
-                        validateDeletionForm();
-                    } else {
-                        confirmBtn.setAttribute('data-rules-met', 'false');
-                        confirmBtn.disabled = true;
-                        confirmBtn.title = 'Community does not meet deletion requirements';
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking deletion rules:', error);
-            }
-        }
-
-        // Confirm deletion
-        document.getElementById('confirmDeleteBtn')?.addEventListener('click', async function () {
-            const form = document.getElementById('deleteCommunityForm');
-            if (!form) return;
-
-            const formData = new FormData(form);
-
-            if (!form.checkValidity()) {
-                form.classList.add('was-validated');
-                return;
-            }
-
-            const confirmBtn = this;
-            const originalText = confirmBtn.innerHTML;
-
-            // Show loading state
-            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
-            confirmBtn.disabled = true;
-
-            try {
-                const response = await fetch('@Url.Action("DeleteCommunity", "Communities")', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showAlert(result.message, 'success');
-
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteCommunityModal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-
-                    // Redirect to communities page after delay
-                    setTimeout(() => {
-                        window.location.href = '@Url.Action("Community", "Home")';
-                    }, 2000);
-
-                } else {
-                    showAlert(result.message, 'error');
-                    confirmBtn.innerHTML = originalText;
-
-                    // Re-check rules in case something changed
-                    await checkDeletionRules();
-                }
-
-            } catch (error) {
-                console.error('Error deleting community:', error);
-                showAlert('An error occurred while deleting the community.', 'error');
-                confirmBtn.innerHTML = originalText;
-                confirmBtn.disabled = false;
             }
         });
     </script>
