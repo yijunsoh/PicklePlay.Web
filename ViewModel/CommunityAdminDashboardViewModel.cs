@@ -15,6 +15,7 @@ namespace PicklePlay.ViewModels
         public string Status { get; set; } = "Active";
         public DateTime CreatedDate { get; set; }
         public string? CommunityPic { get; set; }
+        public int CurrentUserId { get; set; }
 
         // Creator
         public int CreatedByUserId { get; set; }

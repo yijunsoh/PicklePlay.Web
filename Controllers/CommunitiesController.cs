@@ -607,6 +607,7 @@ namespace PicklePlay.Controllers
 
                 CreatedByUserId = c.CreateByUserId,
                 CreatedByUserName = c.Creator?.Username ?? $"User #{c.CreateByUserId}",
+                CurrentUserId = currentUserId,
 
                 MemberCountActive = c.Memberships.Count(m => m.Status == "Active"),
                 MemberCountTotal = c.Memberships.Count(),
@@ -688,10 +689,30 @@ namespace PicklePlay.Controllers
             return View("~/Views/Community/CommunityAdminDashboard.cshtml", vm);
         }
 
-       // GET: /Communities/GetCommunityAdminData
+        // GET: /Communities/GetCommunityAdminData
         [HttpGet]
         public async Task<IActionResult> GetCommunityAdminData(int communityId)
         {
+
+            int currentUserId = HttpContext.Session.GetInt32("UserId") ?? 0;
+
+            if (currentUserId == 0)
+            {
+                var claimId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(claimId, out var fromClaim))
+                    currentUserId = fromClaim;
+            }
+            if (currentUserId == 0)
+            {
+                var uname = HttpContext.Session.GetString("Username") ?? User?.Identity?.Name;
+                if (!string.IsNullOrWhiteSpace(uname))
+                {
+                    currentUserId = await _context.Users
+                        .Where(u => u.Username == uname)
+                        .Select(u => u.UserId)
+                        .FirstOrDefaultAsync();
+                }
+            }
             var community = await _context.Communities
                 .Include(c => c.Creator)
                 .Include(c => c.Memberships)
@@ -719,6 +740,7 @@ namespace PicklePlay.Controllers
                 CommunityPic = community.CommunityPic,
                 CreatedByUserId = community.CreateByUserId,
                 CreatedByUserName = community.Creator?.Username ?? $"User #{community.CreateByUserId}",
+                CurrentUserId = currentUserId,
 
                 MemberCountActive = community.Memberships.Count(m => m.Status == "Active"),
                 MemberCountTotal = community.Memberships.Count(),
@@ -768,7 +790,7 @@ namespace PicklePlay.Controllers
                     })
                     .ToList(),
 
-                    JoinRequests = community.Memberships
+                JoinRequests = community.Memberships
                     .Where(m => m.Status == "Pending")
                     .OrderByDescending(m => m.JoinDate)
                     .Select(m => new CommunityAdminDashboardViewModel.JoinRequestItem
@@ -876,96 +898,96 @@ namespace PicklePlay.Controllers
             }
         }
 
-       // POST: /Communities/AssignRole
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
-{
-    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-    {
-        return Unauthorized(new { success = false, message = "User not authenticated." });
-    }
-
-    int currentUserId = currentUserIdInt.Value;
-
-    // Validate role
-    if (string.IsNullOrWhiteSpace(request.NewRole) || (request.NewRole != "Admin" && request.NewRole != "Member"))
-    {
-        return BadRequest(new { success = false, message = "Invalid role specified. Must be Admin or Member." });
-    }
-
-    try
-    {
-        // Verify the current user has admin privileges
-        var currentUserMembership = await _context.CommunityMembers
-            .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
-                                     cm.UserId == currentUserId &&
-                                     cm.Status == "Active" &&
-                                     cm.CommunityRole == "Admin");
-
-        if (currentUserMembership == null)
+        // POST: /Communities/AssignRole
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
         {
-            return Forbid("You don't have permission to assign roles in this community.");
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int currentUserId = currentUserIdInt.Value;
+
+            // Validate role
+            if (string.IsNullOrWhiteSpace(request.NewRole) || (request.NewRole != "Admin" && request.NewRole != "Member"))
+            {
+                return BadRequest(new { success = false, message = "Invalid role specified. Must be Admin or Member." });
+            }
+
+            try
+            {
+                // Verify the current user has admin privileges
+                var currentUserMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == currentUserId &&
+                                             cm.Status == "Active" &&
+                                             cm.CommunityRole == "Admin");
+
+                if (currentUserMembership == null)
+                {
+                    return Forbid("You don't have permission to assign roles in this community.");
+                }
+
+                // Find the target membership
+                var targetMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
+                                             cm.UserId == request.UserId &&
+                                             cm.Status == "Active");
+
+                if (targetMembership == null)
+                {
+                    return NotFound(new { success = false, message = "Member not found or inactive." });
+                }
+
+                // Prevent role changes on community creator
+                var community = await _context.Communities
+                    .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
+
+                if (community != null && targetMembership.UserId == community.CreateByUserId)
+                {
+                    return BadRequest(new { success = false, message = "Cannot change the role of the community creator." });
+                }
+
+                // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
+                if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
+                {
+                    return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
+                }
+
+                // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
+                if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
+                {
+                    return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
+                }
+
+                // Update the role
+                string oldRole = targetMembership.CommunityRole;
+                targetMembership.CommunityRole = request.NewRole;
+                _context.CommunityMembers.Update(targetMembership);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Member role has been successfully changed from {oldRole} to {request.NewRole}.",
+                    userId = request.UserId,
+                    newRole = request.NewRole
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database error assigning role: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred while updating the member role."
+                });
+            }
         }
-
-        // Find the target membership
-        var targetMembership = await _context.CommunityMembers
-            .FirstOrDefaultAsync(cm => cm.CommunityId == request.CommunityId &&
-                                     cm.UserId == request.UserId &&
-                                     cm.Status == "Active");
-
-        if (targetMembership == null)
-        {
-            return NotFound(new { success = false, message = "Member not found or inactive." });
-        }
-
-        // Prevent role changes on community creator
-        var community = await _context.Communities
-            .FirstOrDefaultAsync(c => c.CommunityId == request.CommunityId);
-
-        if (community != null && targetMembership.UserId == community.CreateByUserId)
-        {
-            return BadRequest(new { success = false, message = "Cannot change the role of the community creator." });
-        }
-
-        // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
-        if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
-        {
-            return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
-        }
-
-        // PREVENT SELF-DEMOTION: Admin cannot demote themselves to Member
-        if (targetMembership.UserId == currentUserId && request.NewRole == "Member")
-        {
-            return BadRequest(new { success = false, message = "You cannot demote yourself from Admin to Member. Ask another admin to change your role." });
-        }
-
-        // Update the role
-        string oldRole = targetMembership.CommunityRole;
-        targetMembership.CommunityRole = request.NewRole;
-        _context.CommunityMembers.Update(targetMembership);
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            success = true,
-            message = $"Member role has been successfully changed from {oldRole} to {request.NewRole}.",
-            userId = request.UserId,
-            newRole = request.NewRole
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Database error assigning role: {ex.Message}");
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "An unexpected error occurred while updating the member role."
-        });
-    }
-}
 
 
 
