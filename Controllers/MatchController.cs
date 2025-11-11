@@ -174,14 +174,14 @@ namespace PicklePlay.Controllers
             else bracketSize = 64;
 
             var seeding = GetSeedingOrder(bracketSize);
-            
+
             var allMatches = new List<Match>();
             var currentRoundMatches = new List<Match>();
             var nextLinkPairs = new List<(Match child, Match parent)>();
             var loserLinkPairs = new List<(Match child, Match parent)>();
 
             // Store Semi-Finals for 3rd place linking
-            List<Match> ?semiFinalMatches = null;
+            List<Match>? semiFinalMatches = null;
 
             // 2. Create Round 1
             int roundNumber = 1;
@@ -221,7 +221,7 @@ namespace PicklePlay.Controllers
                 {
                     match.Status = MatchStatus.Active;
                 }
-                
+
                 allMatches.Add(match);
                 currentRoundMatches.Add(match);
             }
@@ -290,7 +290,7 @@ namespace PicklePlay.Controllers
                 loserLinkPairs.Add((semiFinalMatches[0], thirdPlaceMatch));
                 loserLinkPairs.Add((semiFinalMatches[1], thirdPlaceMatch));
             }
-            
+
             // 5. Save all matches to the database
             await _context.Matches.AddRangeAsync(allMatches);
             await _context.SaveChangesAsync();
@@ -323,7 +323,7 @@ namespace PicklePlay.Controllers
                 await _context.SaveChangesAsync();
             }
         }
-        
+
         private string GetRoundName(int teamsInRound)
         {
             if (teamsInRound == 2) return "Final";
@@ -372,48 +372,48 @@ namespace PicklePlay.Controllers
         }
 
         // GET: /Match/GetMatchListing/5
-       [HttpGet]
-public async Task<IActionResult> GetMatchListing(int id)
-{
-    var schedule = await _context.Schedules
-        .Include(s => s.Participants) 
-        .FirstOrDefaultAsync(s => s.ScheduleId == id);
+        [HttpGet]
+        public async Task<IActionResult> GetMatchListing(int id)
+        {
+            var schedule = await _context.Schedules
+                .Include(s => s.Participants)
+                .FirstOrDefaultAsync(s => s.ScheduleId == id);
 
-    if (schedule == null) return NotFound();
+            if (schedule == null) return NotFound();
 
-    var matches = await _context.Matches
-        .Where(m => m.ScheduleId == id)
-        .Include(m => m.Team1)
-        .Include(m => m.Team2)
-        // --- ADD THIS INCLUDE ---
-        .Include(m => m.LastUpdatedByUser) // To get the username for "Saved By"
-        // --- END ADD ---
-        .OrderBy(m => m.RoundNumber)
-        .ThenBy(m => m.RoundName)
-        .ThenBy(m => m.MatchNumber)
-        .ToListAsync();
+            var matches = await _context.Matches
+                .Where(m => m.ScheduleId == id)
+                .Include(m => m.Team1)
+                .Include(m => m.Team2)
+                // --- ADD THIS INCLUDE ---
+                .Include(m => m.LastUpdatedByUser) // To get the username for "Saved By"
+                                                   // --- END ADD ---
+                .OrderBy(m => m.RoundNumber)
+                .ThenBy(m => m.RoundName)
+                .ThenBy(m => m.MatchNumber)
+                .ToListAsync();
 
-    int? currentUserId = GetCurrentUserId();
-    bool isOrganizer = false;
-    if (currentUserId.HasValue)
-    {
-        isOrganizer = schedule.Participants.Any(p =>
-            p.UserId == currentUserId.Value &&
-            p.Role == ParticipantRole.Organizer
-        );
-    }
+            int? currentUserId = GetCurrentUserId();
+            bool isOrganizer = false;
+            if (currentUserId.HasValue)
+            {
+                isOrganizer = schedule.Participants.Any(p =>
+                    p.UserId == currentUserId.Value &&
+                    p.Role == ParticipantRole.Organizer
+                );
+            }
 
-    var vm = new MatchListingViewModel
-    {
-        ScheduleId = id,
-        Matches = matches,
-        IsOrganizer = isOrganizer
-    };
+            var vm = new MatchListingViewModel
+            {
+                ScheduleId = id,
+                Matches = matches,
+                IsOrganizer = isOrganizer
+            };
 
-    return PartialView("~/Views/Competition/_MatchListing.cshtml", vm);
-}
+            return PartialView("~/Views/Competition/_MatchListing.cshtml", vm);
+        }
 
-[HttpPost]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
         {
@@ -568,6 +568,175 @@ public async Task<IActionResult> GetMatchListing(int id)
 
             return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
         }
+        [HttpGet]
+public async Task<IActionResult> GetBracketData(int scheduleId)
+{
+    var competition = await _context.Competitions
+        .AsNoTracking()
+        .FirstOrDefaultAsync(c => c.ScheduleId == scheduleId);
+
+    if (competition == null)
+    {
+        return NotFound(new { message = "Competition not found" });
+    }
+
+    var matches = await _context.Matches
+        .Where(m => m.ScheduleId == scheduleId)
+        .Include(m => m.Team1)
+        .Include(m => m.Team2)
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.MatchNumber)
+        .ToListAsync();
+
+    if (!matches.Any())
+    {
+        return NotFound(new { message = "No matches found" });
+    }
+
+    var teams = await _context.Teams
+        .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
+        .ToListAsync();
+
+    // Build first-round matches (exclude 3rd place)
+    var firstRoundMatches = matches
+        .Where(m => m.RoundNumber == 1 && m.RoundName != "3rd Place")
+        .OrderBy(m => m.MatchNumber)
+        .ToList();
+
+    // Determine bracket size and rounds from first round
+    int firstRoundCount = Math.Max(1, firstRoundMatches.Count); // number of matches in round 1
+    int bracketSize = firstRoundCount * 2;
+    int rounds = (int)Math.Round(Math.Log(bracketSize, 2));
+
+    // Build teams array (one pair per first-round match)
+    var teamsList = firstRoundMatches
+        .Select(m => new object[] {
+            m.Team1?.TeamName ?? (m.IsBye ? "BYE" : "TBD"),
+            m.Team2?.TeamName ?? (m.IsBye ? "BYE" : "TBD")
+        })
+        .ToList();
+
+    // Ensure teamsList length matches firstRoundCount (trim or pad if necessary)
+    if (teamsList.Count > firstRoundCount)
+        teamsList = teamsList.Take(firstRoundCount).ToList();
+    while (teamsList.Count < firstRoundCount)
+        teamsList.Add(new object[] { "TBD", "TBD" });
+
+    // Build results array with exact rounds (results[roundIndex][matchIndex])
+    var resultsList = new List<object[]>();
+
+for (int roundNum = 1; roundNum <= rounds; roundNum++)
+{
+    // number of matches in this round (e.g. bracketSize=16 -> round1=8, round2=4, round3=2, round4=1)
+    int matchesInRound = Math.Max(1, bracketSize >> roundNum);
+
+    var roundMatches = matches
+        .Where(m => m.RoundNumber == roundNum && m.RoundName != "3rd Place")
+        .OrderBy(m => m.MatchNumber)
+        .ToList();
+
+    var roundResults = new List<object>();
+
+    for (int i = 0; i < matchesInRound; i++)
+    {
+        var match = roundMatches.ElementAtOrDefault(i);
+        if (match != null)
+        {
+            if (match.Status == MatchStatus.Done && match.WinnerId.HasValue)
+            {
+                roundResults.Add(match.WinnerId == match.Team1Id ? new int[] { 1, 0 } : new int[] { 0, 1 });
+            }
+            else if (match.IsBye)
+            {
+                roundResults.Add(match.Team1Id.HasValue ? new int[] { 1, 0 } : new int[] { 0, 1 });
+            }
+            else
+            {
+                roundResults.Add(new int[0]);
+            }
+        }
+        else
+        {
+            roundResults.Add(new int[0]);
+        }
+    }
+
+    resultsList.Add(roundResults.ToArray());
+}
+
+// NOTE: do not append an extra empty round unless your plugin/implementation expects a consolation round.
+    // If you must support a 3rd-place match and your plugin supports it, handle it in a compatible way here.
+
+    var bracketData = new
+    {
+        teams = teamsList.ToArray(),
+        results = resultsList.ToArray()
+    };
+
+    var roundHeaders = new List<string>();
+    for (int r = 0; r < rounds; r++)
+    {
+        int teamsInRound = (int)Math.Pow(2, rounds - r);
+        if (teamsInRound == 2) roundHeaders.Add("Final");
+        else if (teamsInRound == 4) roundHeaders.Add("Semi-Finals");
+        else if (teamsInRound == 8) roundHeaders.Add("Quarter-Finals");
+        else roundHeaders.Add("Round of " + teamsInRound);
+    }
+
+    // after building bracketData and roundHeaders, add thirdPlace extraction:
+    var thirdPlaceMatch = matches.FirstOrDefault(m => m.RoundName == "3rd Place");
+    object? thirdPlace = null;
+    if (thirdPlaceMatch != null)
+    {
+        var tp1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD";
+        var tp2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD";
+
+        // Determine winner id: prefer stored WinnerId, fallback to DetermineWinnerId() using saved scores
+        int? winnerId = thirdPlaceMatch.WinnerId;
+        if (!winnerId.HasValue && thirdPlaceMatch.Status == MatchStatus.Done)
+        {
+            // DetermineWinnerId is a private helper in the same controller
+            winnerId = DetermineWinnerId(thirdPlaceMatch.Team1Id, thirdPlaceMatch.Team2Id,
+                                         thirdPlaceMatch.Team1Score ?? "", thirdPlaceMatch.Team2Score ?? "");
+        }
+
+        int? winnerIndex = null;
+        if (winnerId.HasValue)
+        {
+            winnerIndex = (winnerId == thirdPlaceMatch.Team1Id) ? 0 : 1;
+        }
+
+        thirdPlace = new
+        {
+            team1 = tp1,
+            team2 = tp2,
+            // only expose winnerIndex (no raw scores) — null if undecided
+            winnerIndex = winnerIndex,
+            status = thirdPlaceMatch.Status.ToString()
+        };
+    }
+
+    return Json(new
+    {
+        bracketData = bracketData,
+        roundHeaders = roundHeaders,
+        hasThirdPlaceMatch = thirdPlaceMatch != null,
+        thirdPlace = thirdPlace
+    });
+}
+
+// Helper method to parse scores to int array (not nullable)
+private int[] ParseScoresToIntArray(string scoreString)
+{
+    if (string.IsNullOrWhiteSpace(scoreString))
+        return new int[0];
+
+    return scoreString.Split(',')
+        .Select(s => int.TryParse(s.Trim(), out var val) ? val : 0)
+        .ToArray();
+}
+
+
 
 
 

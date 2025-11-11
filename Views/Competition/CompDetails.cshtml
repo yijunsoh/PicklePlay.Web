@@ -152,6 +152,13 @@
     /* This points the arrow up */
     transform: rotate(180deg); 
 }
+.round-header {
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: #333;
+}
 </style>
 
 <div class="container mt-4">
@@ -1232,10 +1239,12 @@
         }
 
  // *** DRAW TAB LOADING - Replace the existing draw tab script with this ***
+// DRAW TAB LOADING - Improved version that fetches bracket data directly
 var drawTab = document.getElementById('draw-subtab');
 if (drawTab) {
     var drawContainer = document.getElementById('draw-visual-container');
     var drawLoaded = false;
+    var pollInterval = null;
 
     drawTab.addEventListener('show.bs.tab', function (event) {
         if (drawContainer && !drawLoaded) {
@@ -1252,131 +1261,135 @@ if (drawTab) {
                 </div>
             `;
             
-            fetch('/Draw/ViewPublishedDraw/@Model.ScheduleId')
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    console.log('HTML received, length:', html.length);
-                    
-                    // Insert the HTML
-                    drawContainer.innerHTML = html;
-                    
-                    // *** KEY FIX: Manually execute scripts ***
-                    var scripts = drawContainer.querySelectorAll('script');
-                    console.log('Found ' + scripts.length + ' script tags to execute');
-                    
-                    scripts.forEach(function(oldScript) {
-                        var newScript = document.createElement('script');
-                        
-                        // Copy attributes
-                        Array.from(oldScript.attributes).forEach(function(attr) {
-                            newScript.setAttribute(attr.name, attr.value);
-                        });
-                        
-                        // Copy script content
-                        newScript.textContent = oldScript.textContent;
-                        
-                        // Replace old script with new one (this causes execution)
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
-                        
-                        console.log('Script executed');
-                    });
-                    
-                    // Give scripts time to set global variables
-                    setTimeout(function() {
-                        console.log('Checking for bracket data...');
-                        console.log('publishedBracketDataReady:', window.publishedBracketDataReady);
-                        console.log('publishedBracketData:', window.publishedBracketData);
-                        
-                        if (window.publishedBracketDataReady && window.publishedBracketData) {
-                            console.log('Initializing bracket with data:', window.publishedBracketData);
-                            
-                            try {
-                                // Make sure jQuery and bracket plugin are loaded
-                                if (typeof $ === 'undefined') {
-                                    throw new Error('jQuery is not loaded');
-                                }
-                                
-                                if (typeof $.fn.bracket === 'undefined') {
-                                    throw new Error('jQuery Bracket plugin is not loaded');
-                                }
-                                
-                                var bracketElement = $('#bracketVisual_Published');
-                                if (bracketElement.length === 0) {
-                                    throw new Error('Bracket container #bracketVisual_Published not found');
-                                }
-                                
-                                console.log('Initializing bracket...');
-                                
-                                bracketElement.bracket({
-                                    init: window.publishedBracketData.bracketData,
-                                    teamWidth: 170,
-                                    scoreWidth: 30,
-                                    roundMargin: 40,
-                                    skipConsolationRound: !window.publishedBracketData.hasThirdPlaceMatch
-                                });
-
-                                // Add round headers
-                                $('#bracketVisual_Published .round').each(function(index) {
-                                    var headers = window.publishedBracketData.roundHeaders;
-                                    if (headers && headers[index]) {
-                                        if ($(this).find('.round-header').length === 0) {
-                                            $(this).prepend('<div class="round-header">' + headers[index] + '</div>');
-                                        }
-                                    }
-                                });
-                                
-                                console.log('Bracket initialized successfully!');
-                                
-                                // Clean up
-                                window.publishedBracketDataReady = false;
-                                
-                            } catch (e) {
-                                console.error('Error initializing bracket:', e);
-                                console.error('Stack:', e.stack);
-                                drawContainer.innerHTML = `
-                                    <div class="alert alert-danger">
-                                        <strong>Error:</strong> Could not initialize bracket visualization.
-                                        <br><small>${e.message}</small>
-                                        <br><br>
-                                        <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                    </div>
-                                `;
-                            }
-                        } else if (window.publishedBracketDataReady === false && !window.publishedBracketData) {
-                            // Pool Play format - data is already displayed, no bracket needed
-                            console.log('Pool Play format detected - no bracket initialization needed');
-                        } else {
-                            console.error('Bracket data not ready');
-                            console.log('Full window object keys:', Object.keys(window));
-                            drawContainer.innerHTML = `
-                                <div class="alert alert-warning">
-                                    <strong>Warning:</strong> Draw data is not available.
-                                    <br><small>publishedBracketDataReady: ${window.publishedBracketDataReady}</small>
-                                    <br><small>publishedBracketData exists: ${!!window.publishedBracketData}</small>
-                                    <br><br>
-                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                </div>
-                            `;
+            // Create the bracket container
+            drawContainer.innerHTML = `
+                <h5 class="mb-3">Tournament Bracket</h5>
+                <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+            `;
+            
+            // Function to fetch and render bracket
+            function fetchAndRenderBracket() {
+                fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
                         }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Bracket data received:', data);
+                        
+                        if (!data || !data.bracketData) {
+                            throw new Error('No bracket data in response');
+                        }
+                        
+                        renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch);
+                    })
+                    .catch(error => {
+                        console.error('Failed to load bracket:', error);
+                        drawContainer.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> Could not load the bracket.
+                                <br><small>${error.message}</small>
+                                <br><br>
+                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                            </div>
+                        `;
+                    });
+            }
+            
+            // Function to render the bracket
+            function renderBracket(bracketData, roundHeaders, hasThirdPlace) {
+                try {
+                    // Check if jQuery and bracket plugin are available
+                    if (typeof $ === 'undefined') {
+                        throw new Error('jQuery is not loaded');
+                    }
+                    
+                    if (typeof $.fn.bracket === 'undefined') {
+                        throw new Error('jQuery Bracket plugin is not loaded');
+                    }
+                    
+                    var bracketElement = $('#bracketVisual_Published');
+                    if (bracketElement.length === 0) {
+                        throw new Error('Bracket container not found');
+                    }
+                    
+                    console.log('Initializing bracket...');
+                    console.log('Bracket data:', JSON.stringify(bracketData, null, 2));
+                    console.log('Round headers:', roundHeaders);
+                    console.log('Has third place:', hasThirdPlace);
+                    
+                    // Validate data structure
+                    if (!bracketData.teams || !Array.isArray(bracketData.teams)) {
+                        throw new Error('Invalid bracket data: teams array missing');
+                    }
+                    
+                    if (!bracketData.results || !Array.isArray(bracketData.results)) {
+                        throw new Error('Invalid bracket data: results array missing');
+                    }
+                    
+                    // Clear and initialize bracket
+                    bracketElement.empty();
+                    
+                    try {
+                        bracketElement.bracket({
+                            init: bracketData,
+                            teamWidth: 170,
+                            scoreWidth: 30,
+                            roundMargin: 40,
+                            skipConsolationRound: !hasThirdPlace,
+                            onMatchClick: function(data) {
+                                console.log('Match clicked:', data);
+                            }
+                        });
+                    } catch (bracketError) {
+                        console.error('Bracket plugin error:', bracketError);
+                        console.error('Stack:', bracketError.stack);
+                        throw new Error('Bracket plugin failed: ' + bracketError.message);
+                    }
+                    
+                    // Add round headers with a small delay to ensure bracket is rendered
+                    setTimeout(function() {
+                        $('#bracketVisual_Published .round').each(function(index) {
+                            if (roundHeaders && roundHeaders[index]) {
+                                if ($(this).find('.round-header').length === 0) {
+                                    $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                                }
+                            }
+                        });
                     }, 100);
-                })
-                .catch(error => {
-                    console.error('Failed to load draw visual:', error);
+                    
+                    console.log('Bracket rendered successfully!');
+                    
+                } catch (e) {
+                    console.error('Error rendering bracket:', e);
+                    console.error('Stack trace:', e.stack);
                     drawContainer.innerHTML = `
                         <div class="alert alert-danger">
-                            <strong>Error:</strong> Could not load the draw.
-                            <br><small>${error.message}</small>
+                            <strong>Error:</strong> Could not render bracket.
+                            <br><small>${e.message}</small>
                             <br><br>
+                            <pre style="max-height: 200px; overflow: auto; font-size: 0.8em;">${e.stack || 'No stack trace available'}</pre>
                             <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
                         </div>
                     `;
-                });
+                }
+            }
+            
+            // Initial fetch
+            fetchAndRenderBracket();
+            
+            // Poll for updates every 5 seconds
+            pollInterval = setInterval(fetchAndRenderBracket, 5000);
+        }
+    });
+    
+    // Stop polling when leaving the draw tab
+    drawTab.addEventListener('hide.bs.tab', function(event) {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
         }
     });
 }
