@@ -14,6 +14,12 @@
     .match-body { padding: 1.25rem; }
     .team-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
     .team-name { font-weight: 500; font-size: 1.1rem; }
+    .team-name-tbd {
+        font-weight: 500;
+        font-size: 1.1rem;
+        color: #6c757d;
+        font-style: italic;
+    }
     
     /* --- NEW: Score Set Titles --- */
     .score-set-titles {
@@ -91,6 +97,9 @@
                     var isDone = match.Status == MatchStatus.Done;
                     var isActive = match.Status == MatchStatus.Active;
                     var isProgressing = match.Status == MatchStatus.Progressing;
+
+                    // --- NEW: Check if match is ready to start ---
+                    var isReady = match.Team1Id.HasValue && match.Team2Id.HasValue;
                     
                     // --- NEW: Set Title Logic ---
                     int setCount = 1;
@@ -124,7 +133,14 @@
                     <div class="organizer-match-form" data-match-id="@match.MatchId">
                         
                         <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
-                            <span class="team-name">@(match.Team1?.TeamName ?? "TBD")</span>
+                            @if (match.Team1 != null)
+                            {
+                                <span class="team-name">@match.Team1.TeamName</span>
+                            }
+                            else
+                            {
+                                <span class="team-name-tbd">TBD</span>
+                            }
                             <div class="score-sets-container" data-team-id="1">
                                 @if (isProgressing)
                                 {
@@ -146,7 +162,14 @@
                         <div class="text-center text-muted my-2">VS</div>
                         
                         <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
-                            <span class="team-name">@(match.Team2?.TeamName ?? "TBD")</span>
+                            @if (match.Team2 != null)
+                            {
+                                <span class="team-name">@match.Team2.TeamName</span>
+                            }
+                            else
+                            {
+                                <span class="team-name-tbd">TBD</span>
+                            }
                             <div class="score-sets-container" data-team-id="2">
                                 @if (isProgressing)
                                 {
@@ -170,7 +193,7 @@
                             <hr />
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="btn-group">
-                                    @if (isActive)
+                                    @if (isActive && match.Team1Id.HasValue && match.Team2Id.HasValue)
                                     {
                                         <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
                                             @Html.AntiForgeryToken()
@@ -231,7 +254,14 @@
                 else
                 {
                     <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
-                        <span class="team-name">@(match.Team1?.TeamName ?? "TBD")</span>
+                        @if (match.Team1 != null)
+                        {
+                            <span class="team-name">@match.Team1.TeamName</span>
+                        }
+                        else
+                        {
+                            <span class="team-name-tbd">TBD</span>
+                        }
                         
                         @if(isDone)
                         {
@@ -241,8 +271,15 @@
                     
                     <div class="text-center text-muted my-2">VS</div>
                     
-                    <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
-                        <span class="team-name">@(match.Team2?.TeamName ?? "TBD")</span>
+                   <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
+                        @if (match.Team2 != null)
+                        {
+                            <span class="team-name">@match.Team2.TeamName</span>
+                        }
+                        else
+                        {
+                            <span class="team-name-tbd">TBD</span>
+                        }
                         
                         @if(isDone)
                         {

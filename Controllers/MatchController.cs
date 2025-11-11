@@ -85,33 +85,40 @@ namespace PicklePlay.Controllers
 
             if (schedule == null || competition == null) return NotFound();
 
-            // Final checks before starting
             if (competition.Format != CompetitionFormat.RoundRobin && !competition.DrawPublished)
             {
                 TempData["ErrorMessage"] = "Please publish the draw to proceed.";
                 return RedirectToAction("CompDetails", "Competition", new { id = id });
             }
 
-            var matches = new List<Match>();
             var confirmedTeams = await _context.Teams
                 .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
                 .ToListAsync();
 
+            // Clear any old matches if they exist (e.g., from a re-started competition)
+            var oldMatches = await _context.Matches.Where(m => m.ScheduleId == id).ToListAsync();
+            if (oldMatches.Any())
+            {
+                _context.Matches.RemoveRange(oldMatches);
+                await _context.SaveChangesAsync();
+            }
+
+            List<Match> matches;
             switch (competition.Format)
             {
                 case CompetitionFormat.PoolPlay:
                     matches = await GeneratePoolPlayMatches(id, competition);
+                    await _context.Matches.AddRangeAsync(matches);
                     break;
                 case CompetitionFormat.Elimination:
-                    matches = GenerateEliminationMatches(confirmedTeams, id);
+                    // This function now saves matches directly to DB
+                    await GenerateEliminationBracket(confirmedTeams, id, competition.ThirdPlaceMatch);
                     break;
                 case CompetitionFormat.RoundRobin:
                     matches = GenerateRoundRobinMatches(confirmedTeams, id);
+                    await _context.Matches.AddRangeAsync(matches);
                     break;
             }
-
-            // Save all generated matches
-            await _context.Matches.AddRangeAsync(matches);
 
             // Update schedule status to "In Progress"
             schedule.Status = ScheduleStatus.InProgress;
@@ -120,7 +127,6 @@ namespace PicklePlay.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Competition Started! Match listing is now available.";
-            // Redirect to the match tab
             return RedirectToAction("CompDetails", "Competition", new { id = id, tab = "match-listing" });
         }
 
@@ -157,61 +163,173 @@ namespace PicklePlay.Controllers
             return matches;
         }
 
-        private List<Match> GenerateEliminationMatches(List<Team> teams, int scheduleId)
+        private async Task GenerateEliminationBracket(List<Team> teams, int scheduleId, bool hasThirdPlaceMatch)
         {
-            var matches = new List<Match>();
             var seededTeams = teams.OrderBy(t => t.BracketSeed).ToDictionary(t => t.BracketSeed ?? 0, t => t);
 
-            // Get standard seeding order
-            int bracketSize = 8;
-            if (teams.Count > 32) bracketSize = 64;
-            else if (teams.Count > 16) bracketSize = 32;
-            else if (teams.Count > 8) bracketSize = 16;
+            int bracketSize;
+            if (teams.Count <= 8) bracketSize = 8;
+            else if (teams.Count <= 16) bracketSize = 16;
+            else if (teams.Count <= 32) bracketSize = 32;
+            else bracketSize = 64;
 
             var seeding = GetSeedingOrder(bracketSize);
+            
+            var allMatches = new List<Match>();
+            var currentRoundMatches = new List<Match>();
+            var nextLinkPairs = new List<(Match child, Match parent)>();
+            var loserLinkPairs = new List<(Match child, Match parent)>();
 
+            // Store Semi-Finals for 3rd place linking
+            List<Match> ?semiFinalMatches = null;
+
+            // 2. Create Round 1
+            int roundNumber = 1;
             int matchNumber = 1;
             for (int i = 0; i < seeding.Length; i += 2)
             {
                 seededTeams.TryGetValue(seeding[i], out var team1);
                 seededTeams.TryGetValue(seeding[i + 1], out var team2);
 
+                int position = (matchNumber % 2 == 1) ? 1 : 2;
+
                 var match = new Match
                 {
                     ScheduleId = scheduleId,
                     RoundName = $"Round of {bracketSize}",
-                    RoundNumber = 1,
-                    MatchNumber = matchNumber++,
-                    Status = MatchStatus.Active
+                    RoundNumber = roundNumber,
+                    MatchNumber = matchNumber,
+                    Team1Id = team1?.TeamId,
+                    Team2Id = team2?.TeamId,
+                    MatchPosition = position
                 };
+                matchNumber++;
 
-                if (team1 != null && team2 != null)
+                if (team1 != null && team2 == null)
                 {
-                    match.Team1Id = team1.TeamId;
-                    match.Team2Id = team2.TeamId;
-                }
-                else if (team1 != null && team2 == null) // Team 2 is a BYE
-                {
-                    match.Team1Id = team1.TeamId;
                     match.IsBye = true;
                     match.Status = MatchStatus.Bye;
                     match.WinnerId = team1.TeamId;
                 }
-                else if (team1 == null && team2 != null) // Team 1 is a BYE
+                else if (team1 == null && team2 != null)
                 {
-                    match.Team2Id = team2.TeamId;
                     match.IsBye = true;
                     match.Status = MatchStatus.Bye;
                     match.WinnerId = team2.TeamId;
                 }
-                else // Both are BYEs (unlikely, but possible in sparse bracket)
+                else
                 {
-                    match.IsBye = true;
-                    match.Status = MatchStatus.Bye;
+                    match.Status = MatchStatus.Active;
                 }
-                matches.Add(match);
+                
+                allMatches.Add(match);
+                currentRoundMatches.Add(match);
             }
-            return matches;
+
+            // 3. Create subsequent rounds (Quarter-Finals, Semi-Finals, Final)
+            int teamsInRound = bracketSize / 2;
+            roundNumber++;
+
+            while (teamsInRound >= 2)
+            {
+                var nextRoundMatches = new List<Match>();
+                string roundName = GetRoundName(teamsInRound);
+                matchNumber = 1;
+
+                for (int i = 0; i < currentRoundMatches.Count; i += 2)
+                {
+                    var match1 = currentRoundMatches[i];
+                    var match2 = currentRoundMatches[i + 1];
+
+                    int pos = (matchNumber % 2 == 1) ? 1 : 2;
+
+                    var nextMatch = new Match
+                    {
+                        ScheduleId = scheduleId,
+                        RoundName = roundName,
+                        RoundNumber = roundNumber,
+                        MatchNumber = matchNumber,
+                        Status = MatchStatus.Active,
+                        MatchPosition = pos
+                    };
+                    matchNumber++;
+
+                    nextLinkPairs.Add((match1, nextMatch));
+                    nextLinkPairs.Add((match2, nextMatch));
+
+                    allMatches.Add(nextMatch);
+                    nextRoundMatches.Add(nextMatch);
+                }
+
+                // Capture Semi-Finals BEFORE moving to next round
+                if (roundName == "Semi-Finals")
+                {
+                    semiFinalMatches = nextRoundMatches.ToList();
+                }
+
+                currentRoundMatches = nextRoundMatches;
+                teamsInRound /= 2;
+                roundNumber++;
+            }
+
+            // 4. Create 3rd Place Match AFTER Semi-Finals (if enabled and Semi-Finals exist)
+            if (hasThirdPlaceMatch && semiFinalMatches != null && semiFinalMatches.Count == 2)
+            {
+                var thirdPlaceMatch = new Match
+                {
+                    ScheduleId = scheduleId,
+                    RoundName = "3rd Place",
+                    RoundNumber = roundNumber,
+                    MatchNumber = 1,
+                    Status = MatchStatus.Active,
+                    MatchPosition = null
+                };
+                allMatches.Add(thirdPlaceMatch);
+
+                // Link losers of Semi-Finals to 3rd place match
+                loserLinkPairs.Add((semiFinalMatches[0], thirdPlaceMatch));
+                loserLinkPairs.Add((semiFinalMatches[1], thirdPlaceMatch));
+            }
+            
+            // 5. Save all matches to the database
+            await _context.Matches.AddRangeAsync(allMatches);
+            await _context.SaveChangesAsync();
+
+            // 5b. Update NextMatchId / NextLoserMatchId
+            foreach (var (child, parent) in nextLinkPairs)
+            {
+                child.NextMatchId = parent.MatchId;
+                _context.Matches.Update(child);
+            }
+            foreach (var (child, parent) in loserLinkPairs)
+            {
+                child.NextLoserMatchId = parent.MatchId;
+                _context.Matches.Update(child);
+            }
+
+            if (nextLinkPairs.Any() || loserLinkPairs.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            // 6. Auto-advance BYEs
+            var byeMatches = allMatches.Where(m => m.IsBye).ToList();
+            if (byeMatches.Any())
+            {
+                foreach (var byeMatch in byeMatches)
+                {
+                    await AdvanceWinner(byeMatch);
+                }
+                await _context.SaveChangesAsync();
+            }
+        }
+        
+        private string GetRoundName(int teamsInRound)
+        {
+            if (teamsInRound == 2) return "Final";
+            if (teamsInRound == 4) return "Semi-Finals";
+            if (teamsInRound == 8) return "Quarter-Finals";
+            return $"Round of {teamsInRound}";
         }
 
         private List<Match> GenerateRoundRobinMatches(List<Team> teams, int scheduleId)
@@ -296,38 +414,81 @@ public async Task<IActionResult> GetMatchListing(int id)
 }
 
 [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
-{
-    var match = await _context.Matches.FindAsync(MatchId);
-    if (match == null)
-    {
-        return NotFound();
-    }
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
+        {
+            var match = await _context.Matches.FindAsync(MatchId);
+            if (match == null) return NotFound();
 
-    match.Team1Score = Team1Score;
-    match.Team2Score = Team2Score;
+            match.Team1Score = Team1Score;
+            match.Team2Score = Team2Score;
+            match.LastUpdatedByUserId = GetCurrentUserId();
+            match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
 
-    // Determine the winner
-    match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
+            bool hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
+                                 Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
 
-    // --- ADD THIS LINE ---
-    match.LastUpdatedByUserId = GetCurrentUserId(); // Save who made the change
-    // --- END ADD ---
+            if (hasRealScores && match.Status != MatchStatus.Bye)
+            {
+                match.Status = MatchStatus.Done;
 
-    bool hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
-                         Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
+                // --- NEW: ADVANCE WINNER ---
+                await AdvanceWinner(match);
+                // --- END NEW ---
+            }
 
-    if (hasRealScores && match.Status != MatchStatus.Bye)
-    {
-        match.Status = MatchStatus.Done;
-    }
+            _context.Matches.Update(match);
+            await _context.SaveChangesAsync();
 
-    _context.Matches.Update(match);
-    await _context.SaveChangesAsync();
+            return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
+        }
 
-    return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
-}
+        // --- *** THIS IS THE NEW HELPER METHOD *** ---
+        private async Task AdvanceWinner(Match completedMatch)
+        {
+            if (completedMatch.WinnerId == null) return; // No winner
+
+            var winnerId = completedMatch.WinnerId;
+            var loserId = (completedMatch.Team1Id == winnerId) ? completedMatch.Team2Id : completedMatch.Team1Id;
+
+            // 1. Advance the WINNER
+            if (completedMatch.NextMatchId.HasValue)
+            {
+                var nextMatch = await _context.Matches.FindAsync(completedMatch.NextMatchId.Value);
+                if (nextMatch != null)
+                {
+                    // Place winner in the correct slot (1 or 2)
+                    if (completedMatch.MatchPosition == 1)
+                    {
+                        nextMatch.Team1Id = winnerId;
+                    }
+                    else
+                    {
+                        nextMatch.Team2Id = winnerId;
+                    }
+                    _context.Matches.Update(nextMatch);
+                }
+            }
+
+            // 2. Advance the LOSER (for 3rd place match)
+            if (completedMatch.NextLoserMatchId.HasValue && loserId.HasValue)
+            {
+                var loserMatch = await _context.Matches.FindAsync(completedMatch.NextLoserMatchId.Value);
+                if (loserMatch != null)
+                {
+                    // Place loser in the correct slot (1 or 2)
+                    if (completedMatch.MatchPosition == 1)
+                    {
+                        loserMatch.Team1Id = loserId;
+                    }
+                    else
+                    {
+                        loserMatch.Team2Id = loserId;
+                    }
+                    _context.Matches.Update(loserMatch);
+                }
+            }
+        }
 
         // A helper method to determine the winner based on scores
         private int? DetermineWinnerId(int? team1Id, int? team2Id, string team1Score, string team2Score)

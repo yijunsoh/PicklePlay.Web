@@ -55,7 +55,7 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label asp-for="NumPlayer" class="form-label"></label>
-                <input asp-for="NumPlayer" type="number" class="form-control" />
+                <input asp-for="NumPlayer" type="number" class="form-control" min="0" step="1" />
                 <span asp-validation-for="NumPlayer" class="text-danger"></span>
             </div>
             <div class="col-md-6 mb-3">
@@ -72,7 +72,7 @@
             
             <div id="feeInput" class="mt-2" style="display:none;">
                 <label asp-for="FeeAmount" class="form-label"></label>
-                <input asp-for="FeeAmount" type="number" class="form-control" placeholder="Enter price (RM)" step="0.01" />
+                <input asp-for="FeeAmount" type="number" class="form-control" placeholder="Enter price (RM)" step="0.01" min="0" />
                 <span asp-validation-for="FeeAmount" class="text-danger"></span>
             </div>
         </div>
@@ -89,7 +89,7 @@
   
         <div class="mb-3">
             <label asp-for="MinRankRestriction" class="form-label"></label>
-            <input asp-for="MinRankRestriction" type="number" class="form-control" step="0.10" value="0.00" />
+            <input asp-for="MinRankRestriction" type="number" class="form-control" step="0.10" value="0.00" min="0" />
             <span asp-validation-for="MinRankRestriction" class="text-danger"></span>
         </div>
     </div>
@@ -97,7 +97,7 @@
     
         <div class="mb-3">
             <label asp-for="MaxRankRestriction" class="form-label"></label>
-            <input asp-for="MaxRankRestriction" type="number" class="form-control" step="0.10" value="3.00" />
+            <input asp-for="MaxRankRestriction" type="number" class="form-control" step="0.10" value="3.00" min="0" />
             <span asp-validation-for="MaxRankRestriction" class="text-danger"></span>
         </div>
     </div>
@@ -201,6 +201,19 @@
                 // This improves the UX slightly.
                  startTimeInputRecurring.min = minTime; 
             }
+        });
+    </script>
+
+    <script>
+        // block typing/pasting '-' into number inputs (UX only)
+        document.addEventListener('input', function(e) {
+            const el = e.target;
+            if (el.matches('input[type="number"]') && el.value && el.value.startsWith('-')) {
+                el.value = el.value.replace('-', '');
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '-' && e.target.matches('input[type="number"]')) e.preventDefault();
         });
     </script>
 }
