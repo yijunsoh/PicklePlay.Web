@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
 using PicklePlay.ViewModels;
 using PicklePlay.Models;
+using System.Text;
 
 public class AdminController : Controller
 {
@@ -34,14 +35,237 @@ public class AdminController : Controller
         return View();
     }
 
-    public IActionResult TransactionLog()
+    // GET: /Admin/TransactionLog
+    public async Task<IActionResult> TransactionLog()
     {
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin")
         {
             return RedirectToAction("Login", "Auth");
         }
-        return View();
+
+        // Get filter parameters
+        var startDate = Request.Query["startDate"].FirstOrDefault();
+        var endDate = Request.Query["endDate"].FirstOrDefault();
+        var transactionType = Request.Query["transactionType"].FirstOrDefault();
+        var paymentStatus = Request.Query["paymentStatus"].FirstOrDefault();
+        var paymentMethod = Request.Query["paymentMethod"].FirstOrDefault();
+
+        // Build query
+        var query = _context.Transactions
+            .Include(t => t.Wallet)
+                .ThenInclude(w => w.User)
+            .Include(t => t.Escrow)
+            .AsQueryable();
+
+        // Apply filters
+        if (!string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start))
+        {
+            query = query.Where(t => t.CreatedAt >= start);
+        }
+
+        if (!string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end))
+        {
+            query = query.Where(t => t.CreatedAt <= end.AddDays(1)); // Include the entire end date
+        }
+
+        if (!string.IsNullOrEmpty(transactionType) && transactionType != "All")
+        {
+            query = query.Where(t => t.TransactionType == transactionType);
+        }
+
+        if (!string.IsNullOrEmpty(paymentStatus) && paymentStatus != "All")
+        {
+            query = query.Where(t => t.PaymentStatus == paymentStatus);
+        }
+
+        if (!string.IsNullOrEmpty(paymentMethod) && paymentMethod != "All")
+        {
+            query = query.Where(t => t.PaymentMethod == paymentMethod);
+        }
+
+        // Get transactions ordered by latest first
+        var transactions = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new TransactionLogViewModel
+            {
+                TransactionId = t.TransactionId,
+                UserId = t.Wallet.UserId,
+                Username = t.Wallet.User.Username,
+                Email = t.Wallet.User.Email,
+                TransactionType = t.TransactionType,
+                Amount = t.Amount,
+                PaymentMethod = t.PaymentMethod,
+                PaymentStatus = t.PaymentStatus,
+                PaymentGatewayId = t.PaymentGatewayId,
+                CardLastFour = t.CardLastFour,
+                CreatedAt = t.CreatedAt,
+                PaymentCompletedAt = t.PaymentCompletedAt,
+                WalletId = t.WalletId,
+                EscrowId = t.EscrowId,
+                IsEscrowRelated = t.EscrowId != null
+            })
+            .ToListAsync();
+
+        // Calculate summary statistics FROM FILTERED DATA
+        var totalTransactions = transactions.Count;
+        var totalAmount = transactions.Sum(t => t.Amount);
+        var successfulTransactions = transactions.Count(t => t.PaymentStatus == "Completed");
+        var pendingTransactions = transactions.Count(t => t.PaymentStatus == "Pending");
+        var failedTransactions = transactions.Count(t => t.PaymentStatus == "Failed");
+
+        var viewModel = new TransactionLogMainViewModel
+        {
+            Transactions = transactions,
+            Filter = new TransactionFilterViewModel
+            {
+                StartDate = startDate,
+                EndDate = endDate,
+                TransactionType = transactionType,
+                PaymentStatus = paymentStatus,
+                PaymentMethod = paymentMethod
+            },
+            Summary = new TransactionSummaryViewModel
+            {
+                TotalTransactions = totalTransactions,
+                TotalAmount = totalAmount,
+                SuccessfulTransactions = successfulTransactions,
+                PendingTransactions = pendingTransactions,
+                FailedTransactions = failedTransactions
+            }
+        };
+
+        return View(viewModel);
+    }
+
+    // GET: /Admin/GetTransactionDetails
+    [HttpGet]
+    public async Task<IActionResult> GetTransactionDetails(int id)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Unauthorized(new { success = false, message = "Unauthorized" });
+        }
+
+        var transaction = await _context.Transactions
+            .Include(t => t.Wallet)
+                .ThenInclude(w => w.User)
+            .Include(t => t.Escrow)
+            .FirstOrDefaultAsync(t => t.TransactionId == id);
+
+        if (transaction == null)
+        {
+            return NotFound(new { success = false, message = "Transaction not found" });
+        }
+
+        var details = new
+        {
+            TransactionId = transaction.TransactionId,
+            UserId = transaction.Wallet.UserId,
+            Username = transaction.Wallet.User.Username,
+            Email = transaction.Wallet.User.Email,
+            TransactionType = transaction.TransactionType,
+            Amount = transaction.Amount,
+            PaymentMethod = transaction.PaymentMethod,
+            PaymentStatus = transaction.PaymentStatus,
+            PaymentGatewayId = transaction.PaymentGatewayId,
+            CardLastFour = transaction.CardLastFour,
+            CreatedAt = transaction.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+            PaymentCompletedAt = transaction.PaymentCompletedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
+            WalletId = transaction.WalletId,
+            EscrowId = transaction.EscrowId
+        };
+
+        return Ok(new { success = true, data = details });
+    }
+
+    // GET: /Admin/ExportTransactions
+    [HttpGet]
+    public async Task<IActionResult> ExportTransactions()
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Unauthorized(new { success = false, message = "Unauthorized" });
+        }
+
+        try
+        {
+            // Get filter parameters from query string
+            var startDate = Request.Query["startDate"].FirstOrDefault();
+            var endDate = Request.Query["endDate"].FirstOrDefault();
+            var transactionType = Request.Query["transactionType"].FirstOrDefault();
+            var paymentStatus = Request.Query["paymentStatus"].FirstOrDefault();
+            var paymentMethod = Request.Query["paymentMethod"].FirstOrDefault();
+
+            // Build query (same as TransactionLog action)
+            var query = _context.Transactions
+                .Include(t => t.Wallet)
+                    .ThenInclude(w => w.User)
+                .AsQueryable();
+
+            // Apply filters (same logic as TransactionLog action)
+            if (!string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var start))
+            {
+                query = query.Where(t => t.CreatedAt >= start);
+            }
+
+            if (!string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var end))
+            {
+                query = query.Where(t => t.CreatedAt <= end.AddDays(1));
+            }
+
+            if (!string.IsNullOrEmpty(transactionType) && transactionType != "All")
+            {
+                query = query.Where(t => t.TransactionType == transactionType);
+            }
+
+            if (!string.IsNullOrEmpty(paymentStatus) && paymentStatus != "All")
+            {
+                query = query.Where(t => t.PaymentStatus == paymentStatus);
+            }
+
+            if (!string.IsNullOrEmpty(paymentMethod) && paymentMethod != "All")
+            {
+                query = query.Where(t => t.PaymentMethod == paymentMethod);
+            }
+
+            var transactions = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    t.TransactionId,
+                    t.Wallet.User.Username,
+                    t.Wallet.User.Email,
+                    t.TransactionType,
+                    t.Amount,
+                    t.PaymentMethod,
+                    t.PaymentStatus,
+                    t.PaymentGatewayId,
+                    t.CardLastFour,
+                    t.CreatedAt,
+                    t.PaymentCompletedAt
+                })
+                .ToListAsync();
+
+            // Create CSV content
+            var csv = new StringBuilder();
+            csv.AppendLine("TransactionID,Username,Email,Type,Amount,PaymentMethod,Status,PaymentGatewayID,CardLastFour,CreatedAt,CompletedAt");
+
+            foreach (var t in transactions)
+            {
+                csv.AppendLine($"\"{t.TransactionId}\",\"{t.Username}\",\"{t.Email}\",\"{t.TransactionType}\",\"{t.Amount}\",\"{t.PaymentMethod}\",\"{t.PaymentStatus}\",\"{t.PaymentGatewayId ?? "N/A"}\",\"{t.CardLastFour ?? "N/A"}\",\"{t.CreatedAt:yyyy-MM-dd HH:mm:ss}\",\"{t.PaymentCompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A"}\"");
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+            return File(bytes, "text/csv", $"transactions_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting transactions: {ex.Message}");
+            return StatusCode(500, new { success = false, message = "Error exporting transactions" });
+        }
     }
 
     // GET: /Admin/CommunityRequests
