@@ -1,6 +1,7 @@
 @model PicklePlay.Models.ViewModels.MatchListingViewModel
 @using PicklePlay.Data
 @using PicklePlay.Models
+@using Microsoft.AspNetCore.Html
 
 <style>
     /* Status Borders */
@@ -57,81 +58,215 @@
 
 @foreach (var roundGroup in Model.Matches!.GroupBy(m => m.RoundName).OrderBy(g => g.First().RoundNumber))
 {
-    <h4 class="mt-4 mb-3">@roundGroup.Key</h4>
+    var roundNumber = roundGroup.First().RoundNumber;
+    var allDone = roundGroup.All(m => m.Status == MatchStatus.Done);
+    var collapseId = "round-" + roundNumber;
     
-    foreach (var match in roundGroup.OrderBy(m => m.MatchNumber))
-    {
-        string statusClass = $"status-{match.Status.ToString().ToLower()}";
-        
-        <div class="match-container @statusClass">
-            <div class="match-header d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>Match @match.MatchNumber</strong>
-                    <small class="text-muted ms-2">
-                        @if (Model.IsOrganizer)
-                        {
-                            <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-match-btn" 
-                                    data-bs-toggle="modal" data-bs-target="#editMatchModal"
-                                    data-match-id="@match.MatchId"
-                                    data-match-time="@(match.MatchTime.HasValue ? match.MatchTime.Value.ToString("yyyy-MM-ddTHH:mm") : "")"
-                                    data-court="@match.Court"
-                                    title="Edit Time/Court">
-                                <i class="bi bi-pencil-square"></i>
-                            </button>
-                            <span>Time: @(match.MatchTime?.ToString("hh:mm tt") ?? "TBD")</span>
-                            <span class="ms-2">Court: @(match.Court ?? "TBD")</span>
-                        }
-                        else
-                        {
-                            <span>Time: @(match.MatchTime?.ToString("hh:mm tt") ?? "TBD")</span>
-                            <span class="ms-2">Court: @(match.Court ?? "TBD")</span>
-                        }
-                    </small>
-                </div>
-                <span class="badge bg-@statusClass text-dark">@match.Status</span>
-            </div>
-            
-            <div class="match-body">
-                @{
-                    // Status flags for C# logic
-                    var isDone = match.Status == MatchStatus.Done;
-                    var isActive = match.Status == MatchStatus.Active;
-                    var isProgressing = match.Status == MatchStatus.Progressing;
+    <div class="d-flex align-items-center mt-4 mb-3">
+        <h5 class="mb-0">@roundGroup.Key</h5>
+        @if (allDone)
+        {
+            <button class="btn btn-sm btn-link ms-2 round-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="true" aria-controls="@collapseId">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        }
+    </div>
 
-                    // --- NEW: Check if match is ready to start ---
-                    var isReady = match.Team1Id.HasValue && match.Team2Id.HasValue;
-                    
-                    // --- NEW: Set Title Logic ---
-                    int setCount = 1;
-                    if (!string.IsNullOrEmpty(match.Team1Score))
-                    {
-                        setCount = Math.Max(setCount, match.Team1Score.Split(',').Length);
-                    }
-                    if (!string.IsNullOrEmpty(match.Team2Score))
-                    {
-                        setCount = Math.Max(setCount, match.Team2Score.Split(',').Length);
-                    }
-                    // Ensure at least 1 set shows for progressing
-                    if (isProgressing && setCount == 0) setCount = 1;
-                }
-                
-                @if (isProgressing || (isDone && !match.IsBye))
-                {
-                    <div class="team-row">
-                        <span class="team-name"></span> <div class="score-set-titles">
-                            @for (int i = 1; i <= setCount; i++)
+    <div id="@collapseId" class="collapse @(allDone ? "" : "show")">
+        @foreach (var match in roundGroup.OrderBy(m => m.MatchNumber))
+        {
+            string statusClass = $"status-{match.Status.ToString().ToLower()}";
+            
+            <div class="match-container @statusClass">
+                <div class="match-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Match @match.MatchNumber</strong>
+                        <small class="text-muted ms-2">
+                            @if (Model.IsOrganizer)
                             {
-                                <span class="score-set-title">Set @i</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-match-btn" 
+                                        data-bs-toggle="modal" data-bs-target="#editMatchModal"
+                                        data-match-id="@match.MatchId"
+                                        data-match-time="@(match.MatchTime.HasValue ? match.MatchTime.Value.ToString("yyyy-MM-ddTHH:mm") : "")"
+                                        data-court="@match.Court"
+                                        title="Edit Time/Court">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <span>Time: @(match.MatchTime?.ToString("hh:mm tt") ?? "TBD")</span>
+                                <span class="ms-2">Court: @(match.Court ?? "TBD")</span>
+                            }
+                            else
+                            {
+                                <span>Time: @(match.MatchTime?.ToString("hh:mm tt") ?? "TBD")</span>
+                                <span class="ms-2">Court: @(match.Court ?? "TBD")</span>
+                            }
+                        </small>
+                    </div>
+                    <span class="badge bg-@statusClass text-dark">@match.Status</span>
+                </div>
+                
+                <div class="match-body">
+                    @{
+                        // Status flags for C# logic
+                        var isDone = match.Status == MatchStatus.Done;
+                        var isActive = match.Status == MatchStatus.Active;
+                        var isProgressing = match.Status == MatchStatus.Progressing;
+
+                        // --- NEW: Check if match is ready to start ---
+                        var isReady = match.Team1Id.HasValue && match.Team2Id.HasValue;
+                        
+                        // --- NEW: Set Title Logic ---
+                        int setCount = 1;
+                        if (!string.IsNullOrEmpty(match.Team1Score))
+                        {
+                            setCount = Math.Max(setCount, match.Team1Score.Split(',').Length);
+                        }
+                        if (!string.IsNullOrEmpty(match.Team2Score))
+                        {
+                            setCount = Math.Max(setCount, match.Team2Score.Split(',').Length);
+                        }
+                        // Ensure at least 1 set shows for progressing
+                        if (isProgressing && setCount == 0) setCount = 1;
+                    }
+                    
+                    @if (isProgressing || (isDone && !match.IsBye))
+                    {
+                        <div class="team-row">
+                            <span class="team-name"></span> <div class="score-set-titles">
+                                @for (int i = 1; i <= setCount; i++)
+                                {
+                                    <span class="score-set-title">Set @i</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+
+                    @if (Model.IsOrganizer)
+                    {
+                        <div class="organizer-match-form" data-match-id="@match.MatchId">
+                            
+                            <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
+                                @if (match.Team1 != null)
+                                {
+                                    <span class="team-name">@match.Team1.TeamName</span>
+                                }
+                                else
+                                {
+                                    <span class="team-name-tbd">TBD</span>
+                                }
+                                <div class="score-sets-container" data-team-id="1">
+                                    @if (isProgressing)
+                                    {
+                                        if (!string.IsNullOrEmpty(match.Team1Score)) {
+                                            foreach (var score in match.Team1Score.Split(',')) {
+                                                <input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" value="@score.Trim()" min="0" />
+                                            }
+                                        } else {
+                                            <input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" placeholder="e.g. 11" min="0" />
+                                        }
+                                    }
+                                    else if (isDone) {
+                                        <span class="score-set-text">@match.Team1Score</span>
+                                    }
+                                    @if (match.IsBye) { <span class="badge bg-secondary">BYE</span> }
+                                </div>
+                            </div>
+                            
+                            <div class="text-center text-muted my-2">VS</div>
+                            
+                            <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
+                                @if (match.Team2 != null)
+                                {
+                                    <span class="team-name">@match.Team2.TeamName</span>
+                                }
+                                else
+                                {
+                                    <span class="team-name-tbd">TBD</span>
+                                }
+                                <div class="score-sets-container" data-team-id="2">
+                                    @if (isProgressing)
+                                    {
+                                        if (!string.IsNullOrEmpty(match.Team2Score)) {
+                                            foreach (var score in match.Team2Score.Split(',')) {
+                                                <input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" value="@score.Trim()" min="0" />
+                                            }
+                                        } else {
+                                            <input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" placeholder="e.g. 5" min="0" />
+                                        }
+                                    }
+                                    else if (isDone) {
+                                        <span class="score-set-text">@match.Team2Score</span>
+                                    }
+                                    @if (match.IsBye) { <span class="badge bg-secondary">BYE</span> }
+                                </div>
+                            </div>
+                            
+                            @if (!match.IsBye)
+                            {
+                                <hr />
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group">
+                                        @if (isActive && match.Team1Id.HasValue && match.Team2Id.HasValue)
+                                        {
+                                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="MatchId" value="@match.MatchId" />
+                                                <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Set Status to Progressing">
+                                                    <i class="bi bi-play-circle"></i> Start
+                                                </button>
+                                            </form>
+                                        }
+                                        
+                                        @if (isDone && match.LastUpdatedByUser != null)
+                                        {
+                                            <small class="text-muted ms-2 fst-italic">
+                                                Saved by: @match.LastUpdatedByUser.Username
+                                            </small>
+                                        }
+                                    </div>
+                                    
+                                    <div class="btn-group">
+                                        @if (isDone)
+                                        {
+                                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="MatchId" value="@match.MatchId" />
+                                                <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Edit Score">
+                                                    <i class="bi bi-pencil"></i> Edit Score
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @if (isProgressing)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-minus-set">
+                                                <i class="bi bi-dash"></i> Minus Set
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success btn-add-set">
+                                                <i class="bi bi-plus"></i> Add Set
+                                            </button>
+                                            
+                                            <form asp-action="UpdateMatch" asp-controller="Match" method="post" class="d-inline save-score-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="MatchId" value="@match.MatchId" />
+                                                <input type="hidden" class="hidden-team1-score" name="Team1Score" />
+                                                <input type="hidden" class="hidden-team2-score" name="Team2Score" />
+                                                
+                                                <button type="submit" class="btn btn-sm btn-primary btn-save-score">
+                                                    <i class="bi bi-save"></i> Save Score
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
                             }
                         </div>
-                    </div>
-                }
-
-
-                @if (Model.IsOrganizer)
-                {
-                    <div class="organizer-match-form" data-match-id="@match.MatchId">
-                        
+                    }
+                    else
+                    {
                         <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
                             @if (match.Team1 != null)
                             {
@@ -141,27 +276,16 @@
                             {
                                 <span class="team-name-tbd">TBD</span>
                             }
-                            <div class="score-sets-container" data-team-id="1">
-                                @if (isProgressing)
-                                {
-                                    if (!string.IsNullOrEmpty(match.Team1Score)) {
-                                        foreach (var score in match.Team1Score.Split(',')) {
-                                            <input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" value="@score.Trim()" min="0" />
-                                        }
-                                    } else {
-                                        <input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" placeholder="e.g. 11" min="0" />
-                                    }
-                                }
-                                else if (isDone) {
-                                    <span class="score-set-text">@match.Team1Score</span>
-                                }
-                                @if (match.IsBye) { <span class="badge bg-secondary">BYE</span> }
-                            </div>
+                            
+                            @if(isDone)
+                            {
+                                <span class="fs-5 fw-bold">@match.Team1Score</span>
+                            }
                         </div>
                         
                         <div class="text-center text-muted my-2">VS</div>
                         
-                        <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
+                       <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
                             @if (match.Team2 != null)
                             {
                                 <span class="team-name">@match.Team2.TeamName</span>
@@ -170,180 +294,92 @@
                             {
                                 <span class="team-name-tbd">TBD</span>
                             }
-                            <div class="score-sets-container" data-team-id="2">
-                                @if (isProgressing)
-                                {
-                                    if (!string.IsNullOrEmpty(match.Team2Score)) {
-                                        foreach (var score in match.Team2Score.Split(',')) {
-                                            <input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" value="@score.Trim()" min="0" />
-                                        }
-                                    } else {
-                                        <input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" placeholder="e.g. 5" min="0" />
-                                    }
-                                }
-                                else if (isDone) {
-                                    <span class="score-set-text">@match.Team2Score</span>
-                                }
-                                @if (match.IsBye) { <span class="badge bg-secondary">BYE</span> }
-                            </div>
+                            
+                            @if(isDone)
+                            {
+                                <span class="fs-5 fw-bold">@match.Team2Score</span>
+                            }
                         </div>
                         
-                        @if (!match.IsBye)
+                        @if(match.IsBye) { /* BYE text */ }
+
+                        @if (isDone && match.LastUpdatedByUser != null)
                         {
                             <hr />
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="btn-group">
-                                    @if (isActive && match.Team1Id.HasValue && match.Team2Id.HasValue)
-                                    {
-                                        <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="MatchId" value="@match.MatchId" />
-                                            <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Set Status to Progressing">
-                                                <i class="bi bi-play-circle"></i> Start
-                                            </button>
-                                        </form>
-                                    }
-                                    
-                                    @if (isDone && match.LastUpdatedByUser != null)
-                                    {
-                                        <small class="text-muted ms-2 fst-italic">
-                                            Saved by: @match.LastUpdatedByUser.Username
-                                        </small>
-                                    }
-                                </div>
-                                
-                                <div class="btn-group">
-                                    @if (isDone)
-                                    {
-                                        <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="MatchId" value="@match.MatchId" />
-                                            <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
-                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Edit Score">
-                                                <i class="bi bi-pencil"></i> Edit Score
-                                            </button>
-                                        </form>
-                                    }
-
-                                    @if (isProgressing)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-minus-set">
-                                            <i class="bi bi-dash"></i> Minus Set
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-success btn-add-set">
-                                            <i class="bi bi-plus"></i> Add Set
-                                        </button>
-                                        
-                                        <form asp-action="UpdateMatch" asp-controller="Match" method="post" class="d-inline save-score-form">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="MatchId" value="@match.MatchId" />
-                                            <input type="hidden" class="hidden-team1-score" name="Team1Score" />
-                                            <input type="hidden" class="hidden-team2-score" name="Team2Score" />
-                                            
-                                            <button type="submit" class="btn btn-sm btn-primary btn-save-score">
-                                                <i class="bi bi-save"></i> Save Score
-                                            </button>
-                                        </form>
-                                    }
-                                </div>
+                            <div class="text-end">
+                                <small class="text-muted fst-italic">
+                                    Last update by: @match.LastUpdatedByUser.Username
+                                </small>
                             </div>
                         }
-                    </div>
-                }
-                else
-                {
-                    <div class="team-row @(isDone && match.WinnerId == match.Team1Id ? "team-winner" : "")">
-                        @if (match.Team1 != null)
-                        {
-                            <span class="team-name">@match.Team1.TeamName</span>
-                        }
-                        else
-                        {
-                            <span class="team-name-tbd">TBD</span>
-                        }
-                        
-                        @if(isDone)
-                        {
-                            <span class="fs-5 fw-bold">@match.Team1Score</span>
-                        }
-                    </div>
-                    
-                    <div class="text-center text-muted my-2">VS</div>
-                    
-                   <div class="team-row @(isDone && match.WinnerId == match.Team2Id ? "team-winner" : "")">
-                        @if (match.Team2 != null)
-                        {
-                            <span class="team-name">@match.Team2.TeamName</span>
-                        }
-                        else
-                        {
-                            <span class="team-name-tbd">TBD</span>
-                        }
-                        
-                        @if(isDone)
-                        {
-                            <span class="fs-5 fw-bold">@match.Team2Score</span>
-                        }
-                    </div>
-                    
-                    @if(match.IsBye) { /* BYE text */ }
-
-                    @if (isDone && match.LastUpdatedByUser != null)
-                    {
-                        <hr />
-                        <div class="text-end">
-                            <small class="text-muted fst-italic">
-                                Last update by: @match.LastUpdatedByUser.Username
-                            </small>
-                        </div>
                     }
-                }
+                </div>
             </div>
-        </div>
-    }
+        }
+    </div>
 }
 
 <script>
 (function() {
-    
-    // "Add Set" Button
+    document.querySelectorAll('.round-toggle').forEach(btn => {
+        const targetSelector = btn.getAttribute('data-bs-target');
+        const targetEl = document.querySelector(targetSelector);
+        if (!targetEl) return;
+
+        const icon = btn.querySelector('i'); // Get the icon *inside this button*
+
+        // Set initial icon state on page load
+        if (targetEl.classList.contains('show')) {
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-up');
+        } else {
+            icon.classList.remove('bi-chevron-up');
+            icon.classList.add('bi-chevron-down');
+        }
+
+        // Use Bootstrap's built-in events to update the icon
+        targetEl.addEventListener('shown.bs.collapse', function () {
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-up');
+        });
+        targetEl.addEventListener('hidden.bs.collapse', function () {
+            icon.classList.remove('bi-chevron-up');
+            icon.classList.add('bi-chevron-down');
+        });
+    });
+    // --- END OF FIX ---
+
+    // "Add Set" Button (This code is correct)
     $('.btn-add-set').on('click', function() {
         var $formContainer = $(this).closest('.organizer-match-form');
         
-        // Add score inputs
         var $newSetT1 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" min="0" placeholder="0" />');
         var $newSetT2 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" min="0" placeholder="0" />');
         $formContainer.find('.score-sets-container[data-team-id="1"]').append($newSetT1);
         $formContainer.find('.score-sets-container[data-team-id="2"]').append($newSetT2);
 
-        // --- NEW: Add Set Title ---
         var $titleContainer = $formContainer.closest('.match-body').find('.score-set-titles');
         var newSetNum = $titleContainer.find('.score-set-title').length + 1;
         $titleContainer.append('<span class="score-set-title">Set ' + newSetNum + '</span>');
     });
 
-    // --- NEW: "Minus Set" Button ---
+    // "Minus Set" Button (This code is correct)
     $('.btn-minus-set').on('click', function() {
         var $formContainer = $(this).closest('.organizer-match-form');
         
-        // Find score inputs for Team 1
         var $team1Inputs = $formContainer.find('.score-sets-container[data-team-id="1"] .score-set-input');
-        // Find score inputs for Team 2
         var $team2Inputs = $formContainer.find('.score-sets-container[data-team-id="2"] .score-set-input');
 
-        // Only remove if there is more than 1 set input
         if ($team1Inputs.length > 1) {
             $team1Inputs.last().remove();
             $team2Inputs.last().remove();
 
-            // --- NEW: Remove Set Title ---
             var $titleContainer = $formContainer.closest('.match-body').find('.score-set-titles');
             $titleContainer.find('.score-set-title').last().remove();
         }
     });
 
-    // Intercept "Save Score" form submission
+    // "Save Score" form submission (This code is correct)
     $('.save-score-form').on('submit', function(e) {
         e.preventDefault(); 
         var $form = $(this);
@@ -357,6 +393,5 @@
         
         this.submit();
     });
-
 })();
 </script>
