@@ -1804,7 +1804,7 @@ namespace PicklePlay.Controllers
                         {
                             UserId = memberId,
                             Message = message,
-                            // LinkUrl = Url.Action("Community", "Home"), // Redirect to communities list
+                            LinkUrl = null, // Redirect to communities list
                             IsRead = false,
                             DateCreated = DateTime.UtcNow
                         };
