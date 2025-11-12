@@ -114,6 +114,16 @@
         border: 1px solid #ddd;
         background-color: #fcfcfc;
     }
+    #thirdPlaceContainer .card {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+#thirdPlaceContainer .bi-trophy-fill {
+    font-size: 1.2rem;
+    animation: trophy-glow 2s ease-in-out infinite;
+}
+
 </style>
 
 <h5 class="mb-3">Published Bracket (@bracketSize Teams)</h5>
@@ -152,82 +162,110 @@
     }
 
     function renderFull(response) {
-        var container = document.getElementById('bracketVisual_Published');
-        if (!container) { console.error('No bracket container'); return; }
+    var container = document.getElementById('bracketVisual_Published');
+    if (!container) { console.error('No bracket container'); return; }
 
-        try {
-            if (typeof $ !== 'undefined' && typeof $.fn.bracket === 'function') {
-                $(container).empty();
-                $(container).bracket({
-                    init: response.bracketData,
-                    teamWidth: 170,
-                    scoreWidth: 30,
-                    roundMargin: 40,
-                    skipConsolationRound: !response.hasThirdPlaceMatch
-                });
-                console.log('Bracket rendered successfully!');
-            } else {
-                container.innerHTML = '<pre>' + JSON.stringify(response.bracketData, null, 2) + '</pre>';
-            }
-        } catch (err) {
-            console.error('Bracket plugin failed:', err);
-            container.innerHTML = '<div class="alert alert-danger">Could not render bracket. ' + err.message + '</div>';
-        }
-
-        // Robust third-place rendering
-        var thirdEl = document.getElementById('thirdPlaceContainer');
-        if (!thirdEl) {
-            console.warn('thirdPlaceContainer not found - creating one');
-            thirdEl = document.createElement('div');
-            thirdEl.id = 'thirdPlaceContainer';
-            container.insertAdjacentElement('afterend', thirdEl);
-        }
-        thirdEl.style.display = 'block';
-
-        if (response && response.thirdPlace) {
-            var tp = response.thirdPlace;
-            console.log('thirdPlace payload:', tp);
-
-            // Coerce winnerIndex to number and treat 0 as valid
-            var winnerIndex = null;
-            if (tp.winnerIndex !== undefined && tp.winnerIndex !== null) {
-                var parsed = Number(tp.winnerIndex);
-                if (Number.isFinite(parsed)) winnerIndex = parsed;
-            }
-
-            // fallback: check result array if present
-            if (winnerIndex === null && Array.isArray(tp.result) && tp.result.length === 2) {
-                if (tp.result[0] === 1 && tp.result[1] === 0) winnerIndex = 0;
-                else if (tp.result[0] === 0 && tp.result[1] === 1) winnerIndex = 1;
-            }
-
-            // Determine winner name explicitly so 0 is handled correctly
-            var winnerName = null;
-            if (winnerIndex === 0) winnerName = tp.team1 || null;
-            else if (winnerIndex === 1) winnerName = tp.team2 || null;
-
-            // Build visible UI (always show teams; indicate winner if known)
-            var inner = '<div class="card p-2"><strong>3rd Place</strong>' +
-                        '<div class="d-flex justify-content-between mt-2"><span>' + (tp.team1 || 'TBD') + '</span>' +
-                        '<span>vs</span><span>' + (tp.team2 || 'TBD') + '</span></div>';
-
-            if (winnerName) {
-                // Explicit Winner label to avoid styling/visibility issues
-                inner += '<div class="mt-2 text-success"><small><strong>Winner: </strong>' + winnerName + '</small></div>';
-            } else if (tp.status) {
-                inner += '<div class="mt-2 text-muted"><small>Status: ' + tp.status + '</small></div>';
-            }
-
-            inner += '</div>';
-
-            thirdEl.innerHTML = inner;
-            console.log('Third place rendered. winnerIndex used:', winnerIndex, 'winnerName:', winnerName);
+    try {
+        if (typeof $ !== 'undefined' && typeof $.fn.bracket === 'function') {
+            $(container).empty();
+            $(container).bracket({
+                init: response.bracketData,
+                teamWidth: 170,
+                scoreWidth: 30,
+                roundMargin: 40,
+                skipConsolationRound: false
+            });
+            console.log('Bracket rendered successfully!');
         } else {
-            thirdEl.innerHTML = '';
-            thirdEl.style.display = 'none';
-            console.log('No third-place match to render.');
+            container.innerHTML = '<pre>' + JSON.stringify(response.bracketData, null, 2) + '</pre>';
         }
+    } catch (err) {
+        console.error('Bracket plugin failed:', err);
+        container.innerHTML = '<div class="alert alert-danger">Could not render bracket. ' + err.message + '</div>';
     }
+
+    // ===== IMPROVED THIRD PLACE RENDERING =====
+    var thirdEl = document.getElementById('thirdPlaceContainer');
+    if (!thirdEl) {
+        console.warn('thirdPlaceContainer not found - creating one');
+        thirdEl = document.createElement('div');
+        thirdEl.id = 'thirdPlaceContainer';
+        thirdEl.className = 'mt-3';
+        thirdEl.style.minHeight = '56px';
+        container.insertAdjacentElement('afterend', thirdEl);
+    }
+    thirdEl.style.display = 'block';
+
+    if (response && response.thirdPlace) {
+        var tp = response.thirdPlace;
+        console.log('Third place data:', tp);
+
+        // Determine winner index (handle 0 explicitly)
+        var winnerIndex = null;
+        if (tp.winnerIndex !== undefined && tp.winnerIndex !== null) {
+            winnerIndex = Number(tp.winnerIndex);
+        }
+
+        console.log('Winner index after parsing:', winnerIndex);
+
+        var team1Name = tp.team1 || 'TBD';
+        var team2Name = tp.team2 || 'TBD';
+        
+        // Build team display with winner highlighting
+        var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+        var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+        
+        var team1Display = '<span class="' + team1Class + '">' + team1Name;
+        if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+        team1Display += '</span>';
+        
+        var team2Display = '<span class="' + team2Class + '">' + team2Name;
+        if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+        team2Display += '</span>';
+
+        // Build the card
+        var cardHTML = '<div class="card shadow-sm">' +
+            '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+            '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+        
+        if (tp.status) {
+            var statusBadge = '';
+            if (tp.status === 'Done') {
+                statusBadge = '<span class="badge bg-success">Completed</span>';
+            } else if (tp.status === 'Active' || tp.status === 'Progressing') {
+                statusBadge = '<span class="badge bg-warning text-dark">' + tp.status + '</span>';
+            } else {
+                statusBadge = '<span class="badge bg-light text-dark">' + tp.status + '</span>';
+            }
+            cardHTML += statusBadge;
+        }
+        
+        cardHTML += '</div><div class="card-body">' +
+            '<div class="d-flex justify-content-around align-items-center">' +
+            '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+            '<div class="text-muted fw-bold">VS</div>' +
+            '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
+            '</div>';
+        
+        // Add winner announcement if there is one
+        if (winnerIndex === 0 || winnerIndex === 1) {
+            var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
+            cardHTML += '<hr class="my-2">' +
+                '<div class="text-center text-success">' +
+                '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+                '</div>';
+        }
+        
+        cardHTML += '</div></div>';
+
+        thirdEl.innerHTML = cardHTML;
+        console.log('Third place match rendered with winner:', (winnerIndex === 0) ? team1Name : (winnerIndex === 1) ? team2Name : 'No winner yet');
+    } else {
+        thirdEl.innerHTML = '';
+        thirdEl.style.display = 'none';
+        console.log('No third-place match to render.');
+    }
+}
 
     // initial + polling
     fetchAndRender();

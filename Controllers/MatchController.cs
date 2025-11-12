@@ -593,18 +593,18 @@ public async Task<IActionResult> GetBracketData(int scheduleId)
         return NotFound(new { message = "No matches found" });
     }
 
-    var teams = await _context.Teams
-        .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
-        .ToListAsync();
+    // Separate 3rd place match from main bracket
+    var thirdPlaceMatch = matches.FirstOrDefault(m => m.RoundName == "3rd Place");
+    var mainBracketMatches = matches.Where(m => m.RoundName != "3rd Place").ToList();
 
-    // Build first-round matches (exclude 3rd place)
-    var firstRoundMatches = matches
-        .Where(m => m.RoundNumber == 1 && m.RoundName != "3rd Place")
+    // Build first-round matches
+    var firstRoundMatches = mainBracketMatches
+        .Where(m => m.RoundNumber == 1)
         .OrderBy(m => m.MatchNumber)
         .ToList();
 
     // Determine bracket size and rounds from first round
-    int firstRoundCount = Math.Max(1, firstRoundMatches.Count); // number of matches in round 1
+    int firstRoundCount = Math.Max(1, firstRoundMatches.Count);
     int bracketSize = firstRoundCount * 2;
     int rounds = (int)Math.Round(Math.Log(bracketSize, 2));
 
@@ -616,56 +616,94 @@ public async Task<IActionResult> GetBracketData(int scheduleId)
         })
         .ToList();
 
-    // Ensure teamsList length matches firstRoundCount (trim or pad if necessary)
+    // Ensure teamsList length matches firstRoundCount
     if (teamsList.Count > firstRoundCount)
         teamsList = teamsList.Take(firstRoundCount).ToList();
     while (teamsList.Count < firstRoundCount)
         teamsList.Add(new object[] { "TBD", "TBD" });
 
-    // Build results array with exact rounds (results[roundIndex][matchIndex])
+    // Build results array for main bracket rounds
     var resultsList = new List<object[]>();
 
-for (int roundNum = 1; roundNum <= rounds; roundNum++)
-{
-    // number of matches in this round (e.g. bracketSize=16 -> round1=8, round2=4, round3=2, round4=1)
-    int matchesInRound = Math.Max(1, bracketSize >> roundNum);
-
-    var roundMatches = matches
-        .Where(m => m.RoundNumber == roundNum && m.RoundName != "3rd Place")
-        .OrderBy(m => m.MatchNumber)
-        .ToList();
-
-    var roundResults = new List<object>();
-
-    for (int i = 0; i < matchesInRound; i++)
+    for (int roundNum = 1; roundNum <= rounds; roundNum++)
     {
-        var match = roundMatches.ElementAtOrDefault(i);
-        if (match != null)
+        int matchesInRound = Math.Max(1, bracketSize >> roundNum);
+
+        var roundMatches = mainBracketMatches
+            .Where(m => m.RoundNumber == roundNum)
+            .OrderBy(m => m.MatchNumber)
+            .ToList();
+
+        var roundResults = new List<object>();
+
+        for (int i = 0; i < matchesInRound; i++)
         {
-            if (match.Status == MatchStatus.Done && match.WinnerId.HasValue)
+            var match = roundMatches.ElementAtOrDefault(i);
+            if (match != null)
             {
-                roundResults.Add(match.WinnerId == match.Team1Id ? new int[] { 1, 0 } : new int[] { 0, 1 });
-            }
-            else if (match.IsBye)
-            {
-                roundResults.Add(match.Team1Id.HasValue ? new int[] { 1, 0 } : new int[] { 0, 1 });
+                if (match.Status == MatchStatus.Done && match.WinnerId.HasValue)
+                {
+                    roundResults.Add(match.WinnerId == match.Team1Id ? new int[] { 1, 0 } : new int[] { 0, 1 });
+                }
+                else if (match.IsBye)
+                {
+                    roundResults.Add(match.Team1Id.HasValue ? new int[] { 1, 0 } : new int[] { 0, 1 });
+                }
+                else
+                {
+                    roundResults.Add(new int[0]);
+                }
             }
             else
             {
                 roundResults.Add(new int[0]);
             }
         }
-        else
-        {
-            roundResults.Add(new int[0]);
-        }
+
+        resultsList.Add(roundResults.ToArray());
     }
 
-    resultsList.Add(roundResults.ToArray());
-}
+    // ===== ADD CONSOLATION ROUND (3rd Place Match) =====
+    // The jQuery Bracket plugin expects consolation data at the END of results array
+    // It needs the TEAMS that will play 3rd place, plus the result
+    
+    if (thirdPlaceMatch != null)
+    {
+        // Build consolation teams array
+        var consolationTeams = new List<object[]>
+        {
+            new object[] 
+            { 
+                thirdPlaceMatch.Team1?.TeamName ?? "TBD",
+                thirdPlaceMatch.Team2?.TeamName ?? "TBD"
+            }
+        };
 
-// NOTE: do not append an extra empty round unless your plugin/implementation expects a consolation round.
-    // If you must support a 3rd-place match and your plugin supports it, handle it in a compatible way here.
+        // Determine winner
+        int? winnerId = thirdPlaceMatch.WinnerId;
+        if (!winnerId.HasValue && thirdPlaceMatch.Status == MatchStatus.Done)
+        {
+            winnerId = DetermineWinnerId(
+                thirdPlaceMatch.Team1Id, 
+                thirdPlaceMatch.Team2Id,
+                thirdPlaceMatch.Team1Score ?? "", 
+                thirdPlaceMatch.Team2Score ?? ""
+            );
+        }
+
+        object consolationResult;
+        if (winnerId.HasValue)
+        {
+            consolationResult = (winnerId == thirdPlaceMatch.Team1Id) ? new int[] { 1, 0 } : new int[] { 0, 1 };
+        }
+        else
+        {
+            consolationResult = new int[0];
+        }
+
+        // Add consolation round result (single match)
+        resultsList.Add(new object[] { consolationResult });
+    }
 
     var bracketData = new
     {
@@ -683,21 +721,22 @@ for (int roundNum = 1; roundNum <= rounds; roundNum++)
         else roundHeaders.Add("Round of " + teamsInRound);
     }
 
-    // after building bracketData and roundHeaders, add thirdPlace extraction:
-    var thirdPlaceMatch = matches.FirstOrDefault(m => m.RoundName == "3rd Place");
+    // Extract third place details for logging/debugging
     object? thirdPlace = null;
     if (thirdPlaceMatch != null)
     {
         var tp1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD";
         var tp2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD";
 
-        // Determine winner id: prefer stored WinnerId, fallback to DetermineWinnerId() using saved scores
         int? winnerId = thirdPlaceMatch.WinnerId;
         if (!winnerId.HasValue && thirdPlaceMatch.Status == MatchStatus.Done)
         {
-            // DetermineWinnerId is a private helper in the same controller
-            winnerId = DetermineWinnerId(thirdPlaceMatch.Team1Id, thirdPlaceMatch.Team2Id,
-                                         thirdPlaceMatch.Team1Score ?? "", thirdPlaceMatch.Team2Score ?? "");
+            winnerId = DetermineWinnerId(
+                thirdPlaceMatch.Team1Id, 
+                thirdPlaceMatch.Team2Id,
+                thirdPlaceMatch.Team1Score ?? "", 
+                thirdPlaceMatch.Team2Score ?? ""
+            );
         }
 
         int? winnerIndex = null;
@@ -710,7 +749,6 @@ for (int roundNum = 1; roundNum <= rounds; roundNum++)
         {
             team1 = tp1,
             team2 = tp2,
-            // only expose winnerIndex (no raw scores) — null if undecided
             winnerIndex = winnerIndex,
             status = thirdPlaceMatch.Status.ToString()
         };

@@ -369,42 +369,42 @@ team2Json = $"\"{escapedName}\""; // FIX: Just the team name as a string
                 updateHiddenInput(seedNumber, teamId);
             });
 
+           
             // --- *** FIX 4: Corrected JavaScript Initialization *** ---
             try {
                 // Parse the JSON data from C#
                 var bracketData = @Html.Raw(bracketDataJson);
                 var roundHeaders = @Html.Raw(roundHeadersJson);
                 // Correctly check the boolean value
-                
-               var hasThirdPlaceMatch = @(Model.HasThirdPlaceMatch ? "true" : "false");
-                
-                console.log('Bracket Data:', bracketData);
-                console.log('Round Headers:', roundHeaders);
-                console.log('Has Third Place:', hasThirdPlaceMatch);
+                var hasThirdPlaceMatch = @(Model.HasThirdPlaceMatch ? "true" : "false"); 
 
-                // Initialize the bracket WITH roundHeaders
+                console.log('Bracket Data:', bracketData); 
+                console.log('Round Headers:', roundHeaders); 
+                console.log('Has Third Place:', hasThirdPlaceMatch); 
+
+                // --- *** ADD 'roundHeaders' TO THE CONFIG *** ---
                 $('#bracketVisual').bracket({
                     init: bracketData,          // Data now includes "results":[]
-                    roundHeaders: roundHeaders, // Pass the correct headers
-                    teamWidth: 170,
-                    scoreWidth: 30,
-                    roundMargin: 40,
-                    skipConsolationRound: !hasThirdPlaceMatch
+                    roundHeaders: roundHeaders, // <-- ADD THIS LINE
+                    teamWidth: 170, 
+                    scoreWidth: 30, 
+                    roundMargin: 40, 
+                    skipConsolationRound: !hasThirdPlaceMatch 
                 });
-                
+
                 // This manual add is still a good fallback for the plugin
                 $('#bracketVisual .round').each(function(index) {
                     if (roundHeaders[index]) {
                         // Check if header already exists to avoid duplicates
-                        if ($(this).find('.round-header').length === 0) {
-                            $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                        if ($(this).find('.round-header').length === 0) { 
+                            $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>'); 
                         }
                     }
-                });
+                }); 
 
             } catch (e) {
-                console.error("Failed to initialize bracket:", e);
-                $('#bracketVisual').html('<div class="alert alert-danger">Error: Could not load bracket visual. Check console for details.</div>');
+                console.error("Failed to initialize bracket:", e); 
+                $('#bracketVisual').html('<div class="alert alert-danger">Error: Could not load bracket visual. Check console for details.</div>'); 
             }
             // --- *** END OF FIX 4 *** ---
         });
