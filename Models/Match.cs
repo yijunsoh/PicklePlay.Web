@@ -52,6 +52,9 @@ namespace PicklePlay.Models
 
         // Tracks which slot the winner/loser takes in the next match (1 or 2)
         public int? MatchPosition { get; set; }
+
+        // *** ADD THIS PROPERTY ***
+    public bool IsThirdPlaceMatch { get; set; }
     }
 
     public enum MatchStatus
