@@ -134,14 +134,27 @@ namespace PicklePlay.Controllers
         private async Task<List<Match>> GeneratePoolPlayMatches(int scheduleId, Competition competition)
         {
             var matches = new List<Match>();
+            
+            // *** FIX: Load teams correctly ***
             var pools = await _context.Pools
                 .Where(p => p.ScheduleId == scheduleId)
-                .Include(p => p.Teams.Where(t => t.Status == TeamStatus.Confirmed))
+                .ToListAsync();
+
+            // Load all confirmed teams for this schedule
+            var allTeams = await _context.Teams
+                .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
                 .ToListAsync();
 
             foreach (var pool in pools)
             {
-                var teamsInPool = pool.Teams.ToList();
+                // Get teams assigned to this pool
+                var teamsInPool = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
+                
+                if (teamsInPool.Count < 2)
+                {
+                    continue; // Skip pool if less than 2 teams
+                }
+
                 int matchNumber = 1;
                 for (int i = 0; i < teamsInPool.Count; i++)
                 {

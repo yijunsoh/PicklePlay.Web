@@ -1238,8 +1238,7 @@
             });
         }
 
- // *** DRAW TAB LOADING - Replace the existing draw tab script with this ***
-// DRAW TAB LOADING - Improved version that fetches bracket data directly
+ // *** DRAW TAB LOADING - Fixed for Pool Play ***
 var drawTab = document.getElementById('draw-subtab');
 if (drawTab) {
     var drawContainer = document.getElementById('draw-visual-container');
@@ -1261,80 +1260,95 @@ if (drawTab) {
                 </div>
             `;
             
-            // Create the bracket container
-            drawContainer.innerHTML = `
-                <h5 class="mb-3">Tournament Bracket</h5>
-                <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
-            `;
+            // *** Check competition format first ***
+            var competitionFormat = '@Model.Competition?.Format';
+            console.log('Competition Format:', competitionFormat);
             
-            // Function to fetch and render bracket
-            function fetchAndRenderBracket() {
-                fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+            if (competitionFormat === 'PoolPlay') {
+                // Load Pool Play Draw
+                fetch('/Draw/ViewPublishedDraw?id=' + COMP_DATA.scheduleId)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('HTTP ' + response.status);
                         }
-                        return response.json();
+                        return response.text();
                     })
-                    .then(data => {
-                        console.log('Bracket data received:', data);
-                        
-                        if (!data || !data.bracketData) {
-                            throw new Error('No bracket data in response');
-                        }
-                        
-                        renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                    .then(html => {
+                        drawContainer.innerHTML = html;
+                        console.log('Pool Play draw loaded successfully');
                     })
                     .catch(error => {
-                        console.error('Failed to load bracket:', error);
+                        console.error('Failed to load Pool Play draw:', error);
                         drawContainer.innerHTML = `
                             <div class="alert alert-danger">
-                                <strong>Error:</strong> Could not load the bracket.
+                                <strong>Error:</strong> Could not load the Pool Play draw.
                                 <br><small>${error.message}</small>
                                 <br><br>
                                 <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
                             </div>
                         `;
                     });
-            }
-            
-            // Function to render the bracket
-             // Function to render the bracket
-            function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
-                try {
-                    // Check if jQuery and bracket plugin are available
-                    if (typeof $ === 'undefined') {
-                        throw new Error('jQuery is not loaded');
-                    }
-                    
-                    if (typeof $.fn.bracket === 'undefined') {
-                        throw new Error('jQuery Bracket plugin is not loaded');
-                    }
-                    
-                    var bracketElement = $('#bracketVisual_Published');
-                    if (bracketElement.length === 0) {
-                        throw new Error('Bracket container not found');
-                    }
-                    
-                    console.log('Initializing bracket...');
-                    console.log('Bracket data:', JSON.stringify(bracketData, null, 2));
-                    console.log('Round headers:', roundHeaders);
-                    console.log('Has third place:', hasThirdPlace);
-                    console.log('Third place data:', thirdPlaceData);
-                    
-                    // Validate data structure
-                    if (!bracketData.teams || !Array.isArray(bracketData.teams)) {
-                        throw new Error('Invalid bracket data: teams array missing');
-                    }
-                    
-                    if (!bracketData.results || !Array.isArray(bracketData.results)) {
-                        throw new Error('Invalid bracket data: results array missing');
-                    }
-                    
-                    // Clear and initialize bracket
-                    bracketElement.empty();
-                    
+            } else if (competitionFormat === 'Elimination') {
+                // Load Bracket for Elimination
+                drawContainer.innerHTML = `
+                    <h5 class="mb-3">Tournament Bracket</h5>
+                    <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+                    <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                `;
+                
+                // Function to fetch and render bracket
+                function fetchAndRenderBracket() {
+                    fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('HTTP ' + response.status);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Bracket data received:', data);
+                            
+                            if (!data || !data.bracketData) {
+                                throw new Error('No bracket data in response');
+                            }
+                            
+                            renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                        })
+                        .catch(error => {
+                            console.error('Failed to load bracket:', error);
+                            drawContainer.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <strong>Error:</strong> Could not load the bracket.
+                                    <br><small>${error.message}</small>
+                                    <br><br>
+                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                </div>
+                            `;
+                        });
+                }
+                
+                // Function to render the bracket
+                function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
                     try {
+                        // Check if jQuery and bracket plugin are available
+                        if (typeof $ === 'undefined') {
+                            throw new Error('jQuery is not loaded');
+                        }
+                        
+                        if (typeof $.fn.bracket === 'undefined') {
+                            throw new Error('jQuery Bracket plugin is not loaded');
+                        }
+                        
+                        var bracketElement = $('#bracketVisual_Published');
+                        if (bracketElement.length === 0) {
+                            throw new Error('Bracket container not found');
+                        }
+                        
+                        console.log('Initializing bracket with data:', bracketData);
+                        
+                        // Clear and initialize bracket
+                        bracketElement.empty();
+                        
                         bracketElement.bracket({
                             init: bracketData,
                             teamWidth: 170,
@@ -1345,110 +1359,87 @@ if (drawTab) {
                                 console.log('Match clicked:', data);
                             }
                         });
-                    } catch (bracketError) {
-                        console.error('Bracket plugin error:', bracketError);
-                        console.error('Stack:', bracketError.stack);
-                        throw new Error('Bracket plugin failed: ' + bracketError.message);
-                    }
-                    
-                    // Add round headers with a small delay to ensure bracket is rendered
-                    setTimeout(function() {
-                        $('#bracketVisual_Published .round').each(function(index) {
-                            if (roundHeaders && roundHeaders[index]) {
-                                if ($(this).find('.round-header').length === 0) {
-                                    $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                        
+                        // Add round headers
+                        setTimeout(function() {
+                            $('#bracketVisual_Published .round').each(function(index) {
+                                if (roundHeaders && roundHeaders[index]) {
+                                    if ($(this).find('.round-header').length === 0) {
+                                        $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                                    }
                                 }
-                            }
-                        });
-                    }, 100);
-                    
-                    console.log('Bracket rendered successfully!');
-                    
-                    // ===== RENDER THIRD PLACE MATCH =====
-                    renderThirdPlaceMatch(thirdPlaceData);
-                    
-                } catch (e) {
-                    console.error('Error rendering bracket:', e);
-                    console.error('Stack trace:', e.stack);
-                    drawContainer.innerHTML = `
-                        <div class="alert alert-danger">
-                            <strong>Error:</strong> Could not render bracket.
-                            <br><small>${e.message}</small>
-                            <br><br>
-                            <pre style="max-height: 200px; overflow: auto; font-size: 0.8em;">${e.stack || 'No stack trace available'}</pre>
-                            <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                        </div>
-                    `;
-                }
-            }
-            
-            
-            
-            // Function to render third place match
-            function renderThirdPlaceMatch(thirdPlaceData) {
-                var thirdEl = document.getElementById('thirdPlaceContainer');
-                if (!thirdEl) {
-                    console.warn('thirdPlaceContainer not found - creating one');
-                    thirdEl = document.createElement('div');
-                    thirdEl.id = 'thirdPlaceContainer';
-                    thirdEl.className = 'mt-3';
-                    thirdEl.style.minHeight = '56px';
-                    var container = document.getElementById('draw-visual-container');
-                    if (container) {
-                        container.appendChild(thirdEl);
+                            });
+                        }, 100);
+                        
+                        console.log('Bracket rendered successfully!');
+                        
+                        // Render third place match
+                        renderThirdPlaceMatch(thirdPlaceData);
+                        
+                    } catch (e) {
+                        console.error('Error rendering bracket:', e);
+                        drawContainer.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> Could not render bracket.
+                                <br><small>${e.message}</small>
+                                <br><br>
+                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                            </div>
+                        `;
                     }
                 }
                 
-                if (!thirdPlaceData) {
-                    thirdEl.innerHTML = '';
-                    thirdEl.style.display = 'none';
-                    console.log('No third-place match to render.');
-                    return;
-                }
-                
-                thirdEl.style.display = 'block';
-                
-                var team1Name = thirdPlaceData.team1 || 'TBD';
-                var team2Name = thirdPlaceData.team2 || 'TBD';
-                var winnerIndex = thirdPlaceData.winnerIndex;
-                
-                console.log('Rendering third place - Winner index:', winnerIndex);
-                
-                // Build team display with winner highlighting
-                var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
-                var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
-                
-                var team1Display = '<span class="' + team1Class + '">' + team1Name;
-                if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                team1Display += '</span>';
-                
-                var team2Display = '<span class="' + team2Class + '">' + team2Name;
-                if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                team2Display += '</span>';
+                // Function to render third place match
+                function renderThirdPlaceMatch(thirdPlaceData) {
+                    var thirdEl = document.getElementById('thirdPlaceContainer');
+                    if (!thirdEl) {
+                        console.warn('thirdPlaceContainer not found');
+                        return;
+                    }
+                    
+                    if (!thirdPlaceData) {
+                        thirdEl.innerHTML = '';
+                        thirdEl.style.display = 'none';
+                        return;
+                    }
+                    
+                    thirdEl.style.display = 'block';
+                    
+                    var team1Name = thirdPlaceData.team1 || 'TBD';
+                    var team2Name = thirdPlaceData.team2 || 'TBD';
+                    var winnerIndex = thirdPlaceData.winnerIndex;
+                    
+                    var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+                    var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+                    
+                    var team1Display = '<span class="' + team1Class + '">' + team1Name;
+                    if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                    team1Display += '</span>';
+                    
+                    var team2Display = '<span class="' + team2Class + '">' + team2Name;
+                    if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                    team2Display += '</span>';
 
-                // Build the card
-                var cardHTML = '<div class="card shadow-sm">' +
-                    '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
-                    '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
-                
-                if (thirdPlaceData.status) {
-                    var statusBadge = '';
-                    if (thirdPlaceData.status === 'Done') {
-                        statusBadge = '<span class="badge bg-success">Completed</span>';
-                    } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
-                        statusBadge = '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
-                    } else {
-                        statusBadge = '<span class="badge bg-light text-dark">' + thirdPlaceData.status + '</span>';
+                    var cardHTML = '<div class="card shadow-sm">' +
+                        '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+                        '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+                    
+                    if (thirdPlaceData.status) {
+                        var statusBadge = '';
+                        if (thirdPlaceData.status === 'Done') {
+                            statusBadge = '<span class="badge bg-success">Completed</span>';
+                        } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
+                            statusBadge = '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
+                        }
+                        cardHTML += statusBadge;
                     }
-                    cardHTML += statusBadge;
-                }
-                
-                cardHTML += '</div><div class="card-body">' +
-                    '<div class="d-flex justify-content-around align-items-center">' +
-                    '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
-                    '<div class="text-muted fw-bold">VS</div>' +
-                    '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
-                    '</div>';
+                    
+                    cardHTML += '</div><div class="card-body">' +
+                        '<div class="d-flex justify-content-around align-items-center">' +
+                        '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+                        '<div class="text-muted fw-bold">VS</div>' +
+                        '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
+                        '</div>';
                 
                 // Add winner announcement if there is one
                 if (winnerIndex === 0 || winnerIndex === 1) {
@@ -1462,7 +1453,6 @@ if (drawTab) {
                 cardHTML += '</div></div>';
 
                 thirdEl.innerHTML = cardHTML;
-                console.log('Third place match rendered with winner:', (winnerIndex === 0) ? team1Name : (winnerIndex === 1) ? team2Name : 'No winner yet');
             }
             
             // Initial fetch
@@ -1470,6 +1460,7 @@ if (drawTab) {
             
             // Poll for updates every 5 seconds
             pollInterval = setInterval(fetchAndRenderBracket, 5000);
+            }
         }
     });
     

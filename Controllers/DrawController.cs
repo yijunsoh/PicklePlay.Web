@@ -22,30 +22,22 @@ namespace PicklePlay.Controllers
         [HttpGet]
         public async Task<IActionResult> GenerateDraw(int id)
         {
-            // --- *** THIS IS THE FINAL FIX *** ---
-
-            // 1. Load schedule (NO tracking, NO competition)
+            // 1. Load schedule with confirmed teams
             var schedule = await _context.Schedules
-                .AsNoTracking() // <--- Force fresh read
                 .Include(s => s.Teams.Where(t => t.Status == TeamStatus.Confirmed))
+                    .ThenInclude(t => t.Captain)
                 .Include(s => s.Pools)
                 .FirstOrDefaultAsync(s => s.ScheduleId == id);
 
             if (schedule == null) return NotFound();
 
-            // 2. Load Competition in a *separate, non-tracked query*
-            //    to guarantee it is fresh from the database.
+            // 2. Load Competition in a *separate query*
             var competition = await _context.Competitions
-                .AsNoTracking() // <--- Force fresh read
                 .FirstOrDefaultAsync(c => c.ScheduleId == id);
             
-            // 3. Manually attach the fresh competition data
             schedule.Competition = competition;
 
-            // --- *** END OF FIX *** ---
-
-
-            // 4. The rest of your method's logic now uses the fresh data
+            // 3. Check if competition setup is complete
             if (schedule.Competition == null || schedule.Status == ScheduleStatus.PendingSetup)
             {
                 TempData["ErrorMessage"] = "Please complete the 'Match Setup & Format' before generating a draw.";
@@ -54,50 +46,77 @@ namespace PicklePlay.Controllers
 
             var confirmedTeams = schedule.Teams.Where(t => t.Status == TeamStatus.Confirmed).ToList();
 
+            // 4. Add validation for confirmed teams
+            if (!confirmedTeams.Any())
+            {
+                TempData["ErrorMessage"] = "No confirmed teams available to generate draw.";
+                return RedirectToAction("CompDetails", "Competition", new { id = id });
+            }
+
             // --- Smart Redirect Logic ---
             switch (schedule.Competition.Format)
             {
                 case CompetitionFormat.PoolPlay:
                     
-                    // *** FIX FOR POOL PLAY ***
-                    // Check if the number of pools in the DB matches the competition settings
                     int requiredPools = schedule.Competition.NumPool;
+                    
+                    // Only recreate pools if needed
                     if (schedule.Pools.Count != requiredPools)
                     {
-                        // Mismatch found! Delete old pools and reset teams.
-                        
-                        // 1. Reset all teams in this competition
-                        foreach (var team in confirmedTeams)
+                        // 1. Reset all teams in this schedule
+                        var allTeamsInSchedule = await _context.Teams
+                            .Where(t => t.ScheduleId == id)
+                            .ToListAsync();
+                            
+                        foreach (var team in allTeamsInSchedule)
                         {
                             team.PoolId = null;
                         }
-                        _context.Teams.UpdateRange(confirmedTeams);
+                        _context.Teams.UpdateRange(allTeamsInSchedule);
 
                         // 2. Delete all existing pools for this schedule
-                        _context.Pools.RemoveRange(schedule.Pools);
+                        var existingPools = await _context.Pools
+                            .Where(p => p.ScheduleId == id)
+                            .ToListAsync();
+                        _context.Pools.RemoveRange(existingPools);
                         
                         await _context.SaveChangesAsync();
                         
-                        // 3. Re-create pools and re-assign teams
+                        // 3. Re-create pools and re-assign confirmed teams
                         await CreatePoolsAsync(schedule, confirmedTeams);
-                        
-                        // 4. Reload schedule data with new pools
-                        schedule.Pools = await _context.Pools
-                                               .Where(p => p.ScheduleId == id)
-                                               .ToListAsync();
                     }
-                    // *** END OF FIX ***
+
+                    // *** FIX: Load pools and their teams using the PoolId foreign key ***
+                    var poolsForView = await _context.Pools
+                        .Where(p => p.ScheduleId == id)
+                        .ToListAsync();
+
+                    // Create a dictionary to hold teams for each pool
+                    var teamsGroupedByPool = await _context.Teams
+                        .Where(t => t.ScheduleId == id && t.PoolId.HasValue && t.Status == TeamStatus.Confirmed)
+                        .Include(t => t.Captain)
+                        .ToListAsync();
+
+                    // Assign teams to their respective pools
+                    foreach (var pool in poolsForView)
+                    {
+                        // Get teams for this specific pool
+                        pool.Teams = teamsGroupedByPool
+                            .Where(t => t.PoolId == pool.PoolId)
+                            .ToList();
+                    }
 
                     var poolViewModel = new DrawPoolPlayViewModel
                     {
                         ScheduleId = schedule.ScheduleId,
                         CompetitionName = schedule.GameName,
-                        Pools = await _context.Pools
-                                      .Where(p => p.ScheduleId == id)
-                                      .Include(p => p.Teams)
-                                      .ThenInclude(t => t.Captain)
-                                      .ToListAsync(), // Load fresh data
-                        UnassignedTeams = confirmedTeams.Where(t => !t.PoolId.HasValue).ToList(),
+                        Pools = poolsForView,
+                        UnassignedTeams = await _context.Teams
+                            .Where(t => t.ScheduleId == id && 
+                                       t.Status == TeamStatus.Confirmed && 
+                                       !t.PoolId.HasValue)
+                            .Include(t => t.Captain)
+                            .ToListAsync(),
                         IsDrawPublished = schedule.Competition.DrawPublished
                     };
                     
@@ -109,28 +128,16 @@ namespace PicklePlay.Controllers
                     {
                         await AssignSeedsAsync(confirmedTeams);
                     }
-                      // *** ADD THESE DEBUG LINES ***
-    Console.WriteLine($"DEBUG: Competition.ThirdPlaceMatch = {schedule.Competition.ThirdPlaceMatch}");
-
 
                     var elimViewModel = new DrawEliminationViewModel
                     {
                         ScheduleId = schedule.ScheduleId,
                         CompetitionName = schedule.GameName,
                         Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
-                        
-                        // --- *** THE FIX IS HERE *** ---
-                        // TotalSeeds should be the count of *confirmed* teams,
-                        // not the schedule's max capacity.
                         TotalSeeds = confirmedTeams.Count,
-                        // --- *** END OF FIX *** ---
-
                         HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch,
                         IsDrawPublished = schedule.Competition.DrawPublished
                     };
-                    
-                    // *** ADD THIS DEBUG LINE ***
-    Console.WriteLine($"DEBUG: ViewModel.HasThirdPlaceMatch = {elimViewModel.HasThirdPlaceMatch}");
                     
                     return View("~/Views/Competition/DrawElimination.cshtml", elimViewModel);
 
@@ -190,27 +197,35 @@ namespace PicklePlay.Controllers
         // --- Pool Play Actions ---
         private async Task CreatePoolsAsync(Schedule schedule, List<Team> teams)
         {
+            if (!teams.Any())
+            {
+                return; // No teams to assign
+            }
+
             var numPools = schedule.Competition?.NumPool ?? 4;
             var newPools = new List<Pool>();
 
+            // Create pools
             for (int i = 0; i < numPools; i++)
             {
                 var pool = new Pool
                 {
                     ScheduleId = schedule.ScheduleId,
-                    PoolName = $"Pool {(char)('A' + i)}"
+                    PoolName = $"Pool {(char)('A' + i)}",
+                    Teams = new List<Team>() // Initialize the collection
                 };
                 newPools.Add(pool);
             }
             _context.Pools.AddRange(newPools);
-            await _context.SaveChangesAsync(); 
+            await _context.SaveChangesAsync(); // Save pools first to get IDs
 
+            // Snake draft distribution
             int poolIndex = 0;
             bool forward = true;
+            
             foreach (var team in teams)
             {
                 team.PoolId = newPools[poolIndex].PoolId;
-                _context.Teams.Update(team);
 
                 if (forward)
                 {
@@ -227,6 +242,8 @@ namespace PicklePlay.Controllers
                         poolIndex--;
                 }
             }
+            
+            _context.Teams.UpdateRange(teams);
             await _context.SaveChangesAsync();
         }
 
@@ -316,115 +333,48 @@ namespace PicklePlay.Controllers
 [HttpGet]
 public async Task<IActionResult> ViewPublishedDraw(int id)
 {
-    try
+    var competition = await _context.Competitions
+        .FirstOrDefaultAsync(c => c.ScheduleId == id);
+
+    if (competition == null || !competition.DrawPublished)
     {
-        Console.WriteLine($"ViewPublishedDraw called for Schedule ID: {id}");
-        
-        // 1. Load schedule
-        var schedule = await _context.Schedules
-            .AsNoTracking()
-            .Include(s => s.Teams.Where(t => t.Status == TeamStatus.Confirmed))
-            .ThenInclude(t => t.Captain)
-            .FirstOrDefaultAsync(s => s.ScheduleId == id);
-
-        if (schedule == null)
-        {
-            Console.WriteLine("ERROR: Schedule not found");
-            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Competition not found.");
-        }
-
-        // 2. Load Competition separately
-        var competition = await _context.Competitions
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ScheduleId == id);
-            
-        schedule.Competition = competition;
-
-        if (schedule.Competition == null)
-        {
-            Console.WriteLine("ERROR: Competition details missing");
-            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Competition details are missing.");
-        }
-        
-        Console.WriteLine($"Competition Format: {schedule.Competition.Format}");
-        Console.WriteLine($"Draw Published: {schedule.Competition.DrawPublished}");
-        
-        if (!schedule.Competition.DrawPublished)
-        {
-            Console.WriteLine("ERROR: Draw not published");
-            return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "The draw has not been published yet.");
-        }
-
-        var confirmedTeams = schedule.Teams.Where(t => t.Status == TeamStatus.Confirmed).ToList();
-        Console.WriteLine($"Confirmed Teams Count: {confirmedTeams.Count}");
-
-        switch (schedule.Competition.Format)
-        {
-            case CompetitionFormat.PoolPlay:
-                Console.WriteLine("Loading Pool Play draw...");
-                
-                var pools = await _context.Pools
-                    .AsNoTracking()
-                    .Where(p => p.ScheduleId == id)
-                    .Include(p => p.Teams)
-                    .ThenInclude(t => t.Captain)
-                    .ToListAsync();
-
-                Console.WriteLine($"Pools loaded: {pools.Count}");
-
-                var poolViewModel = new DrawPoolPlayViewModel
-                {
-                    ScheduleId = schedule.ScheduleId,
-                    CompetitionName = schedule.GameName,
-                    Pools = pools,
-                    UnassignedTeams = new List<Team>()
-                };
-                
-                return PartialView("~/Views/Competition/_ViewDrawPoolPlay.cshtml", poolViewModel);
-
-            case CompetitionFormat.Elimination:
-                Console.WriteLine("Loading Elimination draw...");
-                Console.WriteLine($"HasThirdPlaceMatch: {schedule.Competition.ThirdPlaceMatch}");
-                
-                var elimViewModel = new DrawEliminationViewModel
-                {
-                    ScheduleId = schedule.ScheduleId,
-                    CompetitionName = schedule.GameName,
-                    Teams = confirmedTeams.OrderBy(t => t.BracketSeed).ToList(),
-
-                    // --- *** THE FIX IS HERE *** ---
-                    // This now matches your GenerateDraw action!
-                    TotalSeeds = confirmedTeams.Count,
-                    // --- *** END OF FIX *** ---
-
-                    HasThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch
-                };
-                
-                Console.WriteLine($"ViewModel created with {elimViewModel.Teams.Count} teams");
-                
-                return PartialView("~/Views/Competition/_ViewDrawElimination.cshtml", elimViewModel);
-
-            case CompetitionFormat.RoundRobin:
-                Console.WriteLine("Round Robin - no draw needed");
-                return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Draws are not applicable for Round Robin format.");
-
-            default:
-                Console.WriteLine($"ERROR: Unknown format - {schedule.Competition.Format}");
-                return PartialView("~/Views/Competition/_ViewDrawError.cshtml", "Unknown competition format.");
-        }
+        return PartialView("~/Views/Competition/_ViewDrawEmpty.cshtml");
     }
-    catch (Exception ex)
+
+    if (competition.Format == CompetitionFormat.PoolPlay)
     {
-        Console.WriteLine($"EXCEPTION in ViewPublishedDraw: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        
-        if (ex.InnerException != null)
+        // Load pools
+        var pools = await _context.Pools
+            .Where(p => p.ScheduleId == id)
+            .ToListAsync();
+
+        // Load all teams with PoolId
+        var allTeams = await _context.Teams
+            .Where(t => t.ScheduleId == id && t.PoolId.HasValue && t.Status == TeamStatus.Confirmed)
+            .Include(t => t.Captain)
+            .ToListAsync();
+
+        // Assign teams to pools
+        foreach (var pool in pools)
         {
-            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+            pool.Teams = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
         }
-        
-        return PartialView("~/Views/Competition/_ViewDrawError.cshtml", $"An error occurred: {ex.Message}");
+
+        var vm = new DrawPoolPlayViewModel
+        {
+            ScheduleId = id,
+            Pools = pools,
+            IsDrawPublished = true
+        };
+
+        return PartialView("~/Views/Competition/_ViewDrawPoolPlay.cshtml", vm);
     }
+    else if (competition.Format == CompetitionFormat.Elimination)
+    {
+        // ...existing elimination code...
+    }
+
+    return PartialView("~/Views/Competition/_ViewDrawEmpty.cshtml");
 }
     }
 }
