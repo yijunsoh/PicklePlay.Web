@@ -1329,65 +1329,83 @@ if (drawTab) {
                 
                 // Function to render the bracket
                 function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
-                    try {
-                        // Check if jQuery and bracket plugin are available
-                        if (typeof $ === 'undefined') {
-                            throw new Error('jQuery is not loaded');
-                        }
-                        
-                        if (typeof $.fn.bracket === 'undefined') {
-                            throw new Error('jQuery Bracket plugin is not loaded');
-                        }
-                        
-                        var bracketElement = $('#bracketVisual_Published');
-                        if (bracketElement.length === 0) {
-                            throw new Error('Bracket container not found');
-                        }
-                        
-                        console.log('Initializing bracket with data:', bracketData);
-                        
-                        // Clear and initialize bracket
-                        bracketElement.empty();
-                        
-                        bracketElement.bracket({
-                            init: bracketData,
-                            teamWidth: 170,
-                            scoreWidth: 30,
-                            roundMargin: 40,
-                            skipConsolationRound: true,
-                            onMatchClick: function(data) {
-                                console.log('Match clicked:', data);
-                            }
-                        });
-                        
-                        // Add round headers
-                        setTimeout(function() {
-                            $('#bracketVisual_Published .round').each(function(index) {
-                                if (roundHeaders && roundHeaders[index]) {
-                                    if ($(this).find('.round-header').length === 0) {
-                                        $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
-                                    }
-                                }
-                            });
-                        }, 100);
-                        
-                        console.log('Bracket rendered successfully!');
-                        
-                        // Render third place match
-                        renderThirdPlaceMatch(thirdPlaceData);
-                        
-                    } catch (e) {
-                        console.error('Error rendering bracket:', e);
-                        drawContainer.innerHTML = `
-                            <div class="alert alert-danger">
-                                <strong>Error:</strong> Could not render bracket.
-                                <br><small>${e.message}</small>
-                                <br><br>
-                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                            </div>
-                        `;
+    try {
+        // Check if jQuery and bracket plugin are available
+        if (typeof $ === 'undefined') {
+            throw new Error('jQuery is not loaded');
+        }
+        
+        if (typeof $.fn.bracket === 'undefined') {
+            throw new Error('jQuery Bracket plugin is not loaded');
+        }
+        
+        var bracketElement = $('#bracketVisual_Published');
+        if (bracketElement.length === 0) {
+            throw new Error('Bracket container not found');
+        }
+        
+        console.log('Initializing bracket with data:', bracketData);
+        
+        // Clear and initialize bracket WITH ORIGINAL DATA
+        bracketElement.empty();
+        
+        bracketElement.bracket({
+            init: bracketData,  // ← Use original data, not transformed
+            teamWidth: 170,
+            scoreWidth: 30,
+            roundMargin: 40,
+            skipConsolationRound: true,
+            onMatchClick: function(data) {
+                console.log('Match clicked:', data);
+            }
+        });
+        
+        // *** TRANSFORM DISPLAY AFTER RENDERING ***
+        setTimeout(function() {
+            // Add round headers
+            $('#bracketVisual_Published .round').each(function(index) {
+                if (roundHeaders && roundHeaders[index]) {
+                    if ($(this).find('.round-header').length === 0) {
+                        $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
                     }
                 }
+            });
+            
+            // Replace 1/0 with W/L in the DOM
+            $('#bracketVisual_Published .score').each(function() {
+                var scoreText = $(this).text().trim();
+                
+                if (scoreText === '1') {
+                    $(this).text('W').css({
+                        'color': '#198754',
+                        'font-weight': 'bold'
+                    });
+                } else if (scoreText === '0') {
+                    $(this).text('L').css({
+                        'color': '#dc3545',
+                        'font-weight': 'bold'
+                    });
+                }
+            });
+        }, 100);
+        
+        console.log('Bracket rendered successfully!');
+        
+        // Render third place match
+        renderThirdPlaceMatch(thirdPlaceData);
+        
+    } catch (e) {
+        console.error('Error rendering bracket:', e);
+        drawContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Error:</strong> Could not render bracket.
+                <br><small>${e.message}</small>
+                <br><br>
+                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+            </div>
+        `;
+    }
+}
                 
                 // Function to render third place match
                 function renderThirdPlaceMatch(thirdPlaceData) {

@@ -151,30 +151,43 @@
     var scheduleId = dataHolder.getAttribute('data-schedule-id');
     if (!scheduleId) { console.error('ERROR: data-schedule-id not found on bracket-data-holder!'); return; }
 
-    function fetchAndRender() {
-        fetch('/Match/GetBracketData?scheduleId=' + scheduleId)
-            .then(r => r.json())
-            .then(data => {
-                console.log('BRACKET API RESPONSE (full):', data);
-                renderFull(data);
-            })
-            .catch(err => console.error('Error fetching bracket:', err));
-    }
-
-    function renderFull(response) {
+ function renderFull(response) {
     var container = document.getElementById('bracketVisual_Published');
     if (!container) { console.error('No bracket container'); return; }
 
     try {
         if (typeof $ !== 'undefined' && typeof $.fn.bracket === 'function') {
+            
             $(container).empty();
+            
+            // *** Use ORIGINAL data, not transformed ***
             $(container).bracket({
-                init: response.bracketData,
+                init: response.bracketData,  // ← Original data with numbers
                 teamWidth: 170,
                 scoreWidth: 30,
                 roundMargin: 40,
-                skipConsolationRound: false
+                skipConsolationRound: true
             });
+            
+            // *** Transform AFTER rendering ***
+            setTimeout(function() {
+                $('#bracketVisual_Published .score').each(function() {
+                    var scoreText = $(this).text().trim();
+                    
+                    if (scoreText === '1') {
+                        $(this).text('W').css({
+                            'color': '#198754',
+                            'font-weight': 'bold'
+                        });
+                    } else if (scoreText === '0') {
+                        $(this).text('L').css({
+                            'color': '#dc3545',
+                            'font-weight': 'bold'
+                        });
+                    }
+                });
+            }, 150);
+            
             console.log('Bracket rendered successfully!');
         } else {
             container.innerHTML = '<pre>' + JSON.stringify(response.bracketData, null, 2) + '</pre>';
@@ -183,6 +196,7 @@
         console.error('Bracket plugin failed:', err);
         container.innerHTML = '<div class="alert alert-danger">Could not render bracket. ' + err.message + '</div>';
     }
+
 
     // ===== IMPROVED THIRD PLACE RENDERING =====
     var thirdEl = document.getElementById('thirdPlaceContainer');
