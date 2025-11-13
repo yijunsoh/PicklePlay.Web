@@ -343,35 +343,78 @@ public async Task<IActionResult> ViewPublishedDraw(int id)
 
     if (competition.Format == CompetitionFormat.PoolPlay)
     {
-        // Load pools
-        var pools = await _context.Pools
-            .Where(p => p.ScheduleId == id)
-            .ToListAsync();
+        // Check if playoff has started
+        var playoffMatches = await _context.Matches
+            .Where(m => m.ScheduleId == id && m.RoundNumber >= 2)
+            .AnyAsync(m => m.Status != MatchStatus.Pending);
 
-        // Load all teams with PoolId
-        var allTeams = await _context.Teams
-            .Where(t => t.ScheduleId == id && t.PoolId.HasValue && t.Status == TeamStatus.Confirmed)
-            .Include(t => t.Captain)
-            .ToListAsync();
-
-        // Assign teams to pools
-        foreach (var pool in pools)
+        if (playoffMatches)
         {
-            pool.Teams = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
+            // Show playoff bracket (elimination style)
+            var teams = await _context.Teams
+                .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
+                .Include(t => t.Captain)
+                .ToListAsync();
+
+            var elimViewModel = new DrawEliminationViewModel
+            {
+                ScheduleId = id,
+                CompetitionName = competition.Schedule?.GameName ?? "Competition",
+                Teams = teams,
+                TotalSeeds = teams.Count,
+                HasThirdPlaceMatch = true, // Always true for pool play playoffs
+                IsDrawPublished = true
+            };
+
+            return PartialView("~/Views/Competition/_ViewDrawElimination.cshtml", elimViewModel);
         }
-
-        var vm = new DrawPoolPlayViewModel
+        else
         {
-            ScheduleId = id,
-            Pools = pools,
-            IsDrawPublished = true
-        };
+            // Show pool assignments
+            var pools = await _context.Pools
+                .Where(p => p.ScheduleId == id)
+                .ToListAsync();
 
-        return PartialView("~/Views/Competition/_ViewDrawPoolPlay.cshtml", vm);
+            var allTeams = await _context.Teams
+                .Where(t => t.ScheduleId == id && t.PoolId.HasValue && t.Status == TeamStatus.Confirmed)
+                .Include(t => t.Captain)
+                .ToListAsync();
+
+            foreach (var pool in pools)
+            {
+                pool.Teams = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
+            }
+
+            var vm = new DrawPoolPlayViewModel
+            {
+                ScheduleId = id,
+                Pools = pools,
+                IsDrawPublished = true
+            };
+
+            return PartialView("~/Views/Competition/_ViewDrawPoolPlay.cshtml", vm);
+        }
     }
     else if (competition.Format == CompetitionFormat.Elimination)
     {
-        // ...existing elimination code...
+        // Existing elimination code...
+        var teams = await _context.Teams
+            .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
+            .Include(t => t.Captain)
+            .OrderBy(t => t.BracketSeed)
+            .ToListAsync();
+
+        var vm = new DrawEliminationViewModel
+        {
+            ScheduleId = id,
+            CompetitionName = competition.Schedule?.GameName ?? "Competition",
+            Teams = teams,
+            TotalSeeds = teams.Count,
+            HasThirdPlaceMatch = competition.ThirdPlaceMatch,
+            IsDrawPublished = true
+        };
+
+        return PartialView("~/Views/Competition/_ViewDrawElimination.cshtml", vm);
     }
 
     return PartialView("~/Views/Competition/_ViewDrawEmpty.cshtml");

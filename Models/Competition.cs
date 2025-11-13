@@ -63,12 +63,12 @@ namespace PicklePlay.Models
         RoundRobin = 2
     }
     
-    public enum StandingCalculation : byte
+    public enum StandingCalculation
     {
-        WinLossPoints = 0,
-        WinPercent = 1,
-        GamesWinPercent = 2,
-        GamesWon = 3,
-        TotalScores = 4
+        WinLossPoints,
+        WinPercent,
+        GameWinPercentage,  // Make sure this matches
+        GamesWon,
+        PointDifferential   // Make sure this matches
     }
 }

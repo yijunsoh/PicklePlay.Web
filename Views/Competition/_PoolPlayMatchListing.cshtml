@@ -1,0 +1,313 @@
+@model PoolPlayMatchListingViewModel
+@using PicklePlay.Models
+@using PicklePlay.Models.ViewModels
+
+<style>
+    .pool-tab-pills .nav-link {
+        border-radius: 0.375rem;
+        margin-right: 0.25rem;
+        padding: 0.5rem 1rem;
+    }
+    .pool-tab-pills .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    .pool-tab-pills .nav-link:not(.active) {
+        background-color: #f8f9fa;
+        color: #495057;
+        border: 1px solid #dee2e6;
+    }
+    .pool-tab-pills .nav-link:hover:not(.active) {
+        background-color: #e9ecef;
+    }
+    .pool-complete-badge {
+        font-size: 0.75rem;
+        vertical-align: middle;
+        margin-left: 0.5rem;
+    }
+    .playoff-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 1rem;
+    }
+    .advance-button-container {
+        background-color: #d1e7dd;
+        border: 2px solid #0f5132;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        text-align: center;
+        margin: 1rem 0;
+    }
+</style>
+
+@if (!Model.PoolGroups.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        No matches available yet. Please generate matches first.
+    </div>
+}
+else
+{
+    @* Pool Stage Status Banner *@
+    <div class="alert @(Model.IsPoolStageComplete ? "alert-success" : "alert-info") mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Pool Stage:</strong> 
+                @if (Model.IsPoolStageComplete)
+                {
+                    <span>All pool matches completed! Ready to advance to playoff.</span>
+                }
+                else
+                {
+                    <span>@Model.PoolGroups.Count(g => g.IsComplete) of @Model.PoolGroups.Count pools completed.</span>
+                }
+            </div>
+            @if (Model.IsPoolStageComplete)
+            {
+                <span class="badge bg-success">
+                    <i class="bi bi-check-circle-fill me-1"></i>Complete
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-warning text-dark">
+                    <i class="bi bi-hourglass-split me-1"></i>In Progress
+                </span>
+            }
+        </div>
+    </div>
+
+    @* Pool Tabs *@
+    <ul class="nav nav-pills pool-tab-pills mb-3" id="poolTabs" role="tablist">
+        @foreach (var (pool, index) in Model.PoolGroups.Select((p, i) => (p, i)))
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(index == 0 ? "active" : "")" 
+                        id="pool-@index-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#pool-@index-pane" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="pool-@index-pane" 
+                        aria-selected="@(index == 0 ? "true" : "false")">
+                    @pool.PoolName
+                    @if (pool.IsComplete)
+                    {
+                        <span class="badge bg-success pool-complete-badge">
+                            <i class="bi bi-check-lg"></i>
+                        </span>
+                    }
+                </button>
+            </li>
+        }
+        
+        @* Playoff Tab *@
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" 
+                    id="playoff-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#playoff-pane" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="playoff-pane" 
+                    aria-selected="false">
+                <i class="bi bi-trophy-fill me-1"></i>Playoff
+                @if (Model.PlayoffGroup?.HasStarted == true)
+                {
+                    <span class="badge bg-warning text-dark pool-complete-badge">
+                        <i class="bi bi-play-fill"></i>
+                    </span>
+                }
+            </button>
+        </li>
+    </ul>
+
+    @* Pool Tab Content *@
+    <div class="tab-content" id="poolTabsContent">
+        @foreach (var (pool, index) in Model.PoolGroups.Select((p, i) => (p, i)))
+        {
+            <div class="tab-pane fade @(index == 0 ? "show active" : "")" 
+                 id="pool-@index-pane" 
+                 role="tabpanel" 
+                 aria-labelledby="pool-@index-tab" 
+                 tabindex="0">
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">@pool.PoolName - Round Robin</h5>
+                    @if (pool.IsComplete)
+                    {
+                        <span class="badge bg-success">All Matches Complete</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">
+                            @pool.Matches.Count(m => m.Status == MatchStatus.Done) / @pool.Matches.Count Completed
+                        </span>
+                    }
+                </div>
+
+                @* Pool Matches *@
+                @if (pool.Matches.Any())
+                {
+                    @foreach (var match in pool.Matches.OrderBy(m => m.MatchNumber))
+                    {
+                        ViewData["IsOrganizer"] = Model.IsOrganizer;
+                        <partial name="_MatchCard" model="match" />
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No matches generated for this pool.
+                    </div>
+                }
+            </div>
+        }
+
+        @* Playoff Tab Content *@
+        <div class="tab-pane fade" 
+             id="playoff-pane" 
+             role="tabpanel" 
+             aria-labelledby="playoff-tab" 
+             tabindex="0">
+            
+            <div class="playoff-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-trophy-fill me-2"></i>Playoff Bracket
+                        </h4>
+                        <p class="mb-0 opacity-75">Single Elimination - Top teams advance</p>
+                    </div>
+                    <div>
+                        @if (Model.PlayoffGroup?.HasStarted == true)
+                        {
+                            <span class="badge bg-light text-dark fs-6">
+                                <i class="bi bi-play-circle-fill me-1"></i>In Progress
+                            </span>
+                        }
+                        else if (Model.IsPoolStageComplete)
+                        {
+                            <span class="badge bg-light text-dark fs-6">
+                                <i class="bi bi-check-circle-fill me-1"></i>Ready to Start
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-dark fs-6">
+                                <i class="bi bi-lock-fill me-1"></i>Locked
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* Advance to Playoff Button *@
+            @if (Model.CanAdvanceToPlayoff)
+            {
+                <div class="advance-button-container">
+                    <h5>
+                        <i class="bi bi-arrow-right-circle-fill me-2"></i>
+                        Pool Stage Complete!
+                    </h5>
+                    <p class="mb-3">All pool matches are finished. Click below to populate the playoff bracket with advancing teams.</p>
+                    <button class="btn btn-success btn-lg" 
+                            onclick="advanceToPlayoff(@Model.ScheduleId)">
+                        <i class="bi bi-trophy-fill me-2"></i>
+                        Advance to Playoff
+                    </button>
+                    <div id="advance-status" class="mt-2"></div>
+                </div>
+            }
+
+            @* Playoff Matches *@
+            @if (Model.PlayoffGroup?.Matches.Any() == true)
+            {
+                var playoffMatches = Model.PlayoffGroup.Matches
+                    .Where(m => !m.IsThirdPlaceMatch)
+                    .GroupBy(m => m.RoundName)
+                    .OrderBy(g => g.First().RoundNumber);
+
+                foreach (var roundGroup in playoffMatches)
+                {
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-flag-fill me-2"></i>@roundGroup.Key
+                        </h5>
+                        
+                        @foreach (var match in roundGroup.OrderBy(m => m.MatchNumber))
+                        {
+                            ViewData["IsOrganizer"] = Model.IsOrganizer;
+                            <partial name="_MatchCard" model="match" />
+                        }
+                    </div>
+                }
+
+                @* Third Place Match *@
+                var thirdPlaceMatch = Model.PlayoffGroup.Matches.FirstOrDefault(m => m.IsThirdPlaceMatch);
+                @if (thirdPlaceMatch != null)
+                {
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-award-fill me-2"></i>3rd Place Match
+                        </h5>
+                        @{
+                            ViewData["IsOrganizer"] = Model.IsOrganizer;
+                        }
+                        <partial name="_MatchCard" model="thirdPlaceMatch" />
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Playoff bracket will be generated after pool stage completion.
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<script>
+function advanceToPlayoff(scheduleId) {
+    const button = event.target;
+    const statusDiv = document.getElementById('advance-status');
+    
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    
+    fetch('/Match/AdvanceToPlayoff?scheduleId=' + scheduleId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + data.message + '</div>';
+            
+            // Reload the page after 1.5 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + data.message + '</div>';
+            button.disabled = false;
+            button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to advance to playoff.</div>';
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+    });
+}
+</script>

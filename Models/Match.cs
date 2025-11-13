@@ -62,6 +62,7 @@ namespace PicklePlay.Models
         Active,      // Upcoming, not yet started (Green)
         Progressing, // Live, in-play (Yellow)
         Done,        // Finished (Grey)
-        Bye          // For BYE rounds (Grey)
+        Bye,          // For BYE rounds (Grey)
+        Pending     // Waiting to start (e.g., playoff matches before pool stage completes)
     }
 }

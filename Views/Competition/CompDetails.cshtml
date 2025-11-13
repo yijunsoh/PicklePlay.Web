@@ -6,6 +6,15 @@
 
 @{
     ViewData["Title"] = Model.GameName ?? "Competition Details";
+    
+    // Get the active tab from query string or default to "overview"
+    var activeTab = Context.Request.Query["tab"].ToString();
+    if (string.IsNullOrEmpty(activeTab)) activeTab = "overview";
+    
+    // Get the active sub-tab from query string or default to "listing"
+    var activeSubTab = Context.Request.Query["subtab"].ToString();
+    if (string.IsNullOrEmpty(activeSubTab)) activeSubTab = "listing";
+    
     bool setupPending = Model.Status == ScheduleStatus.PendingSetup;
 
     // --- NEW: Get data for Registration Tab ---
@@ -637,9 +646,21 @@
                             Listing
                          </button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link disabled" id="standing-subtab" data-bs-toggle="tab" data-bs-target="#standing-subtab-pane" type="button" role="tab" aria-controls="standing-subtab-pane" aria-selected="false">Standing</button>
-                     </li>
+                    @if (Model.Competition?.Format != CompetitionFormat.Elimination)
+{
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeSubTab == "standing" ? "active" : "")" 
+                id="standing-subtab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#standing-subtab-pane" 
+                type="button" 
+                role="tab" 
+                aria-controls="standing-subtab-pane" 
+                aria-selected="@(activeSubTab == "standing" ? "true" : "false")">
+            Standing
+        </button>
+    </li>
+}
                 </ul>
 
                 <div class="tab-content" id="matchSubTabsContent">
@@ -649,7 +670,7 @@
                         <h5>Format & Rules</h5>
                         <div class="row">
                             <div class="col-md-6">
-                             <p><strong>Format:</strong> @Model.Competition.Format.ToString()</p>
+                             <p><strong>Format:</strong> @Model.Competition!.Format.ToString()</p>
                                 @if (Model.Competition.Format == CompetitionFormat.PoolPlay)
                                 {
                                     <p><strong>Pools:</strong> @Model.Competition.NumPool</p>
@@ -707,22 +728,34 @@
 </div>
 
                     @* --- Listing Sub-Tab Pane --- *@
-<div class="tab-pane fade" id="listing-subtab-pane" role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
-    <div id="match-listing-container">
-        <div class="text-center p-5">
+<div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" 
+     id="listing-subtab-pane" 
+     role="tabpanel" 
+     aria-labelledby="listing-subtab" 
+     tabindex="0">
+    <div id="listing-container">
+        <div class="text-center p-3">
             <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading Matches...</span>
+                <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="mt-2">Loading Matches...</p>
         </div>
     </div>
 </div>
 
                     @* --- Standing Sub-Tab Pane --- *@
-                     <div class="tab-pane fade" id="standing-subtab-pane" role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
-                        <h5>Standings</h5>
-                         <p>Standings feature coming soon.</p>
-                     </div>
+                     <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" 
+     id="standing-subtab-pane" 
+     role="tabpanel" 
+     aria-labelledby="standing-subtab" 
+     tabindex="0">
+    <div id="standing-container">
+        <div class="text-center p-3">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
                 </div> @* End Nested Tab Content *@
              } @* End else block for setupPending / Competition null check *@
         </div> @* End Match Tab Pane *@
@@ -922,657 +955,776 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
 
     <script>
-
     // --- Store model data in JS vars for checking ---
-        const COMP_DATA = {
-            scheduleId: @Model.ScheduleId,
-            isSetupComplete: @(Model.Competition != null ? "true" : "false"),
-            isDrawPublished: @(Model.Competition?.DrawPublished == true ? "true" : "false"),
-            isRoundRobin: @(Model.Competition?.Format == CompetitionFormat.RoundRobin ? "true" : "false")
-        };
-        // Enable tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        })
-        
-        // Edit Team modal script
-        var editTeamModal = document.getElementById('editTeamModal');
-        if (editTeamModal) {
-            editTeamModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var teamId = button.getAttribute('data-team-id');
-                var teamName = button.getAttribute('data-team-name');
-                var teamIconUrl = button.getAttribute('data-team-icon-url');
+    const COMP_DATA = {
+        scheduleId: @Model.ScheduleId,
+        isSetupComplete: @(Model.Competition != null ? "true" : "false"),
+        isDrawPublished: @(Model.Competition?.DrawPublished == true ? "true" : "false"),
+        isRoundRobin: @(Model.Competition?.Format == CompetitionFormat.RoundRobin ? "true" : "false"),
+        format: '@Model.Competition?.Format'
+    };
 
-                var modal = this;
-                modal.querySelector('#editTeamId').value = teamId;
-                modal.querySelector('#editTeamName').value = teamName;
-                modal.querySelector('#currentTeamIcon').src = teamIconUrl;
-            });
-        }
-
-        // Invite Player modal scripts
-        var invitePlayerModal = document.getElementById('invitePlayerModal');
-        var userSearchInput = document.getElementById('userSearchInput');
-        var searchResultsContainer = document.getElementById('invite-search-results');
-        var spinner = document.getElementById('invite-search-spinner');
-        var inviteTeamIdInput = document.getElementById('inviteTeamId');
-        var searchTimeout;
-
-        if (invitePlayerModal) {
-            invitePlayerModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var teamId = button.getAttribute('data-team-id');
-                inviteTeamIdInput.value = teamId;
-                userSearchInput.value = '';
-                searchResultsContainer.innerHTML = '';
-            });
-
-            userSearchInput.addEventListener('keyup', function () {
-                clearTimeout(searchTimeout);
-                var query = userSearchInput.value;
-                var teamId = inviteTeamIdInput.value;
-
-                if (query.length < 2) {
-                    searchResultsContainer.innerHTML = '';
-                    return;
-                }
-
-                spinner.classList.remove('d-none');
-
-                searchTimeout = setTimeout(function () {
-                    fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
-                        .then(response => {
-                            spinner.classList.add('d-none');
-                            if (!response.ok) {
-                                throw new Error('Search failed');
-                            }
-                            return response.json();
-                        })
-                        .then(users => {
-                            renderSearchResults(users, teamId);
-                        })
-                        .catch(error => {
-                            searchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
-                        });
-                }, 500);
-            });
-        }
-
-        function renderSearchResults(users, teamId) {
-            searchResultsContainer.innerHTML = '';
-            if (users.length === 0) {
-                searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
-                return;
-            }
-
-            users.forEach(user => {
-                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
-                var userHtml = `
-                    <div class="user-search-item">
-                        <div class="d-flex align-items-center">
-                            <img src="${profilePic}" alt="${user.username}" />
-                            <strong>${user.username}</strong>
-                        </div>
-                        <button class="btn btn-sm btn-primary send-invite-btn" 
-                                data-team-id="${teamId}" 
-                                data-invitee-id="${user.userId}">
-                            Invite
-                        </button>
-                    </div>`;
-                searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
-            });
-
-            document.querySelectorAll('.send-invite-btn').forEach(button => {
-                button.addEventListener('click', sendInvite);
-            });
-        }
-
-        function sendInvite(event) {
-            var button = event.target;
+    // Enable tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+    
+    // Edit Team modal script
+    var editTeamModal = document.getElementById('editTeamModal');
+    if (editTeamModal) {
+        editTeamModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
             var teamId = button.getAttribute('data-team-id');
-            var inviteeId = button.getAttribute('data-invitee-id');
-            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            var teamName = button.getAttribute('data-team-name');
+            var teamIconUrl = button.getAttribute('data-team-icon-url');
 
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            var modal = this;
+            modal.querySelector('#editTeamId').value = teamId;
+            modal.querySelector('#editTeamName').value = teamName;
+            modal.querySelector('#currentTeamIcon').src = teamIconUrl;
+        });
+    }
 
-            fetch('/Team/SendInvite', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: `teamId=${teamId}&inviteeUserId=${inviteeId}`
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || 'Failed to send invite') });
-                }
-                return response.json();
-            })
-            .then(data => {
-                button.innerHTML = 'Sent!';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-secondary');
-            })
-            .catch(error => {
-                button.innerHTML = 'Error';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-danger');
-                alert('Error: ' + error.message);
-            });
-        }
+    // Invite Player modal scripts
+    var invitePlayerModal = document.getElementById('invitePlayerModal');
+    var userSearchInput = document.getElementById('userSearchInput');
+    var searchResultsContainer = document.getElementById('invite-search-results');
+    var spinner = document.getElementById('invite-search-spinner');
+    var inviteTeamIdInput = document.getElementById('inviteTeamId');
+    var searchTimeout;
 
-        // --- *** NEW: Add Staff Modal Scripts *** ---
-        var addStaffModal = document.getElementById('addStaffModal');
-        var staffSearchInput = document.getElementById('staffSearchInput');
-        var staffSearchResultsContainer = document.getElementById('staff-search-results');
-        var staffSpinner = document.getElementById('staff-search-spinner');
-        var staffSearchTimeout;
-        
-        if (addStaffModal) {
-            addStaffModal.addEventListener('show.bs.modal', function (event) {
-                // Clear the modal on show
-                staffSearchInput.value = '';
-                staffSearchResultsContainer.innerHTML = '';
-            });
+    if (invitePlayerModal) {
+        invitePlayerModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var teamId = button.getAttribute('data-team-id');
+            inviteTeamIdInput.value = teamId;
+            userSearchInput.value = '';
+            searchResultsContainer.innerHTML = '';
+        });
 
-            staffSearchInput.addEventListener('keyup', function () {
-                clearTimeout(staffSearchTimeout);
-                var query = staffSearchInput.value;
-                var scheduleId = COMP_DATA.scheduleId;
+        userSearchInput.addEventListener('keyup', function () {
+            clearTimeout(searchTimeout);
+            var query = userSearchInput.value;
+            var teamId = inviteTeamIdInput.value;
 
-                if (query.length < 2) {
-                    staffSearchResultsContainer.innerHTML = '';
-                     return;
-                }
-
-                staffSpinner.classList.remove('d-none');
-
-                staffSearchTimeout = setTimeout(function () {
-                    fetch(`/Competition/SearchUsersForStaff?scheduleId=${scheduleId}&query=${query}`)
-                         .then(response => {
-                            staffSpinner.classList.add('d-none');
-                            if (!response.ok) {
-                                 throw new Error('Search failed');
-                            }
-                            return response.json();
-                        })
-                         .then(users => {
-                            renderStaffSearchResults(users, scheduleId);
-                        })
-                        .catch(error => {
-                            staffSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
-                        });
-                }, 500);
-            });
-        }
-
-        function renderStaffSearchResults(users, scheduleId) {
-            staffSearchResultsContainer.innerHTML = '';
-            if (users.length === 0) {
-                staffSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
+            if (query.length < 2) {
+                searchResultsContainer.innerHTML = '';
                 return;
             }
 
-            users.forEach(user => {
-                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
-                var userHtml = `
-                    <div class="user-search-item">
-                        <div class="d-flex align-items-center">
-                            <img src="${profilePic}" alt="${user.username}" />
-                            <strong>${user.username}</strong>
-                        </div>
-                        <button class="btn btn-sm btn-primary add-staff-btn" 
-                                data-schedule-id="${scheduleId}" 
-                                data-user-id="${user.userId}">
-                            Add Staff
-                        </button>
-                    </div>`;
-                staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
-            });
+            spinner.classList.remove('d-none');
 
-            document.querySelectorAll('.add-staff-btn').forEach(button => {
-                button.addEventListener('click', addStaffMember);
-            });
-        }
-
-        function addStaffMember(event) {
-            var button = event.target;
-            var scheduleId = button.getAttribute('data-schedule-id');
-            var userId = button.getAttribute('data-user-id');
-            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-            fetch('/Competition/AddStaff', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: `scheduleId=${scheduleId}&userId=${userId}`
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || 'Failed to add staff') });
-                 }
-                return response.json();
-            })
-            .then(data => {
-                button.innerHTML = 'Added!';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-secondary');
-                
-                // We just reload the page to show the new staff member
-                location.reload(); 
-            })
-            .catch(error => {
-                button.innerHTML = 'Error';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-danger');
-                alert('Error: ' + error.message);
-            });
-        }
-        
-        // --- *** END: Add Staff Modal Scripts *** ---
-
-        // Competition Poster Toggle
-        var posterCollapseElement = document.getElementById('posterCollapse');
-        var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
-
-        if (posterCollapseElement && posterTriggerElement) {
-            var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
-
-            if (posterIcon) {
-                posterCollapseElement.addEventListener('show.bs.collapse', function () {
-                    posterIcon.classList.add('rotated');
-                });
-                
-                posterCollapseElement.addEventListener('hide.bs.collapse', function () {
-                    posterIcon.classList.remove('rotated');
-                });
-            }
-        }
-// --- *** NEW: Start Competition Button Logic *** ---
-        var startCompBtn = document.getElementById('startCompetitionBtn');
-        if (startCompBtn) {
-            var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
-            var startModalBody = document.getElementById('startCompetitionModalBody');
-            
-            startCompBtn.addEventListener('click', function (event) {
-                event.preventDefault();
-                
-                // 1. Check if setup is complete
-                if (!COMP_DATA.isSetupComplete) {
-                    alert('Please complete "Match Setup & Format" before starting.');
-                    return;
-                }
-                
-                // 2. Check if draw is published (unless Round Robin)
-                if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
-                    alert('Please publish the draw at generate draw to proceed.');
-                    return;
-                }
-                
-                // 3. All checks passed, show modal and load details
-                startModalBody.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading Details...</span>
-                        </div>
-                    </div>`;
-                startModal.show();
-                
-                fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
-                    .then(response => response.text())
-                    .then(html => {
-                        startModalBody.innerHTML = html;
-                    })
-                    .catch(err => {
-                        startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
-                    });
-            });
-        }
-
- // *** DRAW TAB LOADING - Fixed for Pool Play ***
-var drawTab = document.getElementById('draw-subtab');
-if (drawTab) {
-    var drawContainer = document.getElementById('draw-visual-container');
-    var drawLoaded = false;
-    var pollInterval = null;
-
-    drawTab.addEventListener('show.bs.tab', function (event) {
-        if (drawContainer && !drawLoaded) {
-            drawLoaded = true;
-            
-            console.log('Loading draw visual...');
-            
-            drawContainer.innerHTML = `
-                <div class="text-center p-5">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading Draw...</span>
-                    </div>
-                    <p class="mt-2">Loading Draw...</p>
-                </div>
-            `;
-            
-            // *** Check competition format first ***
-            var competitionFormat = '@Model.Competition?.Format';
-            console.log('Competition Format:', competitionFormat);
-            
-            if (competitionFormat === 'PoolPlay') {
-                // Load Pool Play Draw
-                fetch('/Draw/ViewPublishedDraw?id=' + COMP_DATA.scheduleId)
+            searchTimeout = setTimeout(function () {
+                fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
                     .then(response => {
+                        spinner.classList.add('d-none');
                         if (!response.ok) {
-                            throw new Error('HTTP ' + response.status);
+                            throw new Error('Search failed');
                         }
-                        return response.text();
+                        return response.json();
                     })
-                    .then(html => {
-                        drawContainer.innerHTML = html;
-                        console.log('Pool Play draw loaded successfully');
+                    .then(users => {
+                        renderSearchResults(users, teamId);
                     })
                     .catch(error => {
-                        console.error('Failed to load Pool Play draw:', error);
-                        drawContainer.innerHTML = `
-                            <div class="alert alert-danger">
-                                <strong>Error:</strong> Could not load the Pool Play draw.
-                                <br><small>${error.message}</small>
-                                <br><br>
-                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                            </div>
-                        `;
+                        searchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
                     });
-            } else if (competitionFormat === 'Elimination') {
-                // Load Bracket for Elimination
+            }, 500);
+        });
+    }
+
+    function renderSearchResults(users, teamId) {
+        searchResultsContainer.innerHTML = '';
+        if (users.length === 0) {
+            searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
+            return;
+        }
+
+        users.forEach(user => {
+            var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+            var userHtml = `
+                <div class="user-search-item">
+                    <div class="d-flex align-items-center">
+                        <img src="${profilePic}" alt="${user.username}" />
+                        <strong>${user.username}</strong>
+                    </div>
+                    <button class="btn btn-sm btn-primary send-invite-btn" 
+                            data-team-id="${teamId}" 
+                            data-invitee-id="${user.userId}">
+                        Invite
+                    </button>
+                </div>`;
+            searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+        });
+
+        document.querySelectorAll('.send-invite-btn').forEach(button => {
+            button.addEventListener('click', sendInvite);
+        });
+    }
+
+    function sendInvite(event) {
+        var button = event.target;
+        var teamId = button.getAttribute('data-team-id');
+        var inviteeId = button.getAttribute('data-invitee-id');
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        fetch('/Team/SendInvite', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': token
+            },
+            body: `teamId=${teamId}&inviteeUserId=${inviteeId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || 'Failed to send invite') });
+            }
+            return response.json();
+        })
+        .then(data => {
+            button.innerHTML = 'Sent!';
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-secondary');
+        })
+        .catch(error => {
+            button.innerHTML = 'Error';
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-danger');
+            alert('Error: ' + error.message);
+        });
+    }
+
+    // Add Staff Modal Scripts
+    var addStaffModal = document.getElementById('addStaffModal');
+    var staffSearchInput = document.getElementById('staffSearchInput');
+    var staffSearchResultsContainer = document.getElementById('staff-search-results');
+    var staffSpinner = document.getElementById('staff-search-spinner');
+    var staffSearchTimeout;
+    
+    if (addStaffModal) {
+        addStaffModal.addEventListener('show.bs.modal', function (event) {
+            staffSearchInput.value = '';
+            staffSearchResultsContainer.innerHTML = '';
+        });
+
+        staffSearchInput.addEventListener('keyup', function () {
+            clearTimeout(staffSearchTimeout);
+            var query = staffSearchInput.value;
+            var scheduleId = COMP_DATA.scheduleId;
+
+            if (query.length < 2) {
+                staffSearchResultsContainer.innerHTML = '';
+                return;
+            }
+
+            staffSpinner.classList.remove('d-none');
+
+            staffSearchTimeout = setTimeout(function () {
+                fetch(`/Competition/SearchUsersForStaff?scheduleId=${scheduleId}&query=${query}`)
+                    .then(response => {
+                        staffSpinner.classList.add('d-none');
+                        if (!response.ok) {
+                            throw new Error('Search failed');
+                        }
+                        return response.json();
+                    })
+                    .then(users => {
+                        renderStaffSearchResults(users, scheduleId);
+                    })
+                    .catch(error => {
+                        staffSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                    });
+            }, 500);
+        });
+    }
+
+    function renderStaffSearchResults(users, scheduleId) {
+        staffSearchResultsContainer.innerHTML = '';
+        if (users.length === 0) {
+            staffSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
+            return;
+        }
+
+        users.forEach(user => {
+            var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+            var userHtml = `
+                <div class="user-search-item">
+                    <div class="d-flex align-items-center">
+                        <img src="${profilePic}" alt="${user.username}" />
+                        <strong>${user.username}</strong>
+                    </div>
+                    <button class="btn btn-sm btn-primary add-staff-btn" 
+                            data-schedule-id="${scheduleId}" 
+                            data-user-id="${user.userId}">
+                        Add Staff
+                    </button>
+                </div>`;
+            staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+        });
+
+        document.querySelectorAll('.add-staff-btn').forEach(button => {
+            button.addEventListener('click', addStaffMember);
+        });
+    }
+
+    function addStaffMember(event) {
+        var button = event.target;
+        var scheduleId = button.getAttribute('data-schedule-id');
+        var userId = button.getAttribute('data-user-id');
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        fetch('/Competition/AddStaff', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': token
+            },
+            body: `scheduleId=${scheduleId}&userId=${userId}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || 'Failed to add staff') });
+            }
+            return response.json();
+        })
+        .then(data => {
+            button.innerHTML = 'Added!';
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-secondary');
+            location.reload(); 
+        })
+        .catch(error => {
+            button.innerHTML = 'Error';
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-danger');
+            alert('Error: ' + error.message);
+        });
+    }
+
+    // Competition Poster Toggle
+    var posterCollapseElement = document.getElementById('posterCollapse');
+    var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
+
+    if (posterCollapseElement && posterTriggerElement) {
+        var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
+
+        if (posterIcon) {
+            posterCollapseElement.addEventListener('show.bs.collapse', function () {
+                posterIcon.classList.add('rotated');
+            });
+            
+            posterCollapseElement.addEventListener('hide.bs.collapse', function () {
+                posterIcon.classList.remove('rotated');
+            });
+        }
+    }
+
+    // Start Competition Button Logic
+    var startCompBtn = document.getElementById('startCompetitionBtn');
+    if (startCompBtn) {
+        var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
+        var startModalBody = document.getElementById('startCompetitionModalBody');
+        
+        startCompBtn.addEventListener('click', function (event) {
+            event.preventDefault();
+            
+            if (!COMP_DATA.isSetupComplete) {
+                alert('Please complete "Match Setup & Format" before starting.');
+                return;
+            }
+            
+            if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
+                alert('Please publish the draw at generate draw to proceed.');
+                return;
+            }
+            
+            startModalBody.innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading Details...</span>
+                    </div>
+                </div>`;
+            startModal.show();
+            
+            fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
+                .then(response => response.text())
+                .then(html => {
+                    startModalBody.innerHTML = html;
+                })
+                .catch(err => {
+                    startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
+                });
+        });
+    }
+
+// *** LISTING TAB LOADING (Pool Play & Elimination) ***
+var listingTab = document.getElementById('listing-subtab');
+if (listingTab) {
+    var listingLoaded = false;
+    
+    listingTab.addEventListener('show.bs.tab', function(event) {
+        if (!listingLoaded) {
+            loadListing();
+            listingLoaded = true;
+        }
+    });
+    
+    function loadListing() {
+        var container = document.getElementById('listing-container');
+        if (!container) return;
+        
+        console.log('Loading listing for schedule:', COMP_DATA.scheduleId);
+        container.innerHTML = `
+            <div class="text-center p-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading Matches...</span>
+                </div>
+                <p class="mt-2">Loading Matches...</p>
+            </div>`;
+            
+        fetch('/Match/GetMatchListing?id=' + COMP_DATA.scheduleId)
+            .then(response => {
+                console.log('Listing response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                return response.text();
+            })
+            .then(html => {
+                console.log('Listing HTML received, length:', html.length);
+                container.innerHTML = html;
+                
+                // *** IMPORTANT: Set up match card handlers AFTER HTML is loaded ***
+                setupMatchCardHandlers();
+            })
+            .catch(error => {
+                console.error('Failed to load listing:', error);
+                container.innerHTML = 
+                    '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load match listing: ' + error.message + '</div>';
+            });
+    }
+}
+
+// *** MATCH CARD HANDLERS - Called after listing is loaded ***
+function setupMatchCardHandlers() {
+    console.log('Setting up match card event handlers...');
+    
+    // Add Set button (using event delegation)
+    $(document).off('click', '.btn-add-set').on('click', '.btn-add-set', function() {
+        var matchId = $(this).data('match-id');
+        console.log('Add set clicked for match', matchId);
+        
+        var $matchContainer = $('#match-' + matchId);
+        if ($matchContainer.length === 0) {
+            console.error('Match container not found for ID:', matchId);
+            return;
+        }
+        
+        var $formContainer = $matchContainer.find('.organizer-match-form');
+        
+        var $newSetT1 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" min="0" placeholder="0" />');
+        var $newSetT2 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" min="0" placeholder="0" />');
+        $formContainer.find('.score-sets-container[data-team-id="1"]').append($newSetT1);
+        $formContainer.find('.score-sets-container[data-team-id="2"]').append($newSetT2);
+
+        var $titleContainer = $matchContainer.find('.score-set-titles');
+        var newSetNum = $titleContainer.find('.score-set-title').length + 1;
+        $titleContainer.append('<span class="score-set-title">Set ' + newSetNum + '</span>');
+        
+        console.log('Set added successfully');
+    });
+
+    // Minus Set button (using event delegation)
+    $(document).off('click', '.btn-minus-set').on('click', '.btn-minus-set', function() {
+        var matchId = $(this).data('match-id');
+        console.log('Minus set clicked for match', matchId);
+        
+        var $matchContainer = $('#match-' + matchId);
+        if ($matchContainer.length === 0) {
+            console.error('Match container not found for ID:', matchId);
+            return;
+        }
+        
+        var $formContainer = $matchContainer.find('.organizer-match-form');
+        
+        var $team1Inputs = $formContainer.find('.score-sets-container[data-team-id="1"] .score-set-input');
+        var $team2Inputs = $formContainer.find('.score-sets-container[data-team-id="2"] .score-set-input');
+
+        if ($team1Inputs.length > 1) {
+            $team1Inputs.last().remove();
+            $team2Inputs.last().remove();
+
+            var $titleContainer = $matchContainer.find('.score-set-titles');
+            $titleContainer.find('.score-set-title').last().remove();
+            
+            console.log('Set removed successfully');
+        } else {
+            alert('At least one set is required.');
+        }
+    });
+
+    // Save Score form submission (using event delegation)
+    $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function(e) {
+        e.preventDefault();
+        
+        var matchId = $(this).data('match-id');
+        console.log('Save score form submitted for match', matchId);
+        
+        var $form = $(this);
+        var $matchContainer = $('#match-' + matchId);
+        
+        if ($matchContainer.length === 0) {
+            console.error('Match container not found for ID:', matchId);
+            return false;
+        }
+        
+        var $formContainer = $matchContainer.find('.organizer-match-form');
+        
+        var scoresT1 = $formContainer.find('input[data-team-score="1"]').map(function() { 
+            return $(this).val() || "0"; 
+        }).get().join(',');
+        
+        var scoresT2 = $formContainer.find('input[data-team-score="2"]').map(function() { 
+            return $(this).val() || "0"; 
+        }).get().join(',');
+        
+        console.log('Team1 Score:', scoresT1);
+        console.log('Team2 Score:', scoresT2);
+        
+        $form.find('.hidden-team1-score').val(scoresT1);
+        $form.find('.hidden-team2-score').val(scoresT2);
+        
+        console.log('Form data:', $form.serialize());
+        
+        // Submit the form
+        this.submit();
+        return true;
+    });
+    
+    console.log('Match card event handlers ready!');
+}
+
+    // *** STANDING TAB LOADING (Pool Play Only) ***
+    var standingTab = document.getElementById('standing-subtab');
+    if (standingTab) {
+        var standingLoaded = false;
+        
+        standingTab.addEventListener('show.bs.tab', function (event) {
+            if (!standingLoaded) {
+                loadStanding();
+                standingLoaded = true;
+            }
+        });
+        
+        function loadStanding() {
+            var container = document.getElementById('standing-container');
+            if (!container) return;
+            
+            console.log('Loading standing for schedule:', COMP_DATA.scheduleId);
+            container.innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading Standings...</span>
+                    </div>
+                </div>`;
+            
+            fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
+                .then(response => {
+                    console.log('Standing response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('HTTP error ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('Standing HTML received, length:', html.length);
+                    container.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Failed to load standing:', error);
+                    container.innerHTML = 
+                        '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load standings: ' + error.message + '</div>';
+                });
+        }
+    }
+
+    // *** DRAW TAB LOADING (Pool Play & Elimination) ***
+    var drawTab = document.getElementById('draw-subtab');
+    if (drawTab) {
+        var drawContainer = document.getElementById('draw-visual-container');
+        var drawLoaded = false;
+        var pollInterval = null;
+
+        drawTab.addEventListener('show.bs.tab', function (event) {
+            if (drawContainer && !drawLoaded) {
+                drawLoaded = true;
+                
+                console.log('Loading draw visual...');
+                
                 drawContainer.innerHTML = `
-                    <h5 class="mb-3">Tournament Bracket</h5>
-                    <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
-                    <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Draw...</span>
+                        </div>
+                        <p class="mt-2">Loading Draw...</p>
+                    </div>
                 `;
                 
-                // Function to fetch and render bracket
-                function fetchAndRenderBracket() {
-                    fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                var competitionFormat = COMP_DATA.format;
+                console.log('Competition Format:', competitionFormat);
+                
+                if (competitionFormat === 'PoolPlay') {
+                    // Load Pool Play Draw
+                    fetch('/Draw/ViewPublishedDraw?id=' + COMP_DATA.scheduleId)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error('HTTP ' + response.status);
                             }
-                            return response.json();
+                            return response.text();
                         })
-                        .then(data => {
-                            console.log('Bracket data received:', data);
-                            
-                            if (!data || !data.bracketData) {
-                                throw new Error('No bracket data in response');
-                            }
-                            
-                            renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                        .then(html => {
+                            drawContainer.innerHTML = html;
+                            console.log('Pool Play draw loaded successfully');
                         })
                         .catch(error => {
-                            console.error('Failed to load bracket:', error);
+                            console.error('Failed to load Pool Play draw:', error);
                             drawContainer.innerHTML = `
                                 <div class="alert alert-danger">
-                                    <strong>Error:</strong> Could not load the bracket.
+                                    <strong>Error:</strong> Could not load the Pool Play draw.
                                     <br><small>${error.message}</small>
                                     <br><br>
                                     <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
                                 </div>
                             `;
                         });
-                }
-                
-                // Function to render the bracket
-                function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
-    try {
-        // Check if jQuery and bracket plugin are available
-        if (typeof $ === 'undefined') {
-            throw new Error('jQuery is not loaded');
-        }
-        
-        if (typeof $.fn.bracket === 'undefined') {
-            throw new Error('jQuery Bracket plugin is not loaded');
-        }
-        
-        var bracketElement = $('#bracketVisual_Published');
-        if (bracketElement.length === 0) {
-            throw new Error('Bracket container not found');
-        }
-        
-        console.log('Initializing bracket with data:', bracketData);
-        
-        // Clear and initialize bracket WITH ORIGINAL DATA
-        bracketElement.empty();
-        
-        bracketElement.bracket({
-            init: bracketData,  // ← Use original data, not transformed
-            teamWidth: 170,
-            scoreWidth: 30,
-            roundMargin: 40,
-            skipConsolationRound: true,
-            onMatchClick: function(data) {
-                console.log('Match clicked:', data);
-            }
-        });
-        
-        // *** TRANSFORM DISPLAY AFTER RENDERING ***
-        setTimeout(function() {
-            // Add round headers
-            $('#bracketVisual_Published .round').each(function(index) {
-                if (roundHeaders && roundHeaders[index]) {
-                    if ($(this).find('.round-header').length === 0) {
-                        $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
-                    }
-                }
-            });
-            
-            // Replace 1/0 with W/L in the DOM
-            $('#bracketVisual_Published .score').each(function() {
-                var scoreText = $(this).text().trim();
-                
-                if (scoreText === '1') {
-                    $(this).text('W').css({
-                        'color': '#198754',
-                        'font-weight': 'bold'
-                    });
-                } else if (scoreText === '0') {
-                    $(this).text('L').css({
-                        'color': '#dc3545',
-                        'font-weight': 'bold'
-                    });
-                }
-            });
-        }, 100);
-        
-        console.log('Bracket rendered successfully!');
-        
-        // Render third place match
-        renderThirdPlaceMatch(thirdPlaceData);
-        
-    } catch (e) {
-        console.error('Error rendering bracket:', e);
-        drawContainer.innerHTML = `
-            <div class="alert alert-danger">
-                <strong>Error:</strong> Could not render bracket.
-                <br><small>${e.message}</small>
-                <br><br>
-                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-            </div>
-        `;
-    }
-}
-                
-                // Function to render third place match
-                function renderThirdPlaceMatch(thirdPlaceData) {
-                    var thirdEl = document.getElementById('thirdPlaceContainer');
-                    if (!thirdEl) {
-                        console.warn('thirdPlaceContainer not found');
-                        return;
-                    }
+                } else if (competitionFormat === 'Elimination') {
+                    // Load Bracket for Elimination
+                    drawContainer.innerHTML = `
+                        <h5 class="mb-3">Tournament Bracket</h5>
+                        <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+                        <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                    `;
                     
-                    if (!thirdPlaceData) {
-                        thirdEl.innerHTML = '';
-                        thirdEl.style.display = 'none';
-                        return;
-                    }
-                    
-                    thirdEl.style.display = 'block';
-                    
-                    var team1Name = thirdPlaceData.team1 || 'TBD';
-                    var team2Name = thirdPlaceData.team2 || 'TBD';
-                    var winnerIndex = thirdPlaceData.winnerIndex;
-                    
-                    var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
-                    var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
-                    
-                    var team1Display = '<span class="' + team1Class + '">' + team1Name;
-                    if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                    team1Display += '</span>';
-                    
-                    var team2Display = '<span class="' + team2Class + '">' + team2Name;
-                    if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                    team2Display += '</span>';
-
-                    var cardHTML = '<div class="card shadow-sm">' +
-                        '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
-                        '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
-                    
-                    if (thirdPlaceData.status) {
-                        var statusBadge = '';
-                        if (thirdPlaceData.status === 'Done') {
-                            statusBadge = '<span class="badge bg-success">Completed</span>';
-                        } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
-                            statusBadge = '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
-                        }
-                        cardHTML += statusBadge;
-                    }
-                    
-                    cardHTML += '</div><div class="card-body">' +
-                        '<div class="d-flex justify-content-around align-items-center">' +
-                        '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
-                        '<div class="text-muted fw-bold">VS</div>' +
-                        '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
-                        '</div>';
-                
-                // Add winner announcement if there is one
-                if (winnerIndex === 0 || winnerIndex === 1) {
-                    var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
-                    cardHTML += '<hr class="my-2">' +
-                        '<div class="text-center text-success">' +
-                        '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
-                        '</div>';
-                }
-                
-                cardHTML += '</div></div>';
-
-                thirdEl.innerHTML = cardHTML;
-            }
-            
-            // Initial fetch
-            fetchAndRenderBracket();
-            
-            // Poll for updates every 5 seconds
-            pollInterval = setInterval(fetchAndRenderBracket, 5000);
-            }
-        }
-    });
-    
-    // Stop polling when leaving the draw tab
-    drawTab.addEventListener('hide.bs.tab', function(event) {
-        if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-        }
-    });
-}
-
-// --- 2. NEW: Listing Tab Loader ---
-        var listingTab = document.getElementById('listing-subtab');
-        if (listingTab) {
-            var listingContainer = document.getElementById('match-listing-container');
-            var listingLoaded = false;
-            
-            listingTab.addEventListener('show.bs.tab', function(event) {
-                if (listingContainer && !listingLoaded) {
-                    listingLoaded = true; // Only load once
-                    
-                    listingContainer.innerHTML = `
-                        <div class="text-center p-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading Matches...</span>
-                            </div>
-                            <p class="mt-2">Loading Matches...</p>
-                        </div>`;
-                        
-                    fetch(`/Match/GetMatchListing/${COMP_DATA.scheduleId}`)
-                        .then(response => {
-                            if (!response.ok) { throw new Error('HTTP ' + response.status); }
-                            return response.text();
-                        })
-                        .then(html => {
-                            listingContainer.innerHTML = html;
-                            // Re-run any scripts that might be in the partial
-                            var scripts = listingContainer.querySelectorAll('script');
-                            scripts.forEach(function(oldScript) {
-                                var newScript = document.createElement('script');
-                                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                                newScript.textContent = oldScript.textContent;
-                                oldScript.parentNode.replaceChild(newScript, oldScript);
+                    function fetchAndRenderBracket() {
+                        fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('HTTP ' + response.status);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('Bracket data received:', data);
+                                
+                                if (!data || !data.bracketData) {
+                                    throw new Error('No bracket data in response');
+                                }
+                                
+                                renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                            })
+                            .catch(error => {
+                                console.error('Failed to load bracket:', error);
+                                drawContainer.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <strong>Error:</strong> Could not load the bracket.
+                                        <br><small>${error.message}</small>
+                                        <br><br>
+                                        <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                    </div>
+                                `;
                             });
-                        })
-                        .catch(err => {
-                            console.error('Failed to load match listing:', err);
-                            listingContainer.innerHTML = '<div class="alert alert-danger">Could not load match listing. Please refresh.</div>';
-                        });
-                }
-            });
-        }
-        
-        // --- 3. NEW: Auto-open tab from URL ---
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const tabToOpen = urlParams.get('tab');
-            
-            if (tabToOpen === 'match-listing') {
-                // First, click the main 'Match' tab
-                var mainMatchTab = document.getElementById('match-tab');
-                if (mainMatchTab) {
-                    new bootstrap.Tab(mainMatchTab).show();
-                }
-                
-                // Then, click the nested 'Listing' sub-tab
-                var subListingTab = document.getElementById('listing-subtab');
-                if (subListingTab) {
-                    new bootstrap.Tab(subListingTab).show();
+                    }
+                    
+                    function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
+                        try {
+                            if (typeof $ === 'undefined') {
+                                throw new Error('jQuery is not loaded');
+                            }
+                            
+                            if (typeof $.fn.bracket === 'undefined') {
+                                throw new Error('jQuery Bracket plugin is not loaded');
+                            }
+                            
+                            var bracketElement = $('#bracketVisual_Published');
+                            if (bracketElement.length === 0) {
+                                throw new Error('Bracket container not found');
+                            }
+                            
+                            console.log('Initializing bracket with data:', bracketData);
+                            
+                            bracketElement.empty();
+                            
+                            bracketElement.bracket({
+                                init: bracketData,
+                                teamWidth: 170,
+                                scoreWidth: 30,
+                                roundMargin: 40,
+                                skipConsolationRound: true,
+                                onMatchClick: function(data) {
+                                    console.log('Match clicked:', data);
+                                }
+                            });
+                            
+                            setTimeout(function() {
+                                $('#bracketVisual_Published .round').each(function(index) {
+                                    if (roundHeaders && roundHeaders[index]) {
+                                        if ($(this).find('.round-header').length === 0) {
+                                            $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                                        }
+                                    }
+                                });
+                                
+                                $('#bracketVisual_Published .score').each(function() {
+                                    var scoreText = $(this).text().trim();
+                                    
+                                    if (scoreText === '1') {
+                                        $(this).text('W').css({
+                                            'color': '#198754',
+                                            'font-weight': 'bold'
+                                        });
+                                    } else if (scoreText === '0') {
+                                        $(this).text('L').css({
+                                            'color': '#dc3545',
+                                            'font-weight': 'bold'
+                                        });
+                                    }
+                                });
+                            }, 100);
+                            
+                            console.log('Bracket rendered successfully!');
+                            renderThirdPlaceMatch(thirdPlaceData);
+                            
+                        } catch (e) {
+                            console.error('Error rendering bracket:', e);
+                            drawContainer.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <strong>Error:</strong> Could not render bracket.
+                                    <br><small>${e.message}</small>
+                                    <br><br>
+                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    function renderThirdPlaceMatch(thirdPlaceData) {
+                        var thirdEl = document.getElementById('thirdPlaceContainer');
+                        if (!thirdEl) {
+                            console.warn('thirdPlaceContainer not found');
+                            return;
+                        }
+                        
+                        if (!thirdPlaceData) {
+                            thirdEl.innerHTML = '';
+                            thirdEl.style.display = 'none';
+                            return;
+                        }
+                        
+                        thirdEl.style.display = 'block';
+                        
+                        var team1Name = thirdPlaceData.team1 || 'TBD';
+                        var team2Name = thirdPlaceData.team2 || 'TBD';
+                        var winnerIndex = thirdPlaceData.winnerIndex;
+                        
+                        var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+                        var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+                        
+                        var team1Display = '<span class="' + team1Class + '">' + team1Name;
+                        if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                        team1Display += '</span>';
+                        
+                        var team2Display = '<span class="' + team2Class + '">' + team2Name;
+                        if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                        team2Display += '</span>';
+
+                        var cardHTML = '<div class="card shadow-sm">' +
+                            '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+                            '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+                        
+                        if (thirdPlaceData.status) {
+                            var statusBadge = '';
+                            if (thirdPlaceData.status === 'Done') {
+                                statusBadge = '<span class="badge bg-success">Completed</span>';
+                            } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
+                                statusBadge = '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
+                            }
+                            cardHTML += statusBadge;
+                        }
+                        
+                        cardHTML += '</div><div class="card-body">' +
+                            '<div class="d-flex justify-content-around align-items-center">' +
+                            '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+                            '<div class="text-muted fw-bold">VS</div>' +
+                            '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
+                            '</div>';
+                    
+                        if (winnerIndex === 0 || winnerIndex === 1) {
+                            var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
+                            cardHTML += '<hr class="my-2">' +
+                                '<div class="text-center text-success">' +
+                                '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+                                '</div>';
+                        }
+                        
+                        cardHTML += '</div></div>';
+                        thirdEl.innerHTML = cardHTML;
+                    }
+                    
+                    fetchAndRenderBracket();
+                    pollInterval = setInterval(fetchAndRenderBracket, 5000);
                 }
             }
         });
-
-        // --- NEW: Script for Edit Match Time/Court Modal ---
-var editMatchModal = document.getElementById('editMatchModal');
-if (editMatchModal) {
-    editMatchModal.addEventListener('show.bs.modal', function (event) {
-        var button = event.relatedTarget;
         
-        var matchId = button.getAttribute('data-match-id');
-        var matchTime = button.getAttribute('data-match-time');
-        var court = button.getAttribute('data-court');
+        drawTab.addEventListener('hide.bs.tab', function(event) {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        });
+    }
 
-        var modal = this;
-        modal.querySelector('#editMatchId').value = matchId;
-        modal.querySelector('#editMatchTime').value = matchTime;
-        modal.querySelector('#editCourt').value = court;
+    // Auto-open tab from URL
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabToOpen = urlParams.get('tab');
+        
+        if (tabToOpen === 'match-listing') {
+            var mainMatchTab = document.getElementById('match-tab');
+            if (mainMatchTab) {
+                new bootstrap.Tab(mainMatchTab).show();
+            }
+            
+            var subListingTab = document.getElementById('listing-subtab');
+            if (subListingTab) {
+                new bootstrap.Tab(subListingTab).show();
+            }
+        }
     });
-}
 
+    // Edit Match Time/Court Modal
+    var editMatchModal = document.getElementById('editMatchModal');
+    if (editMatchModal) {
+        editMatchModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            
+            var matchId = button.getAttribute('data-match-id');
+            var matchTime = button.getAttribute('data-match-time');
+            var court = button.getAttribute('data-court');
 
-
-
-        
+            var modal = this;
+            modal.querySelector('#editMatchId').value = matchId;
+            modal.querySelector('#editMatchTime').value = matchTime;
+            modal.querySelector('#editCourt').value = court;
+        });
+    }
     </script>
 }
