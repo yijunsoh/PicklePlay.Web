@@ -1341,28 +1341,44 @@ window.switchToStandingTab = function() {
 function setupMatchCardHandlers() {
     console.log('Setting up match card event handlers...');
     
-     // *** NEW: Store active pool tab before form submission ***
-     $(document).off('submit', '.match-form').on('submit', '.match-form', function(e) {
+    // *** SIMPLIFIED: Check round name pattern to determine pool vs playoff ***
+    $(document).on('submit', '.match-form', function(e) {
         var $form = $(this);
         var roundName = $form.data('round-name');
         
-        console.log('Form submitting, round name:', roundName);
-        
-        // Store the active pool tab in sessionStorage
-        if (roundName) {
-            // Clean up the round name (remove any extra whitespace or badges)
-            var cleanRoundName = roundName.trim();
-            sessionStorage.setItem('activePoolTab', cleanRoundName);
-            console.log('Stored pool tab:', cleanRoundName);
+        if (!roundName) {
+            console.log('No round name on form, skipping');
+            return true;
         }
         
-        // Let the form submit normally
+        console.log('Form submitting with round name:', roundName);
+        
+        var cleanRoundName = String(roundName).trim();
+        
+        // Check if this is a pool round (starts with "Pool")
+        if (cleanRoundName.startsWith('Pool ')) {
+            console.log('✓ POOL match detected, storing:', cleanRoundName);
+            sessionStorage.setItem('activePoolTab', cleanRoundName);
+            sessionStorage.removeItem('activeSubTab');
+        } 
+        // Check if this is a playoff round
+        else if (cleanRoundName.includes('Final') || 
+                 cleanRoundName.includes('Semi') || 
+                 cleanRoundName.includes('Quarter') || 
+                 cleanRoundName.includes('Round of') ||
+                 cleanRoundName.includes('3rd Place')) {
+            console.log('✓ PLAYOFF match detected, storing flag');
+            sessionStorage.setItem('activeSubTab', 'playoff');
+            sessionStorage.removeItem('activePoolTab');
+        }
+        else {
+            console.log('⚠ Unknown round type, no storage:', cleanRoundName);
+        }
+        
         return true;
     });
-    
 
-
-    // Add Set button (using event delegation)
+    // Add Set button
     $(document).off('click', '.btn-add-set').on('click', '.btn-add-set', function() {
         var matchId = $(this).data('match-id');
         console.log('Add set clicked for match', matchId);
@@ -1387,7 +1403,7 @@ function setupMatchCardHandlers() {
         console.log('Set added successfully');
     });
 
-    // Minus Set button (using event delegation)
+    // Minus Set button
     $(document).off('click', '.btn-minus-set').on('click', '.btn-minus-set', function() {
         var matchId = $(this).data('match-id');
         console.log('Minus set clicked for match', matchId);
@@ -1416,7 +1432,7 @@ function setupMatchCardHandlers() {
         }
     });
 
-    // Save Score form submission (using event delegation)
+    // Save Score form submission
     $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function(e) {
         e.preventDefault();
         
@@ -1449,7 +1465,6 @@ function setupMatchCardHandlers() {
         
         console.log('Form data:', $form.serialize());
         
-        // Submit the form
         this.submit();
         return true;
     });
@@ -1502,55 +1517,52 @@ function setupMatchCardHandlers() {
     }
 
     // *** DRAW TAB LOADING (Pool Play & Elimination) ***
-    var drawTab = document.getElementById('draw-subtab');
-    if (drawTab) {
-        var drawContainer = document.getElementById('draw-visual-container');
-        var drawLoaded = false;
-        var pollInterval = null;
+   var drawTab = document.getElementById('draw-subtab');
+if (drawTab) {
+    var drawContainer = document.getElementById('draw-visual-container');
+    var drawLoaded = false;
 
-        drawTab.addEventListener('show.bs.tab', function (event) {
-            if (drawContainer && !drawLoaded) {
-                drawLoaded = true;
-                
-                console.log('Loading draw visual...');
-                
-                drawContainer.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading Draw...</span>
-                        </div>
-                        <p class="mt-2">Loading Draw...</p>
+    drawTab.addEventListener('show.bs.tab', function (event) {
+        if (drawContainer && !drawLoaded) {
+            drawLoaded = true;
+            
+            console.log('Loading draw visual...');
+            
+            drawContainer.innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading Draw...</span>
                     </div>
-                `;
-                
-                var competitionFormat = COMP_DATA.format;
-                console.log('Competition Format:', competitionFormat);
-                
-                if (competitionFormat === 'PoolPlay') {
-                    // Load Pool Play Draw
-                    fetch('/Draw/ViewPublishedDraw?id=' + COMP_DATA.scheduleId)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('HTTP ' + response.status);
-                            }
-                            return response.text();
-                        })
-                        .then(html => {
-                            drawContainer.innerHTML = html;
-                            console.log('Pool Play draw loaded successfully');
-                        })
-                        .catch(error => {
-                            console.error('Failed to load Pool Play draw:', error);
-                            drawContainer.innerHTML = `
-                                <div class="alert alert-danger">
-                                    <strong>Error:</strong> Could not load the Pool Play draw.
-                                    <br><small>${error.message}</small>
-                                    <br><br>
-                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                </div>
-                            `;
-                        });
-                } else if (competitionFormat === 'Elimination') {
+                    <p class="mt-2">Loading Draw...</p>
+                </div>
+            `;
+            
+            var competitionFormat = COMP_DATA.format;
+            console.log('Competition Format:', competitionFormat);
+            
+            if (competitionFormat === 'PoolPlay') {
+                // Load Pool Play Draw (NEW)
+                fetch('/Draw/ViewPoolPlayDraw?id=' + COMP_DATA.scheduleId)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        drawContainer.innerHTML = html;
+                        console.log('Pool Play draw loaded successfully');
+                    })
+                    .catch(error => {
+                        console.error('Failed to load Pool Play draw:', error);
+                        drawContainer.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> Could not load the draw.
+                                <br><small>${error.message}</small>
+                            </div>
+                        `;
+                    });
+            } else if (competitionFormat === 'Elimination')  {
                     // Load Bracket for Elimination
                     drawContainer.innerHTML = `
                         <h5 class="mb-3">Tournament Bracket</h5>
@@ -1773,41 +1785,134 @@ function setupMatchCardHandlers() {
     }
 
 
-
 // Restore active pool tab after page reload
 $(document).ready(function() {
+    var activeSubTab = sessionStorage.getItem('activeSubTab');
     var activePoolTab = sessionStorage.getItem('activePoolTab');
     
-    if (activePoolTab) {
-        console.log('Attempting to restore pool tab:', activePoolTab);
-        
-        // Wait a bit for the listing to load
-        setTimeout(function() {
-            // Find the pool tab button with matching pool name in data-bs-target
-            $('#poolTabs button[data-bs-toggle="tab"]').each(function() {
+    console.log('Checking stored tabs - SubTab:', activeSubTab, 'PoolTab:', activePoolTab);
+    
+    if (!activeSubTab && !activePoolTab) {
+        console.log('No stored tabs to restore');
+        return;
+    }
+    
+    // Wait for listing to load first
+    setTimeout(function() {
+        if (activeSubTab === 'playoff') {
+            console.log('Restoring playoff sub-tab');
+            
+            // Find ANY tab with "playoff" in ID or text
+            var $playoffTab = $('#playoff-subtab, button[id*="playoff"], button:contains("Playoff")').first();
+            
+            if ($playoffTab.length > 0) {
+                console.log('Found playoff tab, activating...');
+                var tab = new bootstrap.Tab($playoffTab[0]);
+                tab.show();
+                sessionStorage.removeItem('activeSubTab');
+            } else {
+                console.warn('Playoff tab not found in DOM');
+            }
+        } else if (activePoolTab) {
+            console.log('Attempting to restore pool tab:', activePoolTab);
+            
+            // Find the pool tab button with matching text
+            var $poolTabs = $('#poolTabs button[data-bs-toggle="pill"], #poolTabs button[data-bs-toggle="tab"]');
+            
+            $poolTabs.each(function() {
                 var $button = $(this);
-                var buttonText = $button.text().trim().replace(/\s+/g, ' '); // Normalize whitespace
+                var buttonText = $button.text().trim();
                 
-                // Extract just the pool name (before any badges)
-                var poolName = buttonText.split('✓')[0].trim();
+                // Remove any badges/symbols and normalize whitespace
+                var poolName = buttonText.replace(/[✓✔]/g, '').trim().split(/\s{2,}/)[0].trim();
                 
-                console.log('Checking button:', poolName, 'against stored:', activePoolTab);
+                console.log('Comparing: "' + poolName + '" with "' + activePoolTab + '"');
                 
                 if (poolName === activePoolTab) {
-                    console.log('Match found! Activating tab:', poolName);
+                    console.log('Match found! Activating pool tab:', poolName);
                     
-                    // Activate the tab
                     var tab = new bootstrap.Tab($button[0]);
                     tab.show();
                     
-                    // Clear the stored value
                     sessionStorage.removeItem('activePoolTab');
-                    
                     return false; // Break loop
                 }
             });
-        }, 500); // Wait 500ms for content to load
-    }
+        }
+    }, 1000); // Increased to 1 second
 });
+window.switchToPlayoffBracketTab = function() {
+    console.log('switchToPlayoffBracketTab called');
+    
+    // First, switch to Draw main tab
+    var drawTab = document.getElementById('draw-subtab');
+    if (drawTab) {
+        var tab = new bootstrap.Tab(drawTab);
+        tab.show();
+        console.log('Switched to Draw tab');
+    }
+    
+    // Wait a bit, then switch to Playoff Bracket sub-tab
+    setTimeout(function() {
+        var playoffTab = document.getElementById('playoff-bracket-tab');
+        if (playoffTab) {
+            var subtab = new bootstrap.Tab(playoffTab);
+            subtab.show();
+            console.log('Switched to Playoff Bracket sub-tab');
+        } else {
+            console.error('Playoff bracket tab not found');
+        }
+    }, 500);
+};
+
+ // *** NEW: Global function for Advance to Playoff ***
+    window.advanceToPlayoff = function(scheduleId) {
+    const button = event.target;
+    const statusDiv = document.getElementById('advance-status');
+    
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    
+    console.log('Advancing to playoff for schedule:', scheduleId);
+    
+    // Get anti-forgery token
+    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    
+    fetch('/Match/AdvanceToPlayoff?scheduleId=' + scheduleId, {
+        method: 'POST',
+        headers: {
+            'RequestVerificationToken': token // *** FIXED: Pass token in header ***
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + data.message + '</div>';
+            
+            // Reload the page after 1.5 seconds to show playoff bracket
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + data.message + '</div>';
+            button.disabled = false;
+            button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to advance to playoff: ' + error.message + '</div>';
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+    });
+};
     </script>
 }

@@ -84,15 +84,19 @@ else
             <i class="bi bi-info-circle-fill info-icon"></i>
             <div class="flex-grow-1">
                 @if (Model.IsPoolStageComplete)
-                {
-                    <strong><i class="bi bi-check-circle-fill me-2"></i>All pools completed!</strong>
-                    <p class="mb-0 mt-1">
-                        View final standings at the 
-                        <a href="javascript:void(0)" class="standing-link" onclick="switchToStandingTab()">
-                            <i class="bi bi-trophy-fill me-1"></i>Standing Tab
-                        </a>
-                    </p>
-                }
+{
+    <strong><i class="bi bi-check-circle-fill me-2"></i>All pools completed!</strong>
+    <p class="mb-0 mt-1">
+        View final standings at the 
+        <a href="javascript:void(0)" class="standing-link" onclick="switchToStandingTab()">
+            <i class="bi bi-trophy-fill me-1"></i>Standing Tab
+        </a>
+        or check the playoff bracket at the
+        <a href="javascript:void(0)" class="standing-link" onclick="switchToPlayoffBracketTab()">
+            <i class="bi bi-diagram-3-fill me-1"></i>Draw Tab
+        </a>
+    </p>
+}
                 else
                 {
                     <strong>Pool Stage Progress: @completedPools/@totalPools pools completed</strong>
@@ -321,46 +325,3 @@ else
     </div>
 }
 
-<script>
-// *** NEW: Function to switch to Standing tab ***
-
-function advanceToPlayoff(scheduleId) {
-    const button = event.target;
-    const statusDiv = document.getElementById('advance-status');
-    
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
-    
-    fetch('/Match/AdvanceToPlayoff?scheduleId=' + scheduleId, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + data.message + '</div>';
-            
-            // Reload the page after 1.5 seconds
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + data.message + '</div>';
-            button.disabled = false;
-            button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to advance to playoff.</div>';
-        button.disabled = false;
-        button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
-    });
-}
-
-// Test function for debugging
-console.log('Pool Play Match Listing scripts loaded');
-console.log('switchToStandingTab available?', typeof window.switchToStandingTab);
-</script>

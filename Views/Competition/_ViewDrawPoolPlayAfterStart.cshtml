@@ -1,0 +1,454 @@
+@model PoolPlayDrawViewModel
+@using PicklePlay.Models
+@using PicklePlay.Models.ViewModels
+
+<style>
+    .pool-stage-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .playoff-bracket-container {
+        width: 100%;
+        overflow: auto;
+        min-height: 600px;
+        border: 1px solid #ddd;
+        background-color: #fcfcfc;
+        padding: 1rem;
+    }
+    
+    .round-header {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+        color: #333;
+    }
+    
+    .pool-nav-pills .nav-link {
+        border-radius: 0.375rem;
+        padding: 0.5rem 1rem;
+        margin-right: 0.5rem;
+        color: #495057;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        transition: all 0.2s;
+    }
+    
+    .pool-nav-pills .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+        font-weight: 600;
+    }
+    
+    .pool-nav-pills .nav-link:hover:not(.active) {
+        background-color: #e9ecef;
+        color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .playoff-status-badge {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.25rem;
+        margin-left: 1rem;
+    }
+</style>
+
+@* Pool Stage & Playoff Sub-Tabs *@
+<ul class="nav nav-pills pool-nav-pills mb-3" id="drawSubTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" 
+                id="pool-stage-tab" 
+                data-bs-toggle="pill" 
+                data-bs-target="#pool-stage-content" 
+                type="button" 
+                role="tab">
+            <i class="bi bi-grid-3x3-gap me-2"></i>Pool Stage
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" 
+                id="playoff-bracket-tab" 
+                data-bs-toggle="pill" 
+                data-bs-target="#playoff-bracket-content" 
+                type="button" 
+                role="tab">
+            <i class="bi bi-trophy-fill me-2"></i>Playoff Bracket
+            @if (Model.PlayoffStatus == "Active")
+            {
+                <span class="badge bg-warning text-dark">Live</span>
+            }
+            else if (Model.PlayoffStatus == "Completed")
+            {
+                <span class="badge bg-success">✓</span>
+            }
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="drawSubTabsContent">
+    @* Pool Stage Tab *@
+    <div class="tab-pane fade show active" 
+         id="pool-stage-content" 
+         role="tabpanel">
+        
+        <div class="pool-stage-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        <i class="bi bi-grid-3x3-gap-fill me-2"></i>Pool Stage Draw
+                    </h4>
+                    <p class="mb-0 opacity-75">Round Robin format within each pool</p>
+                </div>
+                <div>
+                    @if (Model.AllPoolsComplete)
+                    {
+                        <span class="badge bg-light text-dark fs-6">
+                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark fs-6">
+                            <i class="bi bi-hourglass-split me-1"></i>In Progress
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Pools.Any())
+        {
+            <div class="row">
+                @foreach (var pool in Model.Pools)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <strong>@pool.PoolName</strong>
+                                <span class="badge bg-light text-dark">
+                                    @pool.Teams.Count Teams
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var team in pool.Teams.OrderBy(t => t.BracketSeed))
+                                    {
+                                        <li class="list-group-item d-flex align-items-center">
+                                            @if (!string.IsNullOrEmpty(team.TeamIconUrl))
+                                            {
+                                                <img src="@team.TeamIconUrl" 
+                                                     alt="@team.TeamName" 
+                                                     style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px;" />
+                                            }
+                                            <span>@team.TeamName</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No pool draw available yet.
+            </div>
+        }
+    </div>
+
+    @* Playoff Bracket Tab *@
+    <div class="tab-pane fade" 
+         id="playoff-bracket-content" 
+         role="tabpanel">
+        
+        <div class="pool-stage-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        <i class="bi bi-trophy-fill me-2"></i>Playoff Bracket
+                    </h4>
+                    <p class="mb-0 opacity-75">Single Elimination - Top @Model.WinnersPerPool from each pool</p>
+                </div>
+                <div>
+                    @if (Model.PlayoffStatus == "Completed")
+                    {
+                        <span class="badge bg-success fs-6">
+                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                        </span>
+                    }
+                    else if (Model.PlayoffStatus == "Active")
+                    {
+                        <span class="badge bg-warning text-dark fs-6">
+                            <i class="bi bi-play-circle-fill me-1"></i>In Progress
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary fs-6">
+                            <i class="bi bi-lock-fill me-1"></i>Locked
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (Model.PlayoffStatus == "Pending")
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <strong>Playoff bracket will be available after pool stage completion.</strong>
+                <br/>
+                <small>Complete all pool matches and advance teams from the 
+                    <a href="javascript:void(0)" onclick="switchToListingTab()" class="alert-link">
+                        Match Listing tab
+                    </a>.
+                </small>
+            </div>
+        }
+        else
+        {
+            <h5 class="mb-3">Tournament Bracket</h5>
+            <div id="playoffBracketVisual" class="playoff-bracket-container"></div>
+            <div id="playoffThirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+        }
+    </div>
+</div>
+
+<script>
+console.log('=== PLAYOFF DRAW SCRIPT LOADED ===');
+console.log('Model.ScheduleId:', @Model.ScheduleId);
+console.log('Model.PlayoffStatus:', '@Model.PlayoffStatus');
+console.log('jQuery available?', typeof $ !== 'undefined');
+console.log('jQuery.fn.bracket available?', typeof $.fn !== 'undefined' && typeof $.fn.bracket !== 'undefined');
+console.log('playoffBracketVisual exists?', document.getElementById('playoffBracketVisual') !== null);
+
+(function() {
+    var playoffStatus = '@Model.PlayoffStatus';
+    
+    if (playoffStatus === 'Pending') {
+        console.log('Playoff is pending, bracket will not initialize');
+        return;
+    }
+    
+    var scheduleId = @Model.ScheduleId;
+    var pollInterval = null;
+    var isInitialized = false;
+    
+    console.log('Setting up playoff bracket for schedule:', scheduleId);
+    
+    // Try to initialize immediately if playoff bracket tab is already active
+    var playoffTab = document.getElementById('playoff-bracket-tab');
+    var playoffContent = document.getElementById('playoff-bracket-content');
+    
+    if (playoffContent && playoffContent.classList.contains('active', 'show')) {
+        console.log('Playoff tab is already active, initializing immediately');
+        setTimeout(function() {
+            initializeBracket();
+        }, 500);
+    }
+    
+    // Also listen for tab activation
+    if (playoffTab) {
+        console.log('Adding shown.bs.tab listener to playoff tab');
+        
+        playoffTab.addEventListener('shown.bs.tab', function(event) {
+            console.log('✓ Playoff bracket tab SHOWN event fired');
+            
+            if (!isInitialized) {
+                initializeBracket();
+            }
+        });
+    } else {
+        console.warn('playoff-bracket-tab element not found!');
+    }
+    
+    function initializeBracket() {
+        isInitialized = true;
+        console.log('>>> Initializing playoff bracket');
+        
+        setTimeout(function() {
+            fetchAndRenderPlayoffBracket();
+            pollInterval = setInterval(fetchAndRenderPlayoffBracket, 5000);
+        }, 300);
+    }
+    
+    function fetchAndRenderPlayoffBracket() {
+        console.log('Fetching playoff bracket data from API...');
+        
+        fetch('/Match/GetPlayoffBracketData?scheduleId=' + scheduleId)
+            .then(response => {
+                console.log('API response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✓ Playoff bracket data received:', data);
+                renderPlayoffBracket(data);
+            })
+            .catch(error => {
+                console.error('✗ Failed to load playoff bracket:', error);
+                var container = document.getElementById('playoffBracketVisual');
+                if (container) {
+                    container.innerHTML = '<div class="alert alert-danger">Could not load playoff bracket: ' + error.message + '</div>';
+                }
+            });
+    }
+    
+    function renderPlayoffBracket(response) {
+        var container = document.getElementById('playoffBracketVisual');
+        if (!container) {
+            console.error('playoffBracketVisual container not found in DOM!');
+            return;
+        }
+        
+        console.log('Rendering bracket in container...');
+        
+        try {
+            if (typeof $ === 'undefined') {
+                throw new Error('jQuery is not loaded');
+            }
+            
+            if (typeof $.fn.bracket === 'undefined') {
+                throw new Error('jQuery Bracket plugin is not loaded');
+            }
+            
+            console.log('✓ jQuery and Bracket plugin verified');
+            
+            $(container).empty();
+            
+            if (!response.bracketData || !response.bracketData.teams || response.bracketData.teams.length === 0) {
+                console.warn('No bracket data available');
+                container.innerHTML = '<div class="alert alert-info">No playoff matches available yet.</div>';
+                return;
+            }
+            
+            console.log('Initializing jQuery bracket with data:', response.bracketData);
+            
+            $(container).bracket({
+                init: response.bracketData,
+                teamWidth: 170,
+                scoreWidth: 30,
+                roundMargin: 40,
+                skipConsolationRound: true
+            });
+            
+            console.log('✓ Bracket rendered, applying styling...');
+            
+            setTimeout(function() {
+                $('#playoffBracketVisual .score').each(function() {
+                    var scoreText = $(this).text().trim();
+                    if (scoreText === '1') {
+                        $(this).text('W').css({ 'color': '#198754', 'font-weight': 'bold' });
+                    } else if (scoreText === '0') {
+                        $(this).text('L').css({ 'color': '#dc3545', 'font-weight': 'bold' });
+                    }
+                });
+                
+                if (response.roundHeaders) {
+                    $('#playoffBracketVisual .round').each(function(index) {
+                        if (response.roundHeaders[index] && $(this).find('.round-header').length === 0) {
+                            $(this).prepend('<div class="round-header">' + response.roundHeaders[index] + '</div>');
+                        }
+                    });
+                }
+                
+                console.log('✓ Bracket styling complete');
+            }, 150);
+            
+        } catch (err) {
+            console.error('✗ Bracket rendering failed:', err);
+            container.innerHTML = '<div class="alert alert-danger">Could not render bracket: ' + err.message + 
+                '<br><br><strong>Debug Info:</strong><pre>' + JSON.stringify(response.bracketData, null, 2) + '</pre></div>';
+        }
+        
+        renderThirdPlaceMatch(response.thirdPlace);
+    }
+    
+    function renderThirdPlaceMatch(thirdPlaceData) {
+        var thirdEl = document.getElementById('playoffThirdPlaceContainer');
+        if (!thirdEl) return;
+        
+        if (!thirdPlaceData) {
+            thirdEl.innerHTML = '';
+            thirdEl.style.display = 'none';
+            return;
+        }
+        
+        thirdEl.style.display = 'block';
+        
+        var team1Name = thirdPlaceData.team1 || 'TBD';
+        var team2Name = thirdPlaceData.team2 || 'TBD';
+        var winnerIndex = thirdPlaceData.winnerIndex;
+        
+        var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+        var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+        
+        var team1Display = '<span class="' + team1Class + '">' + team1Name;
+        if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+        team1Display += '</span>';
+        
+        var team2Display = '<span class="' + team2Class + '">' + team2Name;
+        if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+        team2Display += '</span>';
+
+        var cardHTML = '<div class="card shadow-sm">' +
+            '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+            '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+        
+        if (thirdPlaceData.status) {
+            var statusBadge = thirdPlaceData.status === 'Done' ? '<span class="badge bg-success">Completed</span>' :
+                            (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') ? 
+                            '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>' :
+                            '<span class="badge bg-light text-dark">' + thirdPlaceData.status + '</span>';
+            cardHTML += statusBadge;
+        }
+        
+        cardHTML += '</div><div class="card-body">' +
+            '<div class="d-flex justify-content-around align-items-center">' +
+            '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+            '<div class="text-muted fw-bold">VS</div>' +
+            '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
+            '</div>';
+        
+        if (winnerIndex === 0 || winnerIndex === 1) {
+            var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
+            cardHTML += '<hr class="my-2"><div class="text-center text-success">' +
+                '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+                '</div>';
+        }
+        
+        cardHTML += '</div></div>';
+        thirdEl.innerHTML = cardHTML;
+    }
+    
+    console.log('Playoff bracket initialization complete');
+})();
+
+function switchToListingTab() {
+    var matchTab = document.getElementById('match-tab');
+    if (matchTab) {
+        var tab = new bootstrap.Tab(matchTab);
+        tab.show();
+    }
+    setTimeout(function() {
+        var listingTab = document.getElementById('listing-subtab');
+        if (listingTab) {
+            var subtab = new bootstrap.Tab(listingTab);
+            subtab.show();
+        }
+    }, 300);
+}
+
+console.log('=== PLAYOFF DRAW SCRIPT COMPLETE ===');
+</script>

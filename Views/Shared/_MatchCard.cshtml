@@ -52,7 +52,9 @@
     .team-winner .team-name::after { content: " ✔"; }
 </style>
 
-<div class="match-container @statusClass" id="@matchContainerId">
+<div class="match-container @statusClass" 
+     id="@matchContainerId" 
+     data-round-type="@(Model.RoundNumber == 1 ? "pool" : "playoff")">
     <div class="match-header d-flex justify-content-between align-items-center">
         <div>
             <strong>Match @Model.MatchNumber</strong>
@@ -168,7 +170,10 @@
                         @if (isActive && Model.Team1Id.HasValue && Model.Team2Id.HasValue)
                         {
                             @* *** ADD: Hidden input to preserve pool tab *** *@
-                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline match-form" data-round-name="@Model.RoundName">
+                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" 
+                                  class="d-inline match-form" 
+                                  data-round-name="@Model.RoundName"
+                                  data-match-id="@Model.MatchId">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
@@ -190,7 +195,10 @@
                         @if (isDone)
                         {
                             @* *** ADD: Hidden input to preserve pool tab *** *@
-                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline match-form" data-round-name="@Model.RoundName">
+                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" 
+                                  class="d-inline match-form" 
+                                  data-round-name="@Model.RoundName"
+                                  data-match-id="@Model.MatchId">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
@@ -210,7 +218,10 @@
                             </button>
                             
                             @* *** ADD: Hidden input to preserve pool tab *** *@
-                            <form asp-action="UpdateMatch" asp-controller="Match" method="post" class="d-inline save-score-form match-form" data-match-id="@Model.MatchId" data-round-name="@Model.RoundName">
+                            <form asp-action="UpdateMatch" asp-controller="Match" method="post" 
+                                  class="d-inline save-score-form match-form" 
+                                  data-match-id="@Model.MatchId" 
+                                  data-round-name="@Model.RoundName">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" class="hidden-team1-score" name="Team1Score" />
