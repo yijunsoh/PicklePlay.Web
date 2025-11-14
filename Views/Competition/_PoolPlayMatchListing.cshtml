@@ -40,6 +40,30 @@
         text-align: center;
         margin: 1rem 0;
     }
+     .pool-info-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .pool-info-bar .info-icon {
+        font-size: 2rem;
+        margin-right: 1rem;
+    }
+    .pool-info-bar strong {
+        font-size: 1.1rem;
+    }
+    .pool-info-bar .standing-link {
+        color: #ffd700;
+        text-decoration: underline;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    .pool-info-bar .standing-link:hover {
+        color: #ffed4e;
+    }
 </style>
 
 @if (!Model.PoolGroups.Any())
@@ -51,31 +75,54 @@
 }
 else
 {
-    @* Pool Stage Status Banner *@
-    <div class="alert @(Model.IsPoolStageComplete ? "alert-success" : "alert-info") mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Pool Stage:</strong> 
+    var completedPools = Model.PoolGroups.Count(g => g.IsComplete);
+    var totalPools = Model.PoolGroups.Count;
+    var pendingPools = totalPools - completedPools;
+    
+    <div class="pool-info-bar">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-info-circle-fill info-icon"></i>
+            <div class="flex-grow-1">
                 @if (Model.IsPoolStageComplete)
                 {
-                    <span>All pool matches completed! Ready to advance to playoff.</span>
+                    <strong><i class="bi bi-check-circle-fill me-2"></i>All pools completed!</strong>
+                    <p class="mb-0 mt-1">
+                        View final standings at the 
+                        <a href="javascript:void(0)" class="standing-link" onclick="switchToStandingTab()">
+                            <i class="bi bi-trophy-fill me-1"></i>Standing Tab
+                        </a>
+                    </p>
                 }
                 else
                 {
-                    <span>@Model.PoolGroups.Count(g => g.IsComplete) of @Model.PoolGroups.Count pools completed.</span>
+                    <strong>Pool Stage Progress: @completedPools/@totalPools pools completed</strong>
+                    <p class="mb-0 mt-1">
+                        @if (pendingPools == 1)
+                        {
+                            <span>1 pool still pending.</span>
+                        }
+                        else
+                        {
+                            <span>@pendingPools pools still pending.</span>
+                        }
+                        View current standings at the 
+                        <a href="javascript:void(0)" class="standing-link" onclick="switchToStandingTab()">
+                            <i class="bi bi-trophy-fill me-1"></i>Standing Tab
+                        </a>
+                    </p>
                 }
             </div>
+            
             @if (Model.IsPoolStageComplete)
             {
-                <span class="badge bg-success">
+                <span class="badge bg-success fs-6 px-3 py-2">
                     <i class="bi bi-check-circle-fill me-1"></i>Complete
                 </span>
             }
             else
             {
-                <span class="badge bg-warning text-dark">
-                    <i class="bi bi-hourglass-split me-1"></i>In Progress
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                    <i class="bi bi-hourglass-split me-1"></i>@completedPools/@totalPools
                 </span>
             }
         </div>
@@ -275,6 +322,8 @@ else
 }
 
 <script>
+// *** NEW: Function to switch to Standing tab ***
+
 function advanceToPlayoff(scheduleId) {
     const button = event.target;
     const statusDiv = document.getElementById('advance-status');
@@ -310,4 +359,8 @@ function advanceToPlayoff(scheduleId) {
         button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
     });
 }
+
+// Test function for debugging
+console.log('Pool Play Match Listing scripts loaded');
+console.log('switchToStandingTab available?', typeof window.switchToStandingTab);
 </script>

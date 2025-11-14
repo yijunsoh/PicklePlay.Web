@@ -1313,10 +1313,55 @@ if (listingTab) {
     }
 }
 
+window.switchToStandingTab = function() {
+    console.log('switchToStandingTab called');
+    
+    // First, ensure we're on the Match main tab
+    var matchTab = document.getElementById('match-tab');
+    if (matchTab) {
+        var tab = new bootstrap.Tab(matchTab);
+        tab.show();
+        console.log('Switched to Match tab');
+    }
+    
+    // Wait a bit, then switch to Standing sub-tab
+    setTimeout(function() {
+        var standingTab = document.getElementById('standing-subtab');
+        if (standingTab) {
+            var subtab = new bootstrap.Tab(standingTab);
+            subtab.show();
+            console.log('Switched to Standing sub-tab');
+        } else {
+            console.error('Standing tab not found');
+        }
+    }, 300);
+};
+
 // *** MATCH CARD HANDLERS - Called after listing is loaded ***
 function setupMatchCardHandlers() {
     console.log('Setting up match card event handlers...');
     
+     // *** NEW: Store active pool tab before form submission ***
+     $(document).off('submit', '.match-form').on('submit', '.match-form', function(e) {
+        var $form = $(this);
+        var roundName = $form.data('round-name');
+        
+        console.log('Form submitting, round name:', roundName);
+        
+        // Store the active pool tab in sessionStorage
+        if (roundName) {
+            // Clean up the round name (remove any extra whitespace or badges)
+            var cleanRoundName = roundName.trim();
+            sessionStorage.setItem('activePoolTab', cleanRoundName);
+            console.log('Stored pool tab:', cleanRoundName);
+        }
+        
+        // Let the form submit normally
+        return true;
+    });
+    
+
+
     // Add Set button (using event delegation)
     $(document).off('click', '.btn-add-set').on('click', '.btn-add-set', function() {
         var matchId = $(this).data('match-id');
@@ -1726,5 +1771,43 @@ function setupMatchCardHandlers() {
             modal.querySelector('#editCourt').value = court;
         });
     }
+
+
+
+// Restore active pool tab after page reload
+$(document).ready(function() {
+    var activePoolTab = sessionStorage.getItem('activePoolTab');
+    
+    if (activePoolTab) {
+        console.log('Attempting to restore pool tab:', activePoolTab);
+        
+        // Wait a bit for the listing to load
+        setTimeout(function() {
+            // Find the pool tab button with matching pool name in data-bs-target
+            $('#poolTabs button[data-bs-toggle="tab"]').each(function() {
+                var $button = $(this);
+                var buttonText = $button.text().trim().replace(/\s+/g, ' '); // Normalize whitespace
+                
+                // Extract just the pool name (before any badges)
+                var poolName = buttonText.split('✓')[0].trim();
+                
+                console.log('Checking button:', poolName, 'against stored:', activePoolTab);
+                
+                if (poolName === activePoolTab) {
+                    console.log('Match found! Activating tab:', poolName);
+                    
+                    // Activate the tab
+                    var tab = new bootstrap.Tab($button[0]);
+                    tab.show();
+                    
+                    // Clear the stored value
+                    sessionStorage.removeItem('activePoolTab');
+                    
+                    return false; // Break loop
+                }
+            });
+        }, 500); // Wait 500ms for content to load
+    }
+});
     </script>
 }

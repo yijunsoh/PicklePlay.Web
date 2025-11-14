@@ -167,7 +167,8 @@
                     <div class="btn-group">
                         @if (isActive && Model.Team1Id.HasValue && Model.Team2Id.HasValue)
                         {
-                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
+                            @* *** ADD: Hidden input to preserve pool tab *** *@
+                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline match-form" data-round-name="@Model.RoundName">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
@@ -185,10 +186,11 @@
                         }
                     </div>
                     
-                    <div class="btn-group">
+                                        <div class="btn-group">
                         @if (isDone)
                         {
-                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline">
+                            @* *** ADD: Hidden input to preserve pool tab *** *@
+                            <form asp-action="UpdateMatchStatus" asp-controller="Match" method="post" class="d-inline match-form" data-round-name="@Model.RoundName">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
@@ -207,7 +209,8 @@
                                 <i class="bi bi-plus"></i> Add Set
                             </button>
                             
-                            <form asp-action="UpdateMatch" asp-controller="Match" method="post" class="d-inline save-score-form" data-match-id="@Model.MatchId">
+                            @* *** ADD: Hidden input to preserve pool tab *** *@
+                            <form asp-action="UpdateMatch" asp-controller="Match" method="post" class="d-inline save-score-form match-form" data-match-id="@Model.MatchId" data-round-name="@Model.RoundName">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" class="hidden-team1-score" name="Team1Score" />
