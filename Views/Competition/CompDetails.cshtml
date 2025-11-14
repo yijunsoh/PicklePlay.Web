@@ -6,22 +6,22 @@
 
 @{
     ViewData["Title"] = Model.GameName ?? "Competition Details";
-    
+
     // Get the active tab from query string or default to "overview"
     var activeTab = Context.Request.Query["tab"].ToString();
     if (string.IsNullOrEmpty(activeTab)) activeTab = "overview";
-    
+
     // Get the active sub-tab from query string or default to "listing"
     var activeSubTab = Context.Request.Query["subtab"].ToString();
     if (string.IsNullOrEmpty(activeSubTab)) activeSubTab = "listing";
-    
+
     bool setupPending = Model.Status == ScheduleStatus.PendingSetup;
 
     // --- NEW: Get data for Registration Tab ---
     var organizers = Model.Participants.Where(p => p.Role == ParticipantRole.Organizer).ToList();
     var pendingTeams = Model.Teams.Where(t => t.Status == TeamStatus.Pending).ToList();
     var confirmedTeams = Model.Teams.Where(t => t.Status == TeamStatus.Confirmed).ToList();
-    
+
     // --- NEW: Data for "Register Team" button ---
     bool hasUserRegisteredTeam = ViewBag.HasUserRegisteredTeam ?? false;
     int? currentUserId = ViewBag.CurrentUserId as int?;
@@ -32,7 +32,7 @@
     bool isCompetitionDone = Model.Status == ScheduleStatus.Completed;
     bool canManage = (isCompetitionOpen || setupPending) && organizers.Any(o => o.UserId == currentUserId);
 
-    
+
 }
 
 <style>
@@ -44,6 +44,7 @@
         margin-right: 15px;
         margin-bottom: 10px;
     }
+
     .organizer-item img {
         width: 60px;
         height: 60px;
@@ -51,6 +52,7 @@
         border-radius: 50%;
         border: 2px solid #0d6efd;
     }
+
     .organizer-item .player-name {
         font-size: 0.8rem;
         margin-top: 5px;
@@ -65,13 +67,15 @@
         border: 1px solid #dee2e6;
         border-radius: 0.375rem;
         margin-bottom: 1rem;
-        box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+        box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
     }
+
     .team-header {
         background-color: #f8f9fa;
         padding: 0.75rem 1.25rem;
         border-bottom: 1px solid #dee2e6;
     }
+
     .team-icon {
         width: 40px;
         height: 40px;
@@ -79,6 +83,7 @@
         border-radius: 50%;
         margin-right: 10px;
     }
+
     .team-body {
         padding: 1.25rem;
         display: grid;
@@ -87,7 +92,8 @@
     }
 
     /* Copied from Details.cshtml */
-    .player-slot, .empty-slot {
+    .player-slot,
+    .empty-slot {
         width: 65px;
         height: 65px;
         border-radius: 50%;
@@ -98,6 +104,7 @@
         text-align: center;
         position: relative;
     }
+
     .player-slot img {
         width: 100%;
         height: 100%;
@@ -105,6 +112,7 @@
         border-radius: 50%;
         border: 2px solid #198754;
     }
+
     .player-slot .player-name {
         display: block;
         font-size: 0.75rem;
@@ -114,28 +122,34 @@
         text-overflow: ellipsis;
         width: 65px;
     }
+
     .player-slot-wrapper {
         display: flex;
         flex-direction: column;
         align-items: center;
         margin-bottom: 10px;
     }
+
     .empty-slot {
         border: 2px dashed #ced4da;
         cursor: pointer;
     }
+
     .empty-slot:hover {
         background-color: #e9ecef;
     }
+
     .empty-slot i {
         font-size: 1.5rem;
         color: #ced4da;
     }
+
     /* --- NEW STYLES FOR INVITE MODAL --- */
     #invite-search-results {
         max-height: 250px;
         overflow-y: auto;
     }
+
     .user-search-item {
         display: flex;
         align-items: center;
@@ -143,9 +157,11 @@
         padding: 0.5rem 0.75rem;
         border-radius: 0.25rem;
     }
+
     .user-search-item:hover {
         background-color: #f8f9fa;
     }
+
     .user-search-item img {
         width: 35px;
         height: 35px;
@@ -153,25 +169,28 @@
         object-fit: cover;
         margin-right: 10px;
     }
+
     .toggle-icon {
-    transition: transform 0.2s ease-in-out;
-    display: inline-block;
-}
-.toggle-icon.rotated {
-    /* This points the arrow up */
-    transform: rotate(180deg); 
-}
-.round-header {
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    color: #333;
-}
+        transition: transform 0.2s ease-in-out;
+        display: inline-block;
+    }
+
+    .toggle-icon.rotated {
+        /* This points the arrow up */
+        transform: rotate(180deg);
+    }
+
+    .round-header {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+        color: #333;
+    }
 </style>
 
 <div class="container mt-4">
-@if (TempData["SuccessMessage"] != null)
+    @if (TempData["SuccessMessage"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             @TempData["SuccessMessage"]
@@ -191,32 +210,48 @@
         <div>
             <h2>@Model.GameName</h2>
             <p class="text-muted mb-0">@Model.Location</p>
-            
-            @if (Model.Status == ScheduleStatus.PendingSetup) {
-                 <span class="badge bg-warning text-dark">Pending Setup</span>
-            } else if (Model.Status == ScheduleStatus.InProgress) {
-                 <span class="badge bg-primary">In Progress</span>
-            } else if (Model.Status == ScheduleStatus.Completed) {
-                 <span class="badge bg-secondary">Completed</span>
-            } else {
-                 <span class="badge bg-success">@Model.Status.ToString()</span>
+
+            @if (Model.Status == ScheduleStatus.PendingSetup)
+            {
+                <span class="badge bg-warning text-dark">Pending Setup</span>
+            }
+            else if (Model.Status == ScheduleStatus.InProgress)
+            {
+                <span class="badge bg-primary">In Progress</span>
+            }
+            else if (Model.Status == ScheduleStatus.Completed)
+            {
+                <span class="badge bg-secondary">Completed</span>
+            }
+            else
+            {
+                <span class="badge bg-success">@Model.Status.ToString()</span>
             }
         </div>
         <div>
             <button class="btn btn-outline-secondary"><i class="bi bi-share"></i> Share</button>
-            
-            @if (Model.Status == ScheduleStatus.PendingSetup) {
-                 <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="btn btn-warning"><i class="bi bi-pencil-square"></i> Continue Setup</a>
-            } else if (isCompetitionOpen && currentUserId.HasValue && !hasUserRegisteredTeam) {
-                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerTeamModal">
-                     <i class="bi bi-person-plus"></i> Register Team
-                 </button>
-            } else if (hasUserRegisteredTeam) {
-                 <button class="btn btn-success" disabled><i class="bi bi-check-all"></i> Team Registered</button>
-            } else if (isCompetitionOpen && !currentUserId.HasValue) {
-                 <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-primary">
-                     <i class="bi bi-box-arrow-in-right"></i> Log in to Register
-                 </a>
+
+            @if (Model.Status == ScheduleStatus.PendingSetup)
+            {
+                <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId"
+                    class="btn btn-warning"><i class="bi bi-pencil-square"></i> Continue Setup</a>
+            }
+            else if (isCompetitionOpen && currentUserId.HasValue && !hasUserRegisteredTeam)
+            {
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerTeamModal">
+                    <i class="bi bi-person-plus"></i> Register Team
+                </button>
+            }
+            else if (hasUserRegisteredTeam)
+            {
+                <button class="btn btn-success" disabled><i class="bi bi-check-all"></i> Team Registered</button>
+            }
+            else if (isCompetitionOpen && !currentUserId.HasValue)
+            {
+                <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
+                    class="btn btn-primary">
+                    <i class="bi bi-box-arrow-in-right"></i> Log in to Register
+                </a>
             }
 
             @if (organizers.Any(o => o.UserId == currentUserId))
@@ -230,41 +265,65 @@
                 @if (canManage)
                 {
                     <div class="dropdown d-inline-block">
-                        <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             Actions
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="compActionsDropdown">
-                            @if (Model.Status == ScheduleStatus.PendingSetup) {
-                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Draft Details</a></li>
-                            } else {
-                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community" asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Details</a></li>
+                            @if (Model.Status == ScheduleStatus.PendingSetup)
+                            {
+                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community"
+                                        asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Draft
+                                        Details</a></li>
+                            }
+                            else
+                            {
+                                <li><a class="dropdown-item" asp-action="EditCompetition" asp-controller="Community"
+                                        asp-route-id="@Model.ScheduleId"><i class="bi bi-pencil-fill me-2"></i> Edit Details</a>
+                                </li>
                             }
                             <li>
-                                <a class="dropdown-item" asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId">
+                                <a class="dropdown-item" asp-action="SetupMatch" asp-controller="Community"
+                                    asp-route-id="@Model.ScheduleId">
                                     <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
                                 </a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
                             <li>
-                                @if(Model.Competition?.Format == CompetitionFormat.RoundRobin)
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                @if (Model.Competition?.Format == CompetitionFormat.RoundRobin)
                                 {
-                                    <a class="dropdown-item disabled" href="#" title="Round Robin format does not require a manual draw.">
+                                    <a class="dropdown-item disabled" href="#"
+                                        title="Round Robin format does not require a manual draw.">
                                         <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
                                     </a>
                                 }
                                 else
                                 {
-                                    <a class="dropdown-item" asp-action="GenerateDraw" asp-controller="Draw" asp-route-id="@Model.ScheduleId">
+                                    <a class="dropdown-item" asp-action="GenerateDraw" asp-controller="Draw"
+                                        asp-route-id="@Model.ScheduleId">
                                         <i class="bi bi-diagram-3-fill me-2"></i> Generate Draw
                                     </a>
                                 }
                             </li>
-                           <li><a class="dropdown-item" asp-action="Index" asp-controller="ManageTeam" asp-route-id="@Model.ScheduleId"><i class="bi bi-people-fill me-2"></i> Manage Teams</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            @if (Model.Status == ScheduleStatus.PendingSetup) {
-                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
-                            } else {
-                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId" onclick="return confirm('Are you sure you want to permanently delete this competition? This action cannot be undone.')"><i class="bi bi-trash-fill me-2"></i> Delete Competition</a></li>
+                            <li><a class="dropdown-item" asp-action="Index" asp-controller="ManageTeam"
+                                    asp-route-id="@Model.ScheduleId"><i class="bi bi-people-fill me-2"></i> Manage Teams</a>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            @if (Model.Status == ScheduleStatus.PendingSetup)
+                            {
+                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule"
+                                        asp-route-id="@Model.ScheduleId"><i class="bi bi-trash-fill me-2"></i> Delete Draft</a></li>
+                            }
+                            else
+                            {
+                                <li><a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule"
+                                        asp-route-id="@Model.ScheduleId"
+                                        onclick="return confirm('Are you sure you want to permanently delete this competition? This action cannot be undone.')"><i
+                                            class="bi bi-trash-fill me-2"></i> Delete Competition</a></li>
                             }
                         </ul>
                     </div>
@@ -276,12 +335,9 @@
     @if (!string.IsNullOrEmpty(Model.CompetitionImageUrl))
     {
         <div class="card shadow-sm mb-3">
-            <div class="card-header" style="cursor: pointer;" 
-                 data-bs-toggle="collapse" 
-                 data-bs-target="#posterCollapse" 
-                 aria-expanded="true" 
-                 aria-controls="posterCollapse">
-                
+            <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#posterCollapse"
+                aria-expanded="true" aria-controls="posterCollapse">
+
                 <h5 class="mb-0 d-flex justify-content-between align-items-center">
                     Competition Poster
                     <a class="text-decoration-none text-secondary">
@@ -291,8 +347,8 @@
             </div>
             <div class="collapse show" id="posterCollapse">
                 <div class="card-body text-center p-2">
-                    <img src="@Url.Content(Model.CompetitionImageUrl)" alt="@Model.GameName Poster" 
-                         style="max-width: 100%; height: auto; max-height: 400px; border-radius: 8px;" />
+                    <img src="@Url.Content(Model.CompetitionImageUrl)" alt="@Model.GameName Poster"
+                        style="max-width: 100%; height: auto; max-height: 400px; border-radius: 8px;" />
                 </div>
             </div>
         </div>
@@ -301,46 +357,58 @@
     @* --- Main Tabs --- *@
     <ul class="nav nav-tabs" id="competitionTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-tab-pane" type="button" role="tab" aria-controls="details-tab-pane" aria-selected="true">Details</button>
-        </li>
-       <li class="nav-item" role="presentation">
-           <button class="nav-link" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration-tab-pane" type="button" role="tab" aria-controls="registration-tab-pane" aria-selected="false">Registration</button>
+            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-tab-pane"
+                type="button" role="tab" aria-controls="details-tab-pane" aria-selected="true">Details</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="match-tab" data-bs-toggle="tab" data-bs-target="#match-tab-pane" type="button" role="tab" aria-controls="match-tab-pane" aria-selected="false">Match</button>
+            <button class="nav-link" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration-tab-pane"
+                type="button" role="tab" aria-controls="registration-tab-pane"
+                aria-selected="false">Registration</button>
         </li>
-         <li class="nav-item" role="presentation">
-            <button class="nav-link disabled" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-tab-pane" type="button" role="tab" aria-controls="result-tab-pane" aria-selected="false">Result</button>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="match-tab" data-bs-toggle="tab" data-bs-target="#match-tab-pane" type="button"
+                role="tab" aria-controls="match-tab-pane" aria-selected="false">Match</button>
         </li>
-          <li class="nav-item" role="presentation">
-           <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane" type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-tab-pane"
+                type="button" role="tab" aria-controls="result-tab-pane" aria-selected="false">Result</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane"
+                type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
         </li>
     </ul>
 
     @* --- Main Tab Content --- *@
     <div class="tab-content" id="competitionTabContent">
         @* --- Details Tab Pane (with null-checks from previous step) --- *@
-        <div class="tab-pane fade show active p-3" id="details-tab-pane" role="tabpanel" aria-labelledby="details-tab" tabindex="0">
+        <div class="tab-pane fade show active p-3" id="details-tab-pane" role="tabpanel" aria-labelledby="details-tab"
+            tabindex="0">
 
-             @if (setupPending && Model.Competition != null)
-             {
-                 <div class="alert alert-warning" role="alert">
+            @if (setupPending && Model.Competition != null)
+            {
+                <div class="alert alert-warning" role="alert">
                     This competition setup is not complete.
-                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="alert-link">Continue Setup</a> or <a asp-action="Publish" asp-controller="Community" asp-route-id="@Model.ScheduleId" onclick="event.preventDefault(); document.getElementById('publish-form-@Model.ScheduleId').submit();" class="alert-link">Publish</a> with default settings for **@Model.Competition.Format**.
-                 </div>
-                 <form id="publish-form-@Model.ScheduleId" asp-controller="Community" asp-action="Publish" asp-route-id="@Model.ScheduleId" method="post" class="d-none"> @Html.AntiForgeryToken() </form>
-             }
+                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId"
+                        class="alert-link">Continue Setup</a> or <a asp-action="Publish" asp-controller="Community"
+                        asp-route-id="@Model.ScheduleId"
+                        onclick="event.preventDefault(); document.getElementById('publish-form-@Model.ScheduleId').submit();"
+                        class="alert-link">Publish</a> with default settings for **@Model.Competition.Format**.
+                </div>
+                <form id="publish-form-@Model.ScheduleId" asp-controller="Community" asp-action="Publish"
+                    asp-route-id="@Model.ScheduleId" method="post" class="d-none"> @Html.AntiForgeryToken() </form>
+            }
 
             <h5>About</h5>
             <p>@Model.Description</p>
-            <hr/>
-            
+            <hr />
+
             <h5>Schedule & Registration</h5>
             <div class="row">
-                 <div class="col-md-6">
+                <div class="col-md-6">
                     <p><strong>Start:</strong> @Model.StartTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
                     <p><strong>End:</strong> @Model.EndTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
-                    
+
                     @if (Model.ApproxStartTime.HasValue)
                     {
                         <p><strong>Approx Start:</strong> @Model.ApproxStartTime?.ToString("hh:mm tt")</p>
@@ -349,58 +417,79 @@
                 <div class="col-md-6">
                     <p><strong>Reg Opens:</strong> @Model.RegOpen?.ToString("dd MMM yyyy, hh:mm tt")</p>
                     <p><strong>Reg Closes:</strong> @Model.RegClose?.ToString("dd MMM yyyy, hh:mm tt")</p>
-                    
+
                     @if (Model.EarlyBirdClose.HasValue)
                     {
                         <p><strong>Early Bird:</strong> @Model.EarlyBirdClose?.ToString("dd MMM yyyy, hh:mm tt")</p>
                     }
                 </div>
             </div>
-            <hr/>
+            <hr />
 
-             <h5>Participation</h5>
+            <h5>Participation</h5>
             <div class="row">
                 <div class="col-md-6">
-                     <p><strong>Teams Limit:</strong> @Model.NumTeam</p>
+                    <p><strong>Teams Limit:</strong> @Model.NumTeam</p>
                     <p>
                         <strong>Fee:</strong>
-                         @if(Model.FeeType == FeeType.Free) { <span>Free</span> }
-                         else if (Model.FeeType == FeeType.PerPerson) { <span>RM @Model.FeeAmount?.ToString("0.00") per Team</span> }
-                         else { <span>N/A</span> }
+                        @if (Model.FeeType == FeeType.Free)
+                        {
+                            <span>Free</span>
+                        }
+                        else if (Model.FeeType == FeeType.PerPerson)
+                        {
+
+                            <span>RM @Model.FeeAmount?.ToString("0.00") per
+                                Team</span>
+                        }
+                        else
+                        {
+
+                                <span>N/A</span>
+                            }
                     </p>
                 </div>
-                 
-                 <div class="col-md-6">
-                    <p><strong>Gender:</strong> @(Model.GenderRestriction.HasValue && Model.GenderRestriction != GenderRestriction.None ? Model.GenderRestriction.ToString() : "Any")</p>
-                    <p><strong>Age Group:</strong> @(Model.AgeGroupRestriction.HasValue && Model.AgeGroupRestriction != AgeGroupRestriction.Adult ? Model.AgeGroupRestriction.ToString() : "Any")</p>
-                    <p><strong>Rank:</strong> @(Model.MinRankRestriction?.ToString("0.00") ?? "Any") - @(Model.MaxRankRestriction?.ToString("0.00") ?? "Any")</p>
-                 </div>
-             </div>
+
+                <div class="col-md-6">
+                    <p><strong>Gender:</strong> @(Model.GenderRestriction.HasValue && Model.GenderRestriction !=
+                                                GenderRestriction.None ? Model.GenderRestriction.ToString() : "Any")</p>
+                    <p><strong>Age Group:</strong> @(Model.AgeGroupRestriction.HasValue && Model.AgeGroupRestriction !=
+                                                AgeGroupRestriction.Adult ? Model.AgeGroupRestriction.ToString() : "Any")</p>
+                    <p><strong>Rank:</strong> @(Model.MinRankRestriction?.ToString("0.00") ?? "Any") -
+                        @(Model.MaxRankRestriction?.ToString("0.00") ?? "Any")</p>
+                </div>
+            </div>
 
         </div> @* End Details Tab Pane *@
 
-        <div class="tab-pane fade p-3" id="registration-tab-pane" role="tabpanel" aria-labelledby="registration-tab" tabindex="0">
-            
+        <div class="tab-pane fade p-3" id="registration-tab-pane" role="tabpanel" aria-labelledby="registration-tab"
+            tabindex="0">
+
             <ul class="nav nav-pills mb-3" id="registrationSubTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="teams-subtab" data-bs-toggle="tab" data-bs-target="#teams-subtab-pane" type="button" role="tab" aria-controls="teams-subtab-pane" aria-selected="true">
+                    <button class="nav-link active" id="teams-subtab" data-bs-toggle="tab"
+                        data-bs-target="#teams-subtab-pane" type="button" role="tab" aria-controls="teams-subtab-pane"
+                        aria-selected="true">
                         Teams (@Model.Teams.Count / @Model.NumTeam)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="staff-subtab" data-bs-toggle="tab" data-bs-target="#staff-subtab-pane" type="button" role="tab" aria-controls="staff-subtab-pane" aria-selected="false">
+                    <button class="nav-link" id="staff-subtab" data-bs-toggle="tab" data-bs-target="#staff-subtab-pane"
+                        type="button" role="tab" aria-controls="staff-subtab-pane" aria-selected="false">
                         Staff
                     </button>
                 </li>
             </ul>
 
             <div class="tab-content" id="registrationSubTabsContent">
-                <div class="tab-pane fade" id="staff-subtab-pane" role="tabpanel" aria-labelledby="staff-subtab" tabindex="0">
+                <div class="tab-pane fade" id="staff-subtab-pane" role="tabpanel" aria-labelledby="staff-subtab"
+                    tabindex="0">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0">Organizers</h5>
                         @if (organizers.Any(o => o.UserId == currentUserId))
                         {
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#addStaffModal">
                                 <i class="bi bi-person-plus-fill"></i> Add Staff
                             </button>
                         }
@@ -410,8 +499,10 @@
                         <div class="d-flex flex-wrap align-items-center mt-3">
                             @foreach (var p in organizers)
                             {
-                                <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top" title="@p.User?.Username">
-                                    <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
+                                <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="@p.User?.Username">
+                                    <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                                        alt="Profile" />
                                     <span class="player-name">@p.User?.Username</span>
                                 </div>
                             }
@@ -423,34 +514,41 @@
                     }
                 </div>
 
-                <div class="tab-pane fade show active" id="teams-subtab-pane" role="tabpanel" aria-labelledby="teams-subtab" tabindex="0">
-                    
+                <div class="tab-pane fade show active" id="teams-subtab-pane" role="tabpanel"
+                    aria-labelledby="teams-subtab" tabindex="0">
+
                     <ul class="nav nav-tabs" id="teamStatusTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="confirmed-teams-tab" data-bs-toggle="tab" data-bs-target="#confirmed-teams-pane" type="button" role="tab" aria-controls="confirmed-teams-pane" aria-selected="true">
+                            <button class="nav-link active" id="confirmed-teams-tab" data-bs-toggle="tab"
+                                data-bs-target="#confirmed-teams-pane" type="button" role="tab"
+                                aria-controls="confirmed-teams-pane" aria-selected="true">
                                 Confirmed (@confirmedTeams.Count)
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="pending-teams-tab" data-bs-toggle="tab" data-bs-target="#pending-teams-pane" type="button" role="tab" aria-controls="pending-teams-pane" aria-selected="false">
+                            <button class="nav-link" id="pending-teams-tab" data-bs-toggle="tab"
+                                data-bs-target="#pending-teams-pane" type="button" role="tab"
+                                aria-controls="pending-teams-pane" aria-selected="false">
                                 Pending (@pendingTeams.Count)
                             </button>
                         </li>
                     </ul>
 
                     <div class="tab-content" id="teamStatusTabsContent">
-                        <div class="tab-pane fade" id="pending-teams-pane" role="tabpanel" aria-labelledby="pending-teams-tab" tabindex="0">
-                             <div class="pt-3">
+                        <div class="tab-pane fade" id="pending-teams-pane" role="tabpanel"
+                            aria-labelledby="pending-teams-tab" tabindex="0">
+                            <div class="pt-3">
                                 @if (!pendingTeams.Any())
                                 {
-                                     <p class="text-muted">No teams pending approval.</p>
+                                    <p class="text-muted">No teams pending approval.</p>
                                 }
                                 @foreach (var team in pendingTeams)
-                                 {
+                                {
                                     <div class="team-card">
                                         <div class="team-header d-flex align-items-center justify-content-between">
-                                             <div class="d-flex align-items-center">
-                                                <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="Team Icon" class="team-icon" />
+                                            <div class="d-flex align-items-center">
+                                                <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)"
+                                                    alt="Team Icon" class="team-icon" />
                                                 <h5 class="mb-0">@team.TeamName</h5>
                                                 @if (team.PaymentStatusForSchedule == PaymentStatusForSchedule.Paid)
                                                 {
@@ -461,22 +559,22 @@
                                                     <span class="badge bg-warning text-dark ms-2">Unpaid</span>
                                                 }
                                             </div>
-                                            
+
                                             <div class="btn-group">
-                                                @if (currentUserId == team.CreatedByUserId && team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
+                                                @if (currentUserId == team.CreatedByUserId && team.PaymentStatusForSchedule
+                                                                                            == PaymentStatusForSchedule.Unpaid)
                                                 {
-                                                    <a asp-action="MakePayment" asp-controller="Competition" asp-route-teamId="@team.TeamId" class="btn btn-sm btn-primary">
+                                                    <a asp-action="MakePayment" asp-controller="Competition"
+                                                        asp-route-teamId="@team.TeamId" class="btn btn-sm btn-primary">
                                                         <i class="bi bi-credit-card"></i> Make Payment
                                                     </a>
                                                 }
                                                 @if (team.CreatedByUserId == currentUserId)
                                                 {
                                                     <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
-                                                       data-bs-toggle="modal"
-                                                       data-bs-target="#editTeamModal"
-                                                       data-team-id="@team.TeamId"
-                                                       data-team-name="@team.TeamName"
-                                                       data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
+                                                        data-bs-toggle="modal" data-bs-target="#editTeamModal"
+                                                        data-team-id="@team.TeamId" data-team-name="@team.TeamName"
+                                                        data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
                                                         <i class="bi bi-pencil"></i>
                                                     </a>
                                                 }
@@ -484,30 +582,40 @@
                                         </div>
                                         <div class="team-body">
                                             @foreach (var member in team.TeamMembers)
-                                             {
-                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="@member.User?.Username">
-                                                     <div class="player-slot">
-                                                        <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)" alt="Profile"/>
+                                            {
+                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip"
+                                                    data-bs-placement="top" title="@member.User?.Username">
+                                                    <div class="player-slot">
+                                                        <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)"
+                                                            alt="Profile" />
                                                     </div>
-                                                     <span class="player-name">@member.User?.Username</span>
+                                                    <span class="player-name">@member.User?.Username</span>
                                                 </div>
-                                                
-                                                @if (currentUserId == team.CreatedByUserId && member.UserId != team.CreatedByUserId)
+
+                                                @if (currentUserId == team.CreatedByUserId && member.UserId !=
+                                                                                        team.CreatedByUserId)
                                                 {
-                                                    <div class="btn-group-vertical btn-group-sm" style="width: 65px; align-items: center;">
-                                                        <form asp-action="MakeCaptain" asp-controller="Competition" method="post" class="d-inline" onsubmit="return confirm('Make @member.User!.Username captain? You will lose captain permissions.')">
+                                                    <div class="btn-group-vertical btn-group-sm"
+                                                        style="width: 65px; align-items: center;">
+                                                        <form asp-action="MakeCaptain" asp-controller="Competition" method="post"
+                                                            class="d-inline"
+                                                            onsubmit="return confirm('Make @member.User!.Username captain? You will lose captain permissions.')">
                                                             @Html.AntiForgeryToken()
                                                             <input type="hidden" name="teamId" value="@team.TeamId" />
                                                             <input type="hidden" name="newCaptainUserId" value="@member.UserId" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-warning w-100" title="Make Captain">
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning w-100"
+                                                                title="Make Captain">
                                                                 <i class="bi bi-star-fill"></i>
                                                             </button>
                                                         </form>
-                                                        <form asp-action="RemoveMember" asp-controller="Competition" method="post" class="d-inline" onsubmit="return confirm('Remove @member.User.Username from the team?')">
+                                                        <form asp-action="RemoveMember" asp-controller="Competition" method="post"
+                                                            class="d-inline"
+                                                            onsubmit="return confirm('Remove @member.User.Username from the team?')">
                                                             @Html.AntiForgeryToken()
                                                             <input type="hidden" name="teamId" value="@team.TeamId" />
                                                             <input type="hidden" name="userId" value="@member.UserId" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100" title="Remove Member">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"
+                                                                title="Remove Member">
                                                                 <i class="bi bi-x-lg"></i>
                                                             </button>
                                                         </form>
@@ -515,25 +623,24 @@
                                                 }
                                             }
                                             @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) // Assuming 2 players max
-                                            {
-                                                <div class="player-slot-wrapper">
-                                                     <div class="empty-slot" 
-                                                          data-bs-toggle="modal" 
-                                                         data-bs-target="#invitePlayerModal" 
-                                                         data-team-id="@team.TeamId"
-                                                         title="Invite Player">
-                                                         <i class="bi bi-person-plus"></i>
-                                                    </div>
-                                                     <span class="player-name text-muted">Invite</span>
-                                                </div>
-                                            }                         
-                                         </div>
-                                         
-                                         </div>
-                                }
-                             </div>
+                                        {
+                                        <div class="player-slot-wrapper">
+                                            <div class="empty-slot" data-bs-toggle="modal"
+                                                data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
+                                                title="Invite Player">
+                                                <i class="bi bi-person-plus"></i>
+                                            </div>
+                                            <span class="player-name text-muted">Invite</span>
+                                        </div>
+                                        }
+                                    </div>
+
+                                    </div>
+                                                                }
+                            </div>
                         </div>
-                        <div class="tab-pane fade show active" id="confirmed-teams-pane" role="tabpanel" aria-labelledby="confirmed-teams-tab" tabindex="0">
+                        <div class="tab-pane fade show active" id="confirmed-teams-pane" role="tabpanel"
+                            aria-labelledby="confirmed-teams-tab" tabindex="0">
                             <div class="pt-3">
                                 @if (!confirmedTeams.Any())
                                 {
@@ -544,17 +651,16 @@
                                     <div class="team-card">
                                         <div class="team-header d-flex align-items-center justify-content-between">
                                             <div class="d-flex align-items-center">
-                                                <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)" alt="Team Icon" class="team-icon" />
+                                                <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)"
+                                                    alt="Team Icon" class="team-icon" />
                                                 <h5 class="mb-0">@team.TeamName</h5>
                                             </div>
                                             @if (team.CreatedByUserId == currentUserId)
                                             {
                                                 <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
-                                                   data-bs-toggle="modal"
-                                                   data-bs-target="#editTeamModal"
-                                                   data-team-id="@team.TeamId"
-                                                   data-team-name="@team.TeamName"
-                                                   data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
+                                                    data-bs-toggle="modal" data-bs-target="#editTeamModal"
+                                                    data-team-id="@team.TeamId" data-team-name="@team.TeamName"
+                                                    data-team-icon-url="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                             }
@@ -562,9 +668,11 @@
                                         <div class="team-body">
                                             @foreach (var member in team.TeamMembers)
                                             {
-                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="@member.User?.Username">
+                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip"
+                                                    data-bs-placement="top" title="@member.User?.Username">
                                                     <div class="player-slot">
-                                                        <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)" alt="Profile"/>
+                                                        <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)"
+                                                            alt="Profile" />
                                                     </div>
                                                     <span class="player-name">@member.User?.Username</span>
                                                 </div>
@@ -573,11 +681,9 @@
                                             @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2)
                                             {
                                                 <div class="player-slot-wrapper">
-                                                    <div class="empty-slot" 
-                                                         data-bs-toggle="modal" 
-                                                         data-bs-target="#invitePlayerModal" 
-                                                         data-team-id="@team.TeamId"
-                                                         title="Invite Player">
+                                                    <div class="empty-slot" data-bs-toggle="modal"
+                                                        data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
+                                                        title="Invite Player">
                                                         <i class="bi bi-person-plus"></i>
                                                     </div>
                                                     <span class="player-name text-muted">Invite</span>
@@ -596,43 +702,40 @@
         @* --- Match Tab Pane (MODIFIED) --- *@
         <div class="tab-pane fade p-3" id="match-tab-pane" role="tabpanel" aria-labelledby="match-tab" tabindex="0">
 
-             @if (setupPending)
-             {
-                 <div class="alert alert-warning" role="alert">
+            @if (setupPending)
+            {
+                <div class="alert alert-warning" role="alert">
                     Match setup cannot be completed until the initial competition setup is saved.
-                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId" class="alert-link">Go to Setup</a>.
-                 </div>
-             }
-             else if (Model.Competition == null)
-             {
-                  <div class="alert alert-danger" role="alert">
+                    <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId"
+                        class="alert-link">Go to Setup</a>.
+                </div>
+            }
+            else if (Model.Competition == null)
+            {
+                <div class="alert alert-danger" role="alert">
                     Error: Competition details are missing. Cannot display match information.
-                 </div>
-             }
-             else
-             {
+                </div>
+            }
+            else
+            {
                 bool isDrawPublished = Model.Competition.DrawPublished;
                 bool isRoundRobin = Model.Competition.Format == CompetitionFormat.RoundRobin;
                 bool canViewDraw = isDrawPublished && !isRoundRobin;
-                
+
                 @* --- Nested Match Tabs (MODIFIED) --- *@
-                 <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
-             
+                     <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
+
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="format-subtab" data-bs-toggle="tab" data-bs-target="#format-subtab-pane" type="button" role="tab" aria-controls="format-subtab-pane" aria-selected="true">Format</button>
+                        <button class="nav-link active" id="format-subtab" data-bs-toggle="tab"
+                            data-bs-target="#format-subtab-pane" type="button" role="tab" aria-controls="format-subtab-pane"
+                            aria-selected="true">Format</button>
                     </li>
 
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" 
-                                id="draw-subtab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#draw-subtab-pane" 
-                                type="button" 
-                                role="tab" 
-                                aria-controls="draw-subtab-pane" 
-                                aria-selected="false"
-                                @(canViewDraw ? "" : "disabled")
-                                title="@(canViewDraw ? "View Published Draw" : (isRoundRobin ? "Draw not applicable for Round Robin" : "Draw has not been published"))">
+                        <button class="nav-link" id="draw-subtab" data-bs-toggle="tab" data-bs-target="#draw-subtab-pane"
+                            type="button" role="tab" aria-controls="draw-subtab-pane" aria-selected="false" @(canViewDraw ?
+                                                                                                                                    "" : "disabled")
+                            title="@(canViewDraw ? "View Published Draw" : (isRoundRobin ? "Draw not applicable for Round Robin" : "Draw has not been published"))">
                             Draw
                             @if (!canViewDraw && !isRoundRobin)
                             {
@@ -640,37 +743,35 @@
                             }
                         </button>
                     </li>
-                    
+
                     <li class="nav-item" role="presentation">
-                         <button class="nav-link" id="listing-subtab" data-bs-toggle="tab" data-bs-target="#listing-subtab-pane" type="button" role="tab" aria-controls="listing-subtab-pane" aria-selected="false">
+                        <button class="nav-link" id="listing-subtab" data-bs-toggle="tab"
+                            data-bs-target="#listing-subtab-pane" type="button" role="tab"
+                            aria-controls="listing-subtab-pane" aria-selected="false">
                             Listing
-                         </button>
+                        </button>
                     </li>
                     @if (Model.Competition?.Format != CompetitionFormat.Elimination)
-{
-    <li class="nav-item" role="presentation">
-        <button class="nav-link @(activeSubTab == "standing" ? "active" : "")" 
-                id="standing-subtab" 
-                data-bs-toggle="tab" 
-                data-bs-target="#standing-subtab-pane" 
-                type="button" 
-                role="tab" 
-                aria-controls="standing-subtab-pane" 
-                aria-selected="@(activeSubTab == "standing" ? "true" : "false")">
-            Standing
-        </button>
-    </li>
-}
+                    {
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(activeSubTab == "standing" ? "active" : "")" id="standing-subtab"
+                                data-bs-toggle="tab" data-bs-target="#standing-subtab-pane" type="button" role="tab"
+                                aria-controls="standing-subtab-pane"
+                                aria-selected="@(activeSubTab == "standing" ? "true" : "false")">
+                                Standing
+                            </button>
+                        </li>
+                    }
                 </ul>
 
                 <div class="tab-content" id="matchSubTabsContent">
                     @* --- Format Sub-Tab Pane --- *@
-                    <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel" 
- aria-labelledby="format-subtab" tabindex="0">
+                        <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel"
+                        aria-labelledby="format-subtab" tabindex="0">
                         <h5>Format & Rules</h5>
                         <div class="row">
                             <div class="col-md-6">
-                             <p><strong>Format:</strong> @Model.Competition!.Format.ToString()</p>
+                                <p><strong>Format:</strong> @Model.Competition!.Format.ToString()</p>
                                 @if (Model.Competition.Format == CompetitionFormat.PoolPlay)
                                 {
                                     <p><strong>Pools:</strong> @Model.Competition.NumPool</p>
@@ -679,7 +780,7 @@
                                     @if (Model.Competition.StandingCalculation == StandingCalculation.WinLossPoints)
                                     {
                                         <h6>Point System</h6>
-                                         <ul>
+                                        <ul>
                                             <li>Standard Win: @Model.Competition.StandardWin pts</li>
                                             <li>Standard Loss: @Model.Competition.StandardLoss pts</li>
                                             <li>Tie-Break Win: @Model.Competition.TieBreakWin pts</li>
@@ -700,82 +801,80 @@
                             <div class="col-md-6">
                                 @if (!string.IsNullOrEmpty(Model.Competition.MatchRule))
                                 {
-                                     <p><strong>Match Rules:</strong></p>
-                                    <p style="white-space: pre-wrap;">@Model.Competition.MatchRule</p> 
+                                    <p><strong>Match Rules:</strong></p>
+                                    <p style="white-space: pre-wrap;">@Model.Competition.MatchRule</p>
                                 }
                             </div>
                         </div>
                     </div> @* End Format Sub-Tab Pane *@
-                     @* Draw Sub-Tab Pane *@
-                    <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab" tabindex="0">
-    @if (canViewDraw)
-    {
-        <div id="draw-visual-container">
-            <div class="text-center p-5">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading Draw...</span>
-                </div>
-                <p class="mt-2">Loading Draw...</p>
-            </div>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-info">
-            The draw is not yet published or is not applicable for this competition format.
-        </div>
-    }
-</div>
+                         @* Draw Sub-Tab Pane *@
+                        <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
+                        tabindex="0">
+                        @if (canViewDraw)
+                        {
+                            <div id="draw-visual-container">
+                                <div class="text-center p-5">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading Draw...</span>
+                                    </div>
+                                    <p class="mt-2">Loading Draw...</p>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                The draw is not yet published or is not applicable for this competition format.
+                            </div>
+                        }
+                    </div>
 
                     @* --- Listing Sub-Tab Pane --- *@
-<div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" 
-     id="listing-subtab-pane" 
-     role="tabpanel" 
-     aria-labelledby="listing-subtab" 
-     tabindex="0">
-    <div id="listing-container">
-        <div class="text-center p-3">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-    </div>
-</div>
+    <div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" id="listing-subtab-pane"
+                        role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
+                        <div id="listing-container">
+                            <div class="text-center p-3">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     @* --- Standing Sub-Tab Pane --- *@
-                     <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" 
-     id="standing-subtab-pane" 
-     role="tabpanel" 
-     aria-labelledby="standing-subtab" 
-     tabindex="0">
-    <div id="standing-container">
-        <div class="text-center p-3">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-    </div>
-</div>
+                         <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" id="standing-subtab-pane"
+                        role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
+                        <div id="standing-container">
+                            <div class="text-center p-3">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div> @* End Nested Tab Content *@
              } @* End else block for setupPending / Competition null check *@
         </div> @* End Match Tab Pane *@
 
 
         @* --- Other Main Tab Panes (Placeholders) --- *@
-        <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">... Result content coming soon ...</div>
-         <div class="tab-pane fade p-3" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">... Chat content coming soon ...</div>
+        <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">
+            ... Result content coming soon ...</div>
+        <div class="tab-pane fade p-3" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">...
+            Chat content coming soon ...</div>
 
     </div> @* End Main Tab Content *@
 
 </div> @* End Container *@
 
-<div class="modal fade" id="registerTeamModal" tabindex="-1" aria-labelledby="registerTeamModalLabel" aria-hidden="true">
+<div class="modal fade" id="registerTeamModal" tabindex="-1" aria-labelledby="registerTeamModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form asp-controller="Team" asp-action="CreateTeam" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="ScheduleId" value="@Model.ScheduleId" />
-                
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="registerTeamModalLabel">Register Your Team</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -809,7 +908,7 @@
             <form asp-controller="Team" asp-action="EditTeam" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
                 <input type="hidden" id="editTeamId" name="TeamId" value="0" />
-                
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="editTeamModalLabel">Edit Team</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -825,7 +924,8 @@
                     <div class="mb-3">
                         <label for="editTeamIconFile" class="form-label">Team Icon</label>
                         <div class="mb-2 text-center">
-                            <img id="currentTeamIcon" src="" alt="Current Icon" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" />
+                            <img id="currentTeamIcon" src="" alt="Current Icon"
+                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" />
                         </div>
                         <input type="file" name="TeamIconFile" class="form-control" accept="image/*" />
                         <small class="form-text text-muted">Upload a new file to replace the current icon.</small>
@@ -845,7 +945,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addStaffModalLabel">Add Staff Member</h5>
-                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
@@ -854,18 +954,19 @@
                 </div>
                 <div id="staff-search-spinner" class="text-center d-none">
                     <div class="spinner-border spinner-border-sm" role="status">
-                         <span class="visually-hidden">Loading...</span>
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
                 <div id="staff-search-results">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- *** NEW: Invite Player Modal *** -->
-<div class="modal fade" id="invitePlayerModal" tabindex="-1" aria-labelledby="invitePlayerModalLabel" aria-hidden="true">
+<div class="modal fade" id="invitePlayerModal" tabindex="-1" aria-labelledby="invitePlayerModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -891,7 +992,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="startCompetitionModal" tabindex="-1" aria-labelledby="startCompetitionModalLabel" aria-hidden="true">
+<div class="modal fade" id="startCompetitionModal" tabindex="-1" aria-labelledby="startCompetitionModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <form asp-controller="Match" asp-action="StartCompetition" asp-route-id="@Model.ScheduleId" method="post">
@@ -924,7 +1026,7 @@
             <form asp-controller="Match" asp-action="UpdateMatchDetails" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" id="editMatchId" name="MatchId" value="0" />
-                
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="editMatchModalLabel">Edit Match Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -936,7 +1038,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="editCourt" class="form-label">Court</label>
-                        <input type="text" id="editCourt" name="Court" class="form-control" placeholder="e.g. Court 3" />
+                        <input type="text" id="editCourt" name="Court" class="form-control"
+                            placeholder="e.g. Court 3" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -950,969 +1053,1172 @@
 
 @section Scripts {
     @* Make sure these scripts are loaded FIRST *@
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
 
     <script>
-    // --- Store model data in JS vars for checking ---
-    const COMP_DATA = {
-        scheduleId: @Model.ScheduleId,
-        isSetupComplete: @(Model.Competition != null ? "true" : "false"),
-        isDrawPublished: @(Model.Competition?.DrawPublished == true ? "true" : "false"),
-        isRoundRobin: @(Model.Competition?.Format == CompetitionFormat.RoundRobin ? "true" : "false"),
-        format: '@Model.Competition?.Format'
-    };
+        // --- Store model data in JS vars for checking ---
+        const COMP_DATA = {
+            scheduleId: @Model.ScheduleId,
+            isSetupComplete: @(Model.Competition != null ? "true" : "false"),
+            isDrawPublished: @(Model.Competition?.DrawPublished == true ? "true" : "false"),
+            isRoundRobin: @(Model.Competition?.Format == CompetitionFormat.RoundRobin ? "true" : "false"),
+            format: '@Model.Competition?.Format'
+        };
 
-    // Enable tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
-    
-    // Edit Team modal script
-    var editTeamModal = document.getElementById('editTeamModal');
-    if (editTeamModal) {
-        editTeamModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var teamId = button.getAttribute('data-team-id');
-            var teamName = button.getAttribute('data-team-name');
-            var teamIconUrl = button.getAttribute('data-team-icon-url');
+        // Enable tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
 
-            var modal = this;
-            modal.querySelector('#editTeamId').value = teamId;
-            modal.querySelector('#editTeamName').value = teamName;
-            modal.querySelector('#currentTeamIcon').src = teamIconUrl;
-        });
-    }
+        // Edit Team modal script
+        var editTeamModal = document.getElementById('editTeamModal');
+        if (editTeamModal) {
+            editTeamModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var teamId = button.getAttribute('data-team-id');
+                var teamName = button.getAttribute('data-team-name');
+                var teamIconUrl = button.getAttribute('data-team-icon-url');
 
-    // Invite Player modal scripts
-    var invitePlayerModal = document.getElementById('invitePlayerModal');
-    var userSearchInput = document.getElementById('userSearchInput');
-    var searchResultsContainer = document.getElementById('invite-search-results');
-    var spinner = document.getElementById('invite-search-spinner');
-    var inviteTeamIdInput = document.getElementById('inviteTeamId');
-    var searchTimeout;
+                var modal = this;
+                modal.querySelector('#editTeamId').value = teamId;
+                modal.querySelector('#editTeamName').value = teamName;
+                modal.querySelector('#currentTeamIcon').src = teamIconUrl;
+            });
+        }
 
-    if (invitePlayerModal) {
-        invitePlayerModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var teamId = button.getAttribute('data-team-id');
-            inviteTeamIdInput.value = teamId;
-            userSearchInput.value = '';
-            searchResultsContainer.innerHTML = '';
-        });
+        // Invite Player modal scripts
+        var invitePlayerModal = document.getElementById('invitePlayerModal');
+        var userSearchInput = document.getElementById('userSearchInput');
+        var searchResultsContainer = document.getElementById('invite-search-results');
+        var spinner = document.getElementById('invite-search-spinner');
+        var inviteTeamIdInput = document.getElementById('inviteTeamId');
+        var searchTimeout;
 
-        userSearchInput.addEventListener('keyup', function () {
-            clearTimeout(searchTimeout);
-            var query = userSearchInput.value;
-            var teamId = inviteTeamIdInput.value;
-
-            if (query.length < 2) {
+        if (invitePlayerModal) {
+            invitePlayerModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var teamId = button.getAttribute('data-team-id');
+                inviteTeamIdInput.value = teamId;
+                userSearchInput.value = '';
                 searchResultsContainer.innerHTML = '';
-                return;
-            }
-
-            spinner.classList.remove('d-none');
-
-            searchTimeout = setTimeout(function () {
-                fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
-                    .then(response => {
-                        spinner.classList.add('d-none');
-                        if (!response.ok) {
-                            throw new Error('Search failed');
-                        }
-                        return response.json();
-                    })
-                    .then(users => {
-                        renderSearchResults(users, teamId);
-                    })
-                    .catch(error => {
-                        searchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
-                    });
-            }, 500);
-        });
-    }
-
-    function renderSearchResults(users, teamId) {
-        searchResultsContainer.innerHTML = '';
-        if (users.length === 0) {
-            searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
-            return;
-        }
-
-        users.forEach(user => {
-            var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
-            var userHtml = `
-                <div class="user-search-item">
-                    <div class="d-flex align-items-center">
-                        <img src="${profilePic}" alt="${user.username}" />
-                        <strong>${user.username}</strong>
-                    </div>
-                    <button class="btn btn-sm btn-primary send-invite-btn" 
-                            data-team-id="${teamId}" 
-                            data-invitee-id="${user.userId}">
-                        Invite
-                    </button>
-                </div>`;
-            searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
-        });
-
-        document.querySelectorAll('.send-invite-btn').forEach(button => {
-            button.addEventListener('click', sendInvite);
-        });
-    }
-
-    function sendInvite(event) {
-        var button = event.target;
-        var teamId = button.getAttribute('data-team-id');
-        var inviteeId = button.getAttribute('data-invitee-id');
-        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-        fetch('/Team/SendInvite', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'RequestVerificationToken': token
-            },
-            body: `teamId=${teamId}&inviteeUserId=${inviteeId}`
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.message || 'Failed to send invite') });
-            }
-            return response.json();
-        })
-        .then(data => {
-            button.innerHTML = 'Sent!';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-secondary');
-        })
-        .catch(error => {
-            button.innerHTML = 'Error';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-danger');
-            alert('Error: ' + error.message);
-        });
-    }
-
-    // Add Staff Modal Scripts
-    var addStaffModal = document.getElementById('addStaffModal');
-    var staffSearchInput = document.getElementById('staffSearchInput');
-    var staffSearchResultsContainer = document.getElementById('staff-search-results');
-    var staffSpinner = document.getElementById('staff-search-spinner');
-    var staffSearchTimeout;
-    
-    if (addStaffModal) {
-        addStaffModal.addEventListener('show.bs.modal', function (event) {
-            staffSearchInput.value = '';
-            staffSearchResultsContainer.innerHTML = '';
-        });
-
-        staffSearchInput.addEventListener('keyup', function () {
-            clearTimeout(staffSearchTimeout);
-            var query = staffSearchInput.value;
-            var scheduleId = COMP_DATA.scheduleId;
-
-            if (query.length < 2) {
-                staffSearchResultsContainer.innerHTML = '';
-                return;
-            }
-
-            staffSpinner.classList.remove('d-none');
-
-            staffSearchTimeout = setTimeout(function () {
-                fetch(`/Competition/SearchUsersForStaff?scheduleId=${scheduleId}&query=${query}`)
-                    .then(response => {
-                        staffSpinner.classList.add('d-none');
-                        if (!response.ok) {
-                            throw new Error('Search failed');
-                        }
-                        return response.json();
-                    })
-                    .then(users => {
-                        renderStaffSearchResults(users, scheduleId);
-                    })
-                    .catch(error => {
-                        staffSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
-                    });
-            }, 500);
-        });
-    }
-
-    function renderStaffSearchResults(users, scheduleId) {
-        staffSearchResultsContainer.innerHTML = '';
-        if (users.length === 0) {
-            staffSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
-            return;
-        }
-
-        users.forEach(user => {
-            var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
-            var userHtml = `
-                <div class="user-search-item">
-                    <div class="d-flex align-items-center">
-                        <img src="${profilePic}" alt="${user.username}" />
-                        <strong>${user.username}</strong>
-                    </div>
-                    <button class="btn btn-sm btn-primary add-staff-btn" 
-                            data-schedule-id="${scheduleId}" 
-                            data-user-id="${user.userId}">
-                        Add Staff
-                    </button>
-                </div>`;
-            staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
-        });
-
-        document.querySelectorAll('.add-staff-btn').forEach(button => {
-            button.addEventListener('click', addStaffMember);
-        });
-    }
-
-    function addStaffMember(event) {
-        var button = event.target;
-        var scheduleId = button.getAttribute('data-schedule-id');
-        var userId = button.getAttribute('data-user-id');
-        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-        fetch('/Competition/AddStaff', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'RequestVerificationToken': token
-            },
-            body: `scheduleId=${scheduleId}&userId=${userId}`
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.message || 'Failed to add staff') });
-            }
-            return response.json();
-        })
-        .then(data => {
-            button.innerHTML = 'Added!';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-secondary');
-            location.reload(); 
-        })
-        .catch(error => {
-            button.innerHTML = 'Error';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-danger');
-            alert('Error: ' + error.message);
-        });
-    }
-
-    // Competition Poster Toggle
-    var posterCollapseElement = document.getElementById('posterCollapse');
-    var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
-
-    if (posterCollapseElement && posterTriggerElement) {
-        var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
-
-        if (posterIcon) {
-            posterCollapseElement.addEventListener('show.bs.collapse', function () {
-                posterIcon.classList.add('rotated');
             });
-            
-            posterCollapseElement.addEventListener('hide.bs.collapse', function () {
-                posterIcon.classList.remove('rotated');
-            });
-        }
-    }
 
-    // Start Competition Button Logic
-    var startCompBtn = document.getElementById('startCompetitionBtn');
-    if (startCompBtn) {
-        var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
-        var startModalBody = document.getElementById('startCompetitionModalBody');
-        
-        startCompBtn.addEventListener('click', function (event) {
-            event.preventDefault();
-            
-            if (!COMP_DATA.isSetupComplete) {
-                alert('Please complete "Match Setup & Format" before starting.');
-                return;
-            }
-            
-            if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
-                alert('Please publish the draw at generate draw to proceed.');
-                return;
-            }
-            
-            startModalBody.innerHTML = `
-                <div class="text-center p-5">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading Details...</span>
-                    </div>
-                </div>`;
-            startModal.show();
-            
-            fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
-                .then(response => response.text())
-                .then(html => {
-                    startModalBody.innerHTML = html;
-                })
-                .catch(err => {
-                    startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
-                });
-        });
-    }
+            userSearchInput.addEventListener('keyup', function () {
+                clearTimeout(searchTimeout);
+                var query = userSearchInput.value;
+                var teamId = inviteTeamIdInput.value;
 
-// *** LISTING TAB LOADING (Pool Play & Elimination) ***
-var listingTab = document.getElementById('listing-subtab');
-if (listingTab) {
-    var listingLoaded = false;
-    
-    listingTab.addEventListener('show.bs.tab', function(event) {
-        if (!listingLoaded) {
-            loadListing();
-            listingLoaded = true;
-        }
-    });
-    
-    function loadListing() {
-        var container = document.getElementById('listing-container');
-        if (!container) return;
-        
-        console.log('Loading listing for schedule:', COMP_DATA.scheduleId);
-        container.innerHTML = `
-            <div class="text-center p-5">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading Matches...</span>
-                </div>
-                <p class="mt-2">Loading Matches...</p>
-            </div>`;
-            
-        fetch('/Match/GetMatchListing?id=' + COMP_DATA.scheduleId)
-            .then(response => {
-                console.log('Listing response status:', response.status);
-                if (!response.ok) {
-                    throw new Error('HTTP error ' + response.status);
+                if (query.length < 2) {
+                    searchResultsContainer.innerHTML = '';
+                    return;
                 }
-                return response.text();
-            })
-            .then(html => {
-                console.log('Listing HTML received, length:', html.length);
-                container.innerHTML = html;
-                
-                // *** IMPORTANT: Set up match card handlers AFTER HTML is loaded ***
-                setupMatchCardHandlers();
-            })
-            .catch(error => {
-                console.error('Failed to load listing:', error);
-                container.innerHTML = 
-                    '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load match listing: ' + error.message + '</div>';
+
+                spinner.classList.remove('d-none');
+
+                searchTimeout = setTimeout(function () {
+                    fetch(`/Team/SearchUsersForInvite?teamId=${teamId}&query=${query}`)
+                        .then(response => {
+                            spinner.classList.add('d-none');
+                            if (!response.ok) {
+                                throw new Error('Search failed');
+                            }
+                            return response.json();
+                        })
+                        .then(users => {
+                            renderSearchResults(users, teamId);
+                        })
+                        .catch(error => {
+                            searchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                        });
+                }, 500);
             });
-    }
-}
-
-window.switchToStandingTab = function() {
-    console.log('switchToStandingTab called');
-    
-    // First, ensure we're on the Match main tab
-    var matchTab = document.getElementById('match-tab');
-    if (matchTab) {
-        var tab = new bootstrap.Tab(matchTab);
-        tab.show();
-        console.log('Switched to Match tab');
-    }
-    
-    // Wait a bit, then switch to Standing sub-tab
-    setTimeout(function() {
-        var standingTab = document.getElementById('standing-subtab');
-        if (standingTab) {
-            var subtab = new bootstrap.Tab(standingTab);
-            subtab.show();
-            console.log('Switched to Standing sub-tab');
-        } else {
-            console.error('Standing tab not found');
         }
-    }, 300);
-};
 
-// *** MATCH CARD HANDLERS - Called after listing is loaded ***
-function setupMatchCardHandlers() {
-    console.log('Setting up match card event handlers...');
-    
-    // *** SIMPLIFIED: Check round name pattern to determine pool vs playoff ***
-    $(document).on('submit', '.match-form', function(e) {
-        var $form = $(this);
-        var roundName = $form.data('round-name');
-        
-        if (!roundName) {
-            console.log('No round name on form, skipping');
-            return true;
-        }
-        
-        console.log('Form submitting with round name:', roundName);
-        
-        var cleanRoundName = String(roundName).trim();
-        
-        // Check if this is a pool round (starts with "Pool")
-        if (cleanRoundName.startsWith('Pool ')) {
-            console.log('✓ POOL match detected, storing:', cleanRoundName);
-            sessionStorage.setItem('activePoolTab', cleanRoundName);
-            sessionStorage.removeItem('activeSubTab');
-        } 
-        // Check if this is a playoff round
-        else if (cleanRoundName.includes('Final') || 
-                 cleanRoundName.includes('Semi') || 
-                 cleanRoundName.includes('Quarter') || 
-                 cleanRoundName.includes('Round of') ||
-                 cleanRoundName.includes('3rd Place')) {
-            console.log('✓ PLAYOFF match detected, storing flag');
-            sessionStorage.setItem('activeSubTab', 'playoff');
-            sessionStorage.removeItem('activePoolTab');
-        }
-        else {
-            console.log('⚠ Unknown round type, no storage:', cleanRoundName);
-        }
-        
-        return true;
-    });
-
-    // Add Set button
-    $(document).off('click', '.btn-add-set').on('click', '.btn-add-set', function() {
-        var matchId = $(this).data('match-id');
-        console.log('Add set clicked for match', matchId);
-        
-        var $matchContainer = $('#match-' + matchId);
-        if ($matchContainer.length === 0) {
-            console.error('Match container not found for ID:', matchId);
-            return;
-        }
-        
-        var $formContainer = $matchContainer.find('.organizer-match-form');
-        
-        var $newSetT1 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" min="0" placeholder="0" />');
-        var $newSetT2 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" min="0" placeholder="0" />');
-        $formContainer.find('.score-sets-container[data-team-id="1"]').append($newSetT1);
-        $formContainer.find('.score-sets-container[data-team-id="2"]').append($newSetT2);
-
-        var $titleContainer = $matchContainer.find('.score-set-titles');
-        var newSetNum = $titleContainer.find('.score-set-title').length + 1;
-        $titleContainer.append('<span class="score-set-title">Set ' + newSetNum + '</span>');
-        
-        console.log('Set added successfully');
-    });
-
-    // Minus Set button
-    $(document).off('click', '.btn-minus-set').on('click', '.btn-minus-set', function() {
-        var matchId = $(this).data('match-id');
-        console.log('Minus set clicked for match', matchId);
-        
-        var $matchContainer = $('#match-' + matchId);
-        if ($matchContainer.length === 0) {
-            console.error('Match container not found for ID:', matchId);
-            return;
-        }
-        
-        var $formContainer = $matchContainer.find('.organizer-match-form');
-        
-        var $team1Inputs = $formContainer.find('.score-sets-container[data-team-id="1"] .score-set-input');
-        var $team2Inputs = $formContainer.find('.score-sets-container[data-team-id="2"] .score-set-input');
-
-        if ($team1Inputs.length > 1) {
-            $team1Inputs.last().remove();
-            $team2Inputs.last().remove();
-
-            var $titleContainer = $matchContainer.find('.score-set-titles');
-            $titleContainer.find('.score-set-title').last().remove();
-            
-            console.log('Set removed successfully');
-        } else {
-            alert('At least one set is required.');
-        }
-    });
-
-    // Save Score form submission
-    $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function(e) {
-        e.preventDefault();
-        
-        var matchId = $(this).data('match-id');
-        console.log('Save score form submitted for match', matchId);
-        
-        var $form = $(this);
-        var $matchContainer = $('#match-' + matchId);
-        
-        if ($matchContainer.length === 0) {
-            console.error('Match container not found for ID:', matchId);
-            return false;
-        }
-        
-        var $formContainer = $matchContainer.find('.organizer-match-form');
-        
-        var scoresT1 = $formContainer.find('input[data-team-score="1"]').map(function() { 
-            return $(this).val() || "0"; 
-        }).get().join(',');
-        
-        var scoresT2 = $formContainer.find('input[data-team-score="2"]').map(function() { 
-            return $(this).val() || "0"; 
-        }).get().join(',');
-        
-        console.log('Team1 Score:', scoresT1);
-        console.log('Team2 Score:', scoresT2);
-        
-        $form.find('.hidden-team1-score').val(scoresT1);
-        $form.find('.hidden-team2-score').val(scoresT2);
-        
-        console.log('Form data:', $form.serialize());
-        
-        this.submit();
-        return true;
-    });
-    
-    console.log('Match card event handlers ready!');
-}
-
-    // *** STANDING TAB LOADING (Pool Play Only) ***
-    var standingTab = document.getElementById('standing-subtab');
-    if (standingTab) {
-        var standingLoaded = false;
-        
-        standingTab.addEventListener('show.bs.tab', function (event) {
-            if (!standingLoaded) {
-                loadStanding();
-                standingLoaded = true;
+        function renderSearchResults(users, teamId) {
+            searchResultsContainer.innerHTML = '';
+            if (users.length === 0) {
+                searchResultsContainer.innerHTML = '<p class="text-muted">No users found.</p>';
+                return;
             }
-        });
-        
-        function loadStanding() {
-            var container = document.getElementById('standing-container');
-            if (!container) return;
-            
-            console.log('Loading standing for schedule:', COMP_DATA.scheduleId);
-            container.innerHTML = `
-                <div class="text-center p-5">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading Standings...</span>
-                    </div>
-                </div>`;
-            
-            fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
+
+            users.forEach(user => {
+                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                var userHtml = `
+                    <div class="user-search-item">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        <button class="btn btn-sm btn-primary send-invite-btn" 
+                                data-team-id="${teamId}" 
+                                data-invitee-id="${user.userId}">
+                            Invite
+                        </button>
+                    </div>`;
+                searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+            });
+
+            document.querySelectorAll('.send-invite-btn').forEach(button => {
+                button.addEventListener('click', sendInvite);
+            });
+        }
+
+        function sendInvite(event) {
+            var button = event.target;
+            var teamId = button.getAttribute('data-team-id');
+            var inviteeId = button.getAttribute('data-invitee-id');
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch('/Team/SendInvite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `teamId=${teamId}&inviteeUserId=${inviteeId}`
+            })
                 .then(response => {
-                    console.log('Standing response status:', response.status);
                     if (!response.ok) {
-                        throw new Error('HTTP error ' + response.status);
+                        return response.json().then(err => { throw new Error(err.message || 'Failed to send invite') });
                     }
-                    return response.text();
+                    return response.json();
                 })
-                .then(html => {
-                    console.log('Standing HTML received, length:', html.length);
-                    container.innerHTML = html;
+                .then(data => {
+                    button.innerHTML = 'Sent!';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-secondary');
                 })
                 .catch(error => {
-                    console.error('Failed to load standing:', error);
-                    container.innerHTML = 
-                        '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load standings: ' + error.message + '</div>';
+                    button.innerHTML = 'Error';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    alert('Error: ' + error.message);
                 });
         }
-    }
 
-    // *** DRAW TAB LOADING (Pool Play & Elimination) ***
-   var drawTab = document.getElementById('draw-subtab');
-if (drawTab) {
-    var drawContainer = document.getElementById('draw-visual-container');
-    var drawLoaded = false;
+        // Add Staff Modal Scripts
+        var addStaffModal = document.getElementById('addStaffModal');
+        var staffSearchInput = document.getElementById('staffSearchInput');
+        var staffSearchResultsContainer = document.getElementById('staff-search-results');
+        var staffSpinner = document.getElementById('staff-search-spinner');
+        var staffSearchTimeout;
 
-    drawTab.addEventListener('show.bs.tab', function (event) {
-        if (drawContainer && !drawLoaded) {
-            drawLoaded = true;
-            
-            console.log('Loading draw visual...');
-            
-            drawContainer.innerHTML = `
+        if (addStaffModal) {
+            addStaffModal.addEventListener('show.bs.modal', function (event) {
+                staffSearchInput.value = '';
+                staffSearchResultsContainer.innerHTML = '';
+            });
+
+            staffSearchInput.addEventListener('keyup', function () {
+                clearTimeout(staffSearchTimeout);
+                var query = staffSearchInput.value;
+                var scheduleId = COMP_DATA.scheduleId;
+
+                if (query.length < 2) {
+                    staffSearchResultsContainer.innerHTML = '';
+                    return;
+                }
+
+                staffSpinner.classList.remove('d-none');
+
+                staffSearchTimeout = setTimeout(function () {
+                    fetch(`/Competition/SearchUsersForStaff?scheduleId=${scheduleId}&query=${query}`)
+                        .then(response => {
+                            staffSpinner.classList.add('d-none');
+                            if (!response.ok) {
+                                throw new Error('Search failed');
+                            }
+                            return response.json();
+                        })
+                        .then(users => {
+                            renderStaffSearchResults(users, scheduleId);
+                        })
+                        .catch(error => {
+                            staffSearchResultsContainer.innerHTML = '<p class="text-danger">Error searching users.</p>';
+                        });
+                }, 500);
+            });
+        }
+
+        function renderStaffSearchResults(users, scheduleId) {
+            staffSearchResultsContainer.innerHTML = '';
+            if (users.length === 0) {
+                staffSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                var userHtml = `
+                    <div class="user-search-item">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        <button class="btn btn-sm btn-primary add-staff-btn" 
+                                data-schedule-id="${scheduleId}" 
+                                data-user-id="${user.userId}">
+                            Add Staff
+                        </button>
+                    </div>`;
+                staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
+            });
+
+            document.querySelectorAll('.add-staff-btn').forEach(button => {
+                button.addEventListener('click', addStaffMember);
+            });
+        }
+
+        function addStaffMember(event) {
+            var button = event.target;
+            var scheduleId = button.getAttribute('data-schedule-id');
+            var userId = button.getAttribute('data-user-id');
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch('/Competition/AddStaff', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `scheduleId=${scheduleId}&userId=${userId}`
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.message || 'Failed to add staff') });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    button.innerHTML = 'Added!';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-secondary');
+                    location.reload();
+                })
+                .catch(error => {
+                    button.innerHTML = 'Error';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    alert('Error: ' + error.message);
+                });
+        }
+
+        // Competition Poster Toggle
+        var posterCollapseElement = document.getElementById('posterCollapse');
+        var posterTriggerElement = document.querySelector('[data-bs-target="#posterCollapse"]');
+
+        if (posterCollapseElement && posterTriggerElement) {
+            var posterIcon = posterTriggerElement.querySelector('.toggle-icon');
+
+            if (posterIcon) {
+                posterCollapseElement.addEventListener('show.bs.collapse', function () {
+                    posterIcon.classList.add('rotated');
+                });
+
+                posterCollapseElement.addEventListener('hide.bs.collapse', function () {
+                    posterIcon.classList.remove('rotated');
+                });
+            }
+        }
+
+        // Start Competition Button Logic
+        var startCompBtn = document.getElementById('startCompetitionBtn');
+        if (startCompBtn) {
+            var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
+            var startModalBody = document.getElementById('startCompetitionModalBody');
+
+            startCompBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                if (!COMP_DATA.isSetupComplete) {
+                    alert('Please complete "Match Setup & Format" before starting.');
+                    return;
+                }
+
+                if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
+                    alert('Please publish the draw at generate draw to proceed.');
+                    return;
+                }
+
+                startModalBody.innerHTML = `
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Details...</span>
+                        </div>
+                    </div>`;
+                startModal.show();
+
+                fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        startModalBody.innerHTML = html;
+                    })
+                    .catch(err => {
+                        startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
+                    });
+            });
+        }
+
+        // *** LISTING TAB LOADING (Pool Play & Elimination) ***
+        var listingTab = document.getElementById('listing-subtab');
+        if (listingTab) {
+            var listingLoaded = false;
+
+            listingTab.addEventListener('show.bs.tab', function (event) {
+                if (!listingLoaded) {
+                    loadListing();
+                    listingLoaded = true;
+                }
+            });
+
+            function loadListing() {
+                var container = document.getElementById('listing-container');
+                if (!container) return;
+
+                console.log('Loading listing for schedule:', COMP_DATA.scheduleId);
+                container.innerHTML = `
                 <div class="text-center p-5">
                     <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading Draw...</span>
+                        <span class="visually-hidden">Loading Matches...</span>
                     </div>
-                    <p class="mt-2">Loading Draw...</p>
-                </div>
-            `;
-            
-            var competitionFormat = COMP_DATA.format;
-            console.log('Competition Format:', competitionFormat);
-            
-            if (competitionFormat === 'PoolPlay') {
-                // Load Pool Play Draw (NEW)
-                fetch('/Draw/ViewPoolPlayDraw?id=' + COMP_DATA.scheduleId)
+                    <p class="mt-2">Loading Matches...</p>
+                </div>`;
+
+                fetch('/Match/GetMatchListing?id=' + COMP_DATA.scheduleId)
                     .then(response => {
+                        console.log('Listing response status:', response.status);
                         if (!response.ok) {
-                            throw new Error('HTTP ' + response.status);
+                            throw new Error('HTTP error ' + response.status);
                         }
                         return response.text();
                     })
                     .then(html => {
-                        drawContainer.innerHTML = html;
-                        console.log('Pool Play draw loaded successfully');
+                        console.log('Listing HTML received, length:', html.length);
+                        container.innerHTML = html;
+
+                        // *** IMPORTANT: Set up match card handlers AFTER HTML is loaded ***
+                        setupMatchCardHandlers();
                     })
                     .catch(error => {
-                        console.error('Failed to load Pool Play draw:', error);
-                        drawContainer.innerHTML = `
-                            <div class="alert alert-danger">
-                                <strong>Error:</strong> Could not load the draw.
-                                <br><small>${error.message}</small>
-                            </div>
-                        `;
+                        console.error('Failed to load listing:', error);
+                        container.innerHTML =
+                            '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load match listing: ' + error.message + '</div>';
                     });
-            } else if (competitionFormat === 'Elimination')  {
-                    // Load Bracket for Elimination
+            }
+        }
+
+        window.switchToStandingTab = function () {
+            console.log('switchToStandingTab called');
+
+            // First, ensure we're on the Match main tab
+            var matchTab = document.getElementById('match-tab');
+            if (matchTab) {
+                var tab = new bootstrap.Tab(matchTab);
+                tab.show();
+                console.log('Switched to Match tab');
+            }
+
+            // Wait a bit, then switch to Standing sub-tab
+            setTimeout(function () {
+                var standingTab = document.getElementById('standing-subtab');
+                if (standingTab) {
+                    var subtab = new bootstrap.Tab(standingTab);
+                    subtab.show();
+                    console.log('Switched to Standing sub-tab');
+                } else {
+                    console.error('Standing tab not found');
+                }
+            }, 300);
+        };
+
+        // *** MATCH CARD HANDLERS - Called after listing is loaded ***
+        function setupMatchCardHandlers() {
+            console.log('Setting up match card event handlers...');
+
+            // *** SIMPLIFIED: Check round name pattern to determine pool vs playoff ***
+            $(document).on('submit', '.match-form', function (e) {
+                var $form = $(this);
+                var roundName = $form.data('round-name');
+
+                if (!roundName) {
+                    console.log('No round name on form, skipping');
+                    return true;
+                }
+
+                console.log('Form submitting with round name:', roundName);
+
+                var cleanRoundName = String(roundName).trim();
+
+                // Check if this is a pool round (starts with "Pool")
+                if (cleanRoundName.startsWith('Pool ')) {
+                    console.log('✓ POOL match detected, storing:', cleanRoundName);
+                    sessionStorage.setItem('activePoolTab', cleanRoundName);
+                    sessionStorage.removeItem('activeSubTab');
+                }
+                // Check if this is a playoff round
+                else if (cleanRoundName.includes('Final') ||
+                    cleanRoundName.includes('Semi') ||
+                    cleanRoundName.includes('Quarter') ||
+                    cleanRoundName.includes('Round of') ||
+                    cleanRoundName.includes('3rd Place')) {
+                    console.log('✓ PLAYOFF match detected, storing flag');
+                    sessionStorage.setItem('activeSubTab', 'playoff');
+                    sessionStorage.removeItem('activePoolTab');
+                }
+                else {
+                    console.log('⚠ Unknown round type, no storage:', cleanRoundName);
+                }
+
+                return true;
+            });
+
+            // Add Set button
+            $(document).off('click', '.btn-add-set').on('click', '.btn-add-set', function () {
+                var matchId = $(this).data('match-id');
+                console.log('Add set clicked for match', matchId);
+
+                var $matchContainer = $('#match-' + matchId);
+                if ($matchContainer.length === 0) {
+                    console.error('Match container not found for ID:', matchId);
+                    return;
+                }
+
+                var $formContainer = $matchContainer.find('.organizer-match-form');
+
+                var $newSetT1 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="1" min="0" placeholder="0" />');
+                var $newSetT2 = $('<input type="number" class="form-control form-control-sm score-set-input" data-team-score="2" min="0" placeholder="0" />');
+                $formContainer.find('.score-sets-container[data-team-id="1"]').append($newSetT1);
+                $formContainer.find('.score-sets-container[data-team-id="2"]').append($newSetT2);
+
+                var $titleContainer = $matchContainer.find('.score-set-titles');
+                var newSetNum = $titleContainer.find('.score-set-title').length + 1;
+                $titleContainer.append('<span class="score-set-title">Set ' + newSetNum + '</span>');
+
+                console.log('Set added successfully');
+            });
+
+            // Minus Set button
+            $(document).off('click', '.btn-minus-set').on('click', '.btn-minus-set', function () {
+                var matchId = $(this).data('match-id');
+                console.log('Minus set clicked for match', matchId);
+
+                var $matchContainer = $('#match-' + matchId);
+                if ($matchContainer.length === 0) {
+                    console.error('Match container not found for ID:', matchId);
+                    return;
+                }
+
+                var $formContainer = $matchContainer.find('.organizer-match-form');
+
+                var $team1Inputs = $formContainer.find('.score-sets-container[data-team-id="1"] .score-set-input');
+                var $team2Inputs = $formContainer.find('.score-sets-container[data-team-id="2"] .score-set-input');
+
+                if ($team1Inputs.length > 1) {
+                    $team1Inputs.last().remove();
+                    $team2Inputs.last().remove();
+
+                    var $titleContainer = $matchContainer.find('.score-set-titles');
+                    $titleContainer.find('.score-set-title').last().remove();
+
+                    console.log('Set removed successfully');
+                } else {
+                    alert('At least one set is required.');
+                }
+            });
+
+            // Save Score form submission
+            $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function (e) {
+                e.preventDefault();
+
+                var matchId = $(this).data('match-id');
+                console.log('Save score form submitted for match', matchId);
+
+                var $form = $(this);
+                var $matchContainer = $('#match-' + matchId);
+
+                if ($matchContainer.length === 0) {
+                    console.error('Match container not found for ID:', matchId);
+                    return false;
+                }
+
+                var $formContainer = $matchContainer.find('.organizer-match-form');
+
+                var scoresT1 = $formContainer.find('input[data-team-score="1"]').map(function () {
+                    return $(this).val() || "0";
+                }).get().join(',');
+
+                var scoresT2 = $formContainer.find('input[data-team-score="2"]').map(function () {
+                    return $(this).val() || "0";
+                }).get().join(',');
+
+                console.log('Team1 Score:', scoresT1);
+                console.log('Team2 Score:', scoresT2);
+
+                $form.find('.hidden-team1-score').val(scoresT1);
+                $form.find('.hidden-team2-score').val(scoresT2);
+
+                console.log('Form data:', $form.serialize());
+
+                this.submit();
+                return true;
+            });
+
+            console.log('Match card event handlers ready!');
+        }
+
+        // *** STANDING TAB LOADING (Pool Play Only) ***
+        var standingTab = document.getElementById('standing-subtab');
+        if (standingTab) {
+            var standingLoaded = false;
+
+            standingTab.addEventListener('show.bs.tab', function (event) {
+                if (!standingLoaded) {
+                    loadStanding();
+                    standingLoaded = true;
+                }
+            });
+
+            function loadStanding() {
+                var container = document.getElementById('standing-container');
+                if (!container) return;
+
+                console.log('Loading standing for schedule:', COMP_DATA.scheduleId);
+                container.innerHTML = `
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Standings...</span>
+                        </div>
+                    </div>`;
+
+                fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
+                    .then(response => {
+                        console.log('Standing response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error('HTTP error ' + response.status);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        console.log('Standing HTML received, length:', html.length);
+                        container.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Failed to load standing:', error);
+                        container.innerHTML =
+                            '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load standings: ' + error.message + '</div>';
+                    });
+            }
+        }
+
+        // *** DRAW TAB LOADING (Pool Play & Elimination) ***
+        var drawTab = document.getElementById('draw-subtab');
+        if (drawTab) {
+            var drawContainer = document.getElementById('draw-visual-container');
+            var drawLoaded = false;
+            var pollInterval = null;
+
+            drawTab.addEventListener('show.bs.tab', function (event) {
+                if (drawContainer && !drawLoaded) {
+                    drawLoaded = true;
+
+                    console.log('Loading draw visual...');
+
                     drawContainer.innerHTML = `
-                        <h5 class="mb-3">Tournament Bracket</h5>
-                        <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
-                        <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                        <div class="text-center p-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading Draw...</span>
+                            </div>
+                            <p class="mt-2">Loading Draw...</p>
+                        </div>
                     `;
-                    
-                    function fetchAndRenderBracket() {
-                        fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+
+                    var competitionFormat = COMP_DATA.format;
+                    console.log('Competition Format:', competitionFormat);
+
+                    if (competitionFormat === 'PoolPlay') {
+                        // Load Pool Play Draw
+                        fetch('/Draw/ViewPoolPlayDraw?id=' + COMP_DATA.scheduleId)
                             .then(response => {
                                 if (!response.ok) {
                                     throw new Error('HTTP ' + response.status);
                                 }
-                                return response.json();
+                                return response.text();
                             })
-                            .then(data => {
-                                console.log('Bracket data received:', data);
-                                
-                                if (!data || !data.bracketData) {
-                                    throw new Error('No bracket data in response');
-                                }
-                                
-                                renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                            .then(html => {
+                                drawContainer.innerHTML = html;
+                                console.log('Pool Play draw loaded successfully');
+
+                                // *** NEW: Initialize playoff bracket after HTML is loaded ***
+                                setTimeout(function () {
+                                    initializePoolPlayDrawScripts();
+                                }, 200);
                             })
                             .catch(error => {
-                                console.error('Failed to load bracket:', error);
+                                console.error('Failed to load Pool Play draw:', error);
                                 drawContainer.innerHTML = `
                                     <div class="alert alert-danger">
-                                        <strong>Error:</strong> Could not load the bracket.
+                                        <strong>Error:</strong> Could not load the draw.
                                         <br><small>${error.message}</small>
-                                        <br><br>
-                                        <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
                                     </div>
                                 `;
                             });
-                    }
-                    
-                    function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
-                        try {
-                            if (typeof $ === 'undefined') {
-                                throw new Error('jQuery is not loaded');
-                            }
-                            
-                            if (typeof $.fn.bracket === 'undefined') {
-                                throw new Error('jQuery Bracket plugin is not loaded');
-                            }
-                            
-                            var bracketElement = $('#bracketVisual_Published');
-                            if (bracketElement.length === 0) {
-                                throw new Error('Bracket container not found');
-                            }
-                            
-                            console.log('Initializing bracket with data:', bracketData);
-                            
-                            bracketElement.empty();
-                            
-                            bracketElement.bracket({
-                                init: bracketData,
-                                teamWidth: 170,
-                                scoreWidth: 30,
-                                roundMargin: 40,
-                                skipConsolationRound: true,
-                                onMatchClick: function(data) {
-                                    console.log('Match clicked:', data);
+                    } else if (competitionFormat === 'Elimination') {
+                        // Load Bracket for Elimination
+                        drawContainer.innerHTML = `
+                            <h5 class="mb-3">Tournament Bracket</h5>
+                            <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+                            <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                        `;
+
+                        function fetchAndRenderBracket() {
+                            fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('HTTP ' + response.status);
+                                    }
+                                    return response.json();
+                                })
+                                .then(data => {
+                                    console.log('Bracket data received:', data);
+
+                                    if (!data || !data.bracketData) {
+                                        throw new Error('No bracket data in response');
+                                    }
+
+                                    renderBracket(data.bracketData, data.roundHeaders, data.hasThirdPlaceMatch, data.thirdPlace);
+                                })
+                                .catch(error => {
+                                    console.error('Failed to load bracket:', error);
+                                    drawContainer.innerHTML = `
+                                        <div class="alert alert-danger">
+                                            <strong>Error:</strong> Could not load the bracket.
+                                            <br><small>${error.message}</small>
+                                            <br><br>
+                                            <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                        </div>
+                                    `;
+                                });
+                        }
+
+                        function renderBracket(bracketData, roundHeaders, hasThirdPlace, thirdPlaceData) {
+                            try {
+                                if (typeof $ === 'undefined') {
+                                    throw new Error('jQuery is not loaded');
                                 }
-                            });
-                            
-                            setTimeout(function() {
-                                $('#bracketVisual_Published .round').each(function(index) {
-                                    if (roundHeaders && roundHeaders[index]) {
-                                        if ($(this).find('.round-header').length === 0) {
-                                            $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+
+                                if (typeof $.fn.bracket === 'undefined') {
+                                    throw new Error('jQuery Bracket plugin is not loaded');
+                                }
+
+                                var bracketElement = $('#bracketVisual_Published');
+                                if (bracketElement.length === 0) {
+                                    throw new Error('Bracket container not found');
+                                }
+
+                                console.log('Initializing bracket with data:', bracketData);
+
+                                bracketElement.empty();
+
+                                bracketElement.bracket({
+                                    init: bracketData,
+                                    teamWidth: 170,
+                                    scoreWidth: 30,
+                                    roundMargin: 40,
+                                    skipConsolationRound: true
+                                });
+
+                                setTimeout(function () {
+                                    $('#bracketVisual_Published .round').each(function (index) {
+                                        if (roundHeaders && roundHeaders[index]) {
+                                            if ($(this).find('.round-header').length === 0) {
+                                                $(this).prepend('<div class="round-header">' + roundHeaders[index] + '</div>');
+                                            }
                                         }
-                                    }
-                                });
-                                
-                                $('#bracketVisual_Published .score').each(function() {
-                                    var scoreText = $(this).text().trim();
-                                    
-                                    if (scoreText === '1') {
-                                        $(this).text('W').css({
-                                            'color': '#198754',
-                                            'font-weight': 'bold'
-                                        });
-                                    } else if (scoreText === '0') {
-                                        $(this).text('L').css({
-                                            'color': '#dc3545',
-                                            'font-weight': 'bold'
-                                        });
-                                    }
-                                });
-                            }, 100);
-                            
-                            console.log('Bracket rendered successfully!');
-                            renderThirdPlaceMatch(thirdPlaceData);
-                            
-                        } catch (e) {
-                            console.error('Error rendering bracket:', e);
-                            drawContainer.innerHTML = `
-                                <div class="alert alert-danger">
-                                    <strong>Error:</strong> Could not render bracket.
-                                    <br><small>${e.message}</small>
-                                    <br><br>
-                                    <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                </div>
-                            `;
-                        }
-                    }
-                    
-                    function renderThirdPlaceMatch(thirdPlaceData) {
-                        var thirdEl = document.getElementById('thirdPlaceContainer');
-                        if (!thirdEl) {
-                            console.warn('thirdPlaceContainer not found');
-                            return;
-                        }
-                        
-                        if (!thirdPlaceData) {
-                            thirdEl.innerHTML = '';
-                            thirdEl.style.display = 'none';
-                            return;
-                        }
-                        
-                        thirdEl.style.display = 'block';
-                        
-                        var team1Name = thirdPlaceData.team1 || 'TBD';
-                        var team2Name = thirdPlaceData.team2 || 'TBD';
-                        var winnerIndex = thirdPlaceData.winnerIndex;
-                        
-                        var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
-                        var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
-                        
-                        var team1Display = '<span class="' + team1Class + '">' + team1Name;
-                        if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                        team1Display += '</span>';
-                        
-                        var team2Display = '<span class="' + team2Class + '">' + team2Name;
-                        if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
-                        team2Display += '</span>';
+                                    });
 
-                        var cardHTML = '<div class="card shadow-sm">' +
-                            '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
-                            '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
-                        
-                        if (thirdPlaceData.status) {
-                            var statusBadge = '';
-                            if (thirdPlaceData.status === 'Done') {
-                                statusBadge = '<span class="badge bg-success">Completed</span>';
-                            } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
-                                statusBadge = '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
+                                    $('#bracketVisual_Published .score').each(function () {
+                                        var scoreText = $(this).text().trim();
+                                        if (scoreText === '1') {
+                                            $(this).text('W').css({ 'color': '#198754', 'font-weight': 'bold' });
+                                        } else if (scoreText === '0') {
+                                            $(this).text('L').css({ 'color': '#dc3545', 'font-weight': 'bold' });
+                                        }
+                                    });
+                                }, 100);
+
+                                console.log('Bracket rendered successfully!');
+                                renderThirdPlaceMatch(thirdPlaceData);
+
+                            } catch (e) {
+                                console.error('Error rendering bracket:', e);
+                                drawContainer.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <strong>Error:</strong> Could not render bracket.
+                                        <br><small>${e.message}</small>
+                                    </div>
+                                `;
                             }
-                            cardHTML += statusBadge;
                         }
-                        
-                        cardHTML += '</div><div class="card-body">' +
-                            '<div class="d-flex justify-content-around align-items-center">' +
-                            '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
-                            '<div class="text-muted fw-bold">VS</div>' +
-                            '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
-                            '</div>';
-                    
-                        if (winnerIndex === 0 || winnerIndex === 1) {
-                            var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
-                            cardHTML += '<hr class="my-2">' +
-                                '<div class="text-center text-success">' +
-                                '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+
+
+
+                        function renderThirdPlaceMatch(thirdPlaceData) {
+                            var thirdEl = document.getElementById('thirdPlaceContainer');
+                            if (!thirdEl) return;
+
+                            if (!thirdPlaceData) {
+                                thirdEl.innerHTML = '';
+                                thirdEl.style.display = 'none';
+                                return;
+                            }
+
+                            thirdEl.style.display = 'block';
+
+                            var team1Name = thirdPlaceData.team1 || 'TBD';
+                            var team2Name = thirdPlaceData.team2 || 'TBD';
+                            var winnerIndex = thirdPlaceData.winnerIndex;
+
+                            var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+                            var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+
+                            var team1Display = '<span class="' + team1Class + '">' + team1Name;
+                            if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                            team1Display += '</span>';
+
+                            var team2Display = '<span class="' + team2Class + '">' + team2Name;
+                            if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                            team2Display += '</span>';
+
+                            var cardHTML = '<div class="card shadow-sm">' +
+                                '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+                                '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+
+                            if (thirdPlaceData.status) {
+                                if (thirdPlaceData.status === 'Done') {
+                                    cardHTML += '<span class="badge bg-success">Completed</span>';
+                                } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
+                                    cardHTML += '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
+                                }
+                            }
+
+                            cardHTML += '</div><div class="card-body">' +
+                                '<div class="d-flex justify-content-around align-items-center">' +
+                                '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+                                '<div class="text-muted fw-bold">VS</div>' +
+                                '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
                                 '</div>';
+
+                            if (winnerIndex === 0 || winnerIndex === 1) {
+                                var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
+                                cardHTML += '<hr class="my-2"><div class="text-center text-success">' +
+                                    '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+                                    '</div>';
+                            }
+
+                            cardHTML += '</div></div>';
+                            thirdEl.innerHTML = cardHTML;
                         }
-                        
-                        cardHTML += '</div></div>';
-                        thirdEl.innerHTML = cardHTML;
+
+                        fetchAndRenderBracket();
+                        pollInterval = setInterval(fetchAndRenderBracket, 5000);
                     }
-                    
-                    fetchAndRenderBracket();
-                    pollInterval = setInterval(fetchAndRenderBracket, 5000);
                 }
-            }
-        });
-        
-        drawTab.addEventListener('hide.bs.tab', function(event) {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-            }
-        });
-    }
+            });
 
-    // Auto-open tab from URL
-    document.addEventListener('DOMContentLoaded', function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const tabToOpen = urlParams.get('tab');
-        
-        if (tabToOpen === 'match-listing') {
-            var mainMatchTab = document.getElementById('match-tab');
-            if (mainMatchTab) {
-                new bootstrap.Tab(mainMatchTab).show();
-            }
-            
-            var subListingTab = document.getElementById('listing-subtab');
-            if (subListingTab) {
-                new bootstrap.Tab(subListingTab).show();
-            }
-        }
-    });
-
-    // Edit Match Time/Court Modal
-    var editMatchModal = document.getElementById('editMatchModal');
-    if (editMatchModal) {
-        editMatchModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            
-            var matchId = button.getAttribute('data-match-id');
-            var matchTime = button.getAttribute('data-match-time');
-            var court = button.getAttribute('data-court');
-
-            var modal = this;
-            modal.querySelector('#editMatchId').value = matchId;
-            modal.querySelector('#editMatchTime').value = matchTime;
-            modal.querySelector('#editCourt').value = court;
-        });
-    }
-
-
-// Restore active pool tab after page reload
-$(document).ready(function() {
-    var activeSubTab = sessionStorage.getItem('activeSubTab');
-    var activePoolTab = sessionStorage.getItem('activePoolTab');
-    
-    console.log('Checking stored tabs - SubTab:', activeSubTab, 'PoolTab:', activePoolTab);
-    
-    if (!activeSubTab && !activePoolTab) {
-        console.log('No stored tabs to restore');
-        return;
-    }
-    
-    // Wait for listing to load first
-    setTimeout(function() {
-        if (activeSubTab === 'playoff') {
-            console.log('Restoring playoff sub-tab');
-            
-            // Find ANY tab with "playoff" in ID or text
-            var $playoffTab = $('#playoff-subtab, button[id*="playoff"], button:contains("Playoff")').first();
-            
-            if ($playoffTab.length > 0) {
-                console.log('Found playoff tab, activating...');
-                var tab = new bootstrap.Tab($playoffTab[0]);
-                tab.show();
-                sessionStorage.removeItem('activeSubTab');
-            } else {
-                console.warn('Playoff tab not found in DOM');
-            }
-        } else if (activePoolTab) {
-            console.log('Attempting to restore pool tab:', activePoolTab);
-            
-            // Find the pool tab button with matching text
-            var $poolTabs = $('#poolTabs button[data-bs-toggle="pill"], #poolTabs button[data-bs-toggle="tab"]');
-            
-            $poolTabs.each(function() {
-                var $button = $(this);
-                var buttonText = $button.text().trim();
-                
-                // Remove any badges/symbols and normalize whitespace
-                var poolName = buttonText.replace(/[✓✔]/g, '').trim().split(/\s{2,}/)[0].trim();
-                
-                console.log('Comparing: "' + poolName + '" with "' + activePoolTab + '"');
-                
-                if (poolName === activePoolTab) {
-                    console.log('Match found! Activating pool tab:', poolName);
-                    
-                    var tab = new bootstrap.Tab($button[0]);
-                    tab.show();
-                    
-                    sessionStorage.removeItem('activePoolTab');
-                    return false; // Break loop
+            drawTab.addEventListener('hide.bs.tab', function (event) {
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
                 }
             });
         }
-    }, 1000); // Increased to 1 second
-});
-window.switchToPlayoffBracketTab = function() {
-    console.log('switchToPlayoffBracketTab called');
-    
-    // First, switch to Draw main tab
-    var drawTab = document.getElementById('draw-subtab');
-    if (drawTab) {
-        var tab = new bootstrap.Tab(drawTab);
-        tab.show();
-        console.log('Switched to Draw tab');
-    }
-    
-    // Wait a bit, then switch to Playoff Bracket sub-tab
-    setTimeout(function() {
-        var playoffTab = document.getElementById('playoff-bracket-tab');
-        if (playoffTab) {
-            var subtab = new bootstrap.Tab(playoffTab);
-            subtab.show();
-            console.log('Switched to Playoff Bracket sub-tab');
-        } else {
-            console.error('Playoff bracket tab not found');
-        }
-    }, 500);
-};
 
- // *** NEW: Global function for Advance to Playoff ***
-    window.advanceToPlayoff = function(scheduleId) {
-    const button = event.target;
-    const statusDiv = document.getElementById('advance-status');
-    
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
-    
-    console.log('Advancing to playoff for schedule:', scheduleId);
-    
-    // Get anti-forgery token
-    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-    
-    fetch('/Match/AdvanceToPlayoff?scheduleId=' + scheduleId, {
-        method: 'POST',
-        headers: {
-            'RequestVerificationToken': token // *** FIXED: Pass token in header ***
+        // *** NEW FUNCTION: Initialize Pool Play Draw Scripts ***
+        function initializePoolPlayDrawScripts() {
+            console.log('=== Initializing Pool Play Draw Scripts ===');
+
+            var playoffBracketTab = document.getElementById('playoff-bracket-tab');
+            var playoffBracketVisual = document.getElementById('playoffBracketVisual');
+
+            if (!playoffBracketTab) {
+                console.warn('playoff-bracket-tab not found, skipping playoff initialization');
+                return;
+            }
+
+            if (!playoffBracketVisual) {
+                console.warn('playoffBracketVisual not found, skipping playoff initialization');
+                return;
+            }
+
+            console.log('Found playoff bracket elements');
+
+            var playoffContent = document.getElementById('playoff-bracket-content');
+            if (!playoffContent) {
+                console.warn('playoff-bracket-content not found');
+                return;
+            }
+
+            var isPending = playoffContent.querySelector('.alert-info') !== null;
+
+            if (isPending) {
+                console.log('Playoff is pending, not initializing bracket');
+                return;
+            }
+
+            console.log('Playoff is active/completed, setting up bracket');
+
+            var pollInterval = null;
+            var isInitialized = false;
+
+            playoffBracketTab.addEventListener('shown.bs.tab', function (event) {
+                console.log('✓ Playoff bracket tab SHOWN event fired');
+
+                if (!isInitialized) {
+                    isInitialized = true;
+                    console.log('>>> Initializing playoff bracket for the first time');
+
+                    setTimeout(function () {
+                        fetchAndRenderPlayoffBracket();
+                        pollInterval = setInterval(fetchAndRenderPlayoffBracket, 5000);
+                    }, 300);
+                }
+            });
+
+            playoffBracketTab.addEventListener('hidden.bs.tab', function () {
+                if (pollInterval) {
+                    console.log('Stopping playoff bracket polling');
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+            });
+
+            function fetchAndRenderPlayoffBracket() {
+                console.log('Fetching playoff bracket data from API...');
+
+                fetch('/Match/GetPlayoffBracketData?scheduleId=' + COMP_DATA.scheduleId)
+                    .then(response => {
+                        console.log('API response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('✓ Playoff bracket data received:', data);
+                        renderPlayoffBracket(data);
+                    })
+                    .catch(error => {
+                        console.error('✗ Failed to load playoff bracket:', error);
+                        var container = document.getElementById('playoffBracketVisual');
+                        if (container) {
+                            container.innerHTML = '<div class="alert alert-danger">Could not load playoff bracket: ' + error.message + '</div>';
+                        }
+                    });
+            }
+
+            function renderPlayoffBracket(response) {
+                var container = document.getElementById('playoffBracketVisual');
+                if (!container) {
+                    console.error('playoffBracketVisual container not found in DOM!');
+                    return;
+                }
+
+                console.log('Rendering bracket in container...');
+
+                try {
+                    if (typeof $ === 'undefined') {
+                        throw new Error('jQuery is not loaded');
+                    }
+
+                    if (typeof $.fn.bracket === 'undefined') {
+                        throw new Error('jQuery Bracket plugin is not loaded');
+                    }
+
+                    console.log('✓ jQuery and Bracket plugin verified');
+
+                    $(container).empty();
+
+                    if (!response.bracketData || !response.bracketData.teams || response.bracketData.teams.length === 0) {
+                        console.warn('No bracket data available');
+                        container.innerHTML = '<div class="alert alert-info">No playoff matches available yet.</div>';
+                        return;
+                    }
+
+                    console.log('Initializing jQuery bracket with data:', response.bracketData);
+
+                    $(container).bracket({
+                        init: response.bracketData,
+                        teamWidth: 170,
+                        scoreWidth: 30,
+                        roundMargin: 40,
+                        skipConsolationRound: true
+                    });
+
+                    console.log('✓ Bracket rendered, applying styling...');
+
+                    setTimeout(function () {
+                        $('#playoffBracketVisual .score').each(function () {
+                            var scoreText = $(this).text().trim();
+                            if (scoreText === '1') {
+                                $(this).text('W').css({ 'color': '#198754', 'font-weight': 'bold' });
+                            } else if (scoreText === '0') {
+                                $(this).text('L').css({ 'color': '#dc3545', 'font-weight': 'bold' });
+                            }
+                        });
+
+                        if (response.roundHeaders) {
+                            $('#playoffBracketVisual .round').each(function (index) {
+                                if (response.roundHeaders[index] && $(this).find('.round-header').length === 0) {
+                                    $(this).prepend('<div class="round-header">' + response.roundHeaders[index] + '</div>');
+                                }
+                            });
+                        }
+
+                        console.log('✓ Bracket styling complete');
+                    }, 150);
+
+                } catch (err) {
+                    console.error('✗ Bracket rendering failed:', err);
+                    container.innerHTML = '<div class="alert alert-danger">Could not render bracket: ' + err.message +
+                        '<br><br><strong>Debug Info:</strong><pre>' + JSON.stringify(response.bracketData, null, 2) + '</pre></div>';
+                }
+
+                renderThirdPlaceMatch(response.thirdPlace);
+            }
+
+            function renderThirdPlaceMatch(thirdPlaceData) {
+                var thirdEl = document.getElementById('playoffThirdPlaceContainer');
+                if (!thirdEl) return;
+
+                if (!thirdPlaceData) {
+                    thirdEl.innerHTML = '';
+                    thirdEl.style.display = 'none';
+                    return;
+                }
+
+                thirdEl.style.display = 'block';
+
+                var team1Name = thirdPlaceData.team1 || 'TBD';
+                var team2Name = thirdPlaceData.team2 || 'TBD';
+                var winnerIndex = thirdPlaceData.winnerIndex;
+
+                var team1Class = (winnerIndex === 0) ? 'fw-bold text-success' : '';
+                var team2Class = (winnerIndex === 1) ? 'fw-bold text-success' : '';
+
+                var team1Display = '<span class="' + team1Class + '">' + team1Name;
+                if (winnerIndex === 0) team1Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                team1Display += '</span>';
+
+                var team2Display = '<span class="' + team2Class + '">' + team2Name;
+                if (winnerIndex === 1) team2Display += ' <i class="bi bi-trophy-fill text-warning"></i>';
+                team2Display += '</span>';
+
+                var cardHTML = '<div class="card shadow-sm">' +
+                    '<div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">' +
+                    '<strong><i class="bi bi-award-fill me-2"></i>3rd Place Match</strong>';
+
+                if (thirdPlaceData.status) {
+                    if (thirdPlaceData.status === 'Done') {
+                        cardHTML += '<span class="badge bg-success">Completed</span>';
+                    } else if (thirdPlaceData.status === 'Active' || thirdPlaceData.status === 'Progressing') {
+                        cardHTML += '<span class="badge bg-warning text-dark">' + thirdPlaceData.status + '</span>';
+                    }
+                }
+
+                cardHTML += '</div><div class="card-body">' +
+                    '<div class="d-flex justify-content-around align-items-center">' +
+                    '<div class="text-center" style="flex: 1;">' + team1Display + '</div>' +
+                    '<div class="text-muted fw-bold">VS</div>' +
+                    '<div class="text-center" style="flex: 1;">' + team2Display + '</div>' +
+                    '</div>';
+
+                if (winnerIndex === 0 || winnerIndex === 1) {
+                    var winnerName = (winnerIndex === 0) ? team1Name : team2Name;
+                    cardHTML += '<hr class="my-2"><div class="text-center text-success">' +
+                        '<strong><i class="bi bi-trophy-fill text-warning me-1"></i>3rd Place: ' + winnerName + '</strong>' +
+                        '</div>';
+                }
+
+                cardHTML += '</div></div>';
+                thirdEl.innerHTML = cardHTML;
+            }
+
+            console.log('=== Pool Play Draw Scripts Initialized ===');
         }
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        if (!response.ok) {
-            throw new Error('HTTP error ' + response.status);
+
+        // Auto-open tab from URL
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabToOpen = urlParams.get('tab');
+
+            if (tabToOpen === 'match-listing') {
+                var mainMatchTab = document.getElementById('match-tab');
+                if (mainMatchTab) {
+                    new bootstrap.Tab(mainMatchTab).show();
+                }
+
+                var subListingTab = document.getElementById('listing-subtab');
+                if (subListingTab) {
+                    new bootstrap.Tab(subListingTab).show();
+                }
+            }
+        });
+
+        // Edit Match Time/Court Modal
+        var editMatchModal = document.getElementById('editMatchModal');
+        if (editMatchModal) {
+            editMatchModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+
+                var matchId = button.getAttribute('data-match-id');
+                var matchTime = button.getAttribute('data-match-time');
+                var court = button.getAttribute('data-court');
+
+                var modal = this;
+                modal.querySelector('#editMatchId').value = matchId;
+                modal.querySelector('#editMatchTime').value = matchTime;
+                modal.querySelector('#editCourt').value = court;
+            });
         }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        
-        if (data.success) {
-            statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + data.message + '</div>';
-            
-            // Reload the page after 1.5 seconds to show playoff bracket
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + data.message + '</div>';
-            button.disabled = false;
-            button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to advance to playoff: ' + error.message + '</div>';
-        button.disabled = false;
-        button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
-    });
-};
+
+
+        // Restore active pool tab after page reload
+        $(document).ready(function () {
+            var activeSubTab = sessionStorage.getItem('activeSubTab');
+            var activePoolTab = sessionStorage.getItem('activePoolTab');
+
+            console.log('Checking stored tabs - SubTab:', activeSubTab, 'PoolTab:', activePoolTab);
+
+            if (!activeSubTab && !activePoolTab) {
+                console.log('No stored tabs to restore');
+                return;
+            }
+
+            // Wait for listing to load first
+            setTimeout(function () {
+                if (activeSubTab === 'playoff') {
+                    console.log('Restoring playoff sub-tab');
+
+                    // Find ANY tab with "playoff" in ID or text
+                    var $playoffTab = $('#playoff-subtab, button[id*="playoff"], button:contains("Playoff")').first();
+
+                    if ($playoffTab.length > 0) {
+                        console.log('Found playoff tab, activating...');
+                        var tab = new bootstrap.Tab($playoffTab[0]);
+                        tab.show();
+                        sessionStorage.removeItem('activeSubTab');
+                    } else {
+                        console.warn('Playoff tab not found in DOM');
+                    }
+                } else if (activePoolTab) {
+                    console.log('Attempting to restore pool tab:', activePoolTab);
+
+                    // Find the pool tab button with matching text
+                    var $poolTabs = $('#poolTabs button[data-bs-toggle="pill"], #poolTabs button[data-bs-toggle="tab"]');
+
+                    $poolTabs.each(function () {
+                        var $button = $(this);
+                        var buttonText = $button.text().trim();
+
+                        // Remove any badges/symbols and normalize whitespace
+                        var poolName = buttonText.replace(/[✓✔]/g, '').trim().split(/\s{2,}/)[0].trim();
+
+                        console.log('Comparing: "' + poolName + '" with "' + activePoolTab + '"');
+
+                        if (poolName === activePoolTab) {
+                            console.log('Match found! Activating pool tab:', poolName);
+
+                            var tab = new bootstrap.Tab($button[0]);
+                            tab.show();
+
+                            sessionStorage.removeItem('activePoolTab');
+                            return false; // Break loop
+                        }
+                    });
+                }
+            }, 1000); // Increased to 1 second
+        });
+        window.switchToPlayoffBracketTab = function () {
+            console.log('switchToPlayoffBracketTab called');
+
+            // First, switch to Draw main tab
+            var drawTab = document.getElementById('draw-subtab');
+            if (drawTab) {
+                var tab = new bootstrap.Tab(drawTab);
+                tab.show();
+                console.log('Switched to Draw tab');
+            }
+
+            // Wait a bit, then switch to Playoff Bracket sub-tab
+            setTimeout(function () {
+                var playoffTab = document.getElementById('playoff-bracket-tab');
+                if (playoffTab) {
+                    var subtab = new bootstrap.Tab(playoffTab);
+                    subtab.show();
+                    console.log('Switched to Playoff Bracket sub-tab');
+                } else {
+                    console.error('Playoff bracket tab not found');
+                }
+            }, 500);
+        };
+
+        // *** NEW: Global function for Advance to Playoff ***
+        window.advanceToPlayoff = function (scheduleId) {
+            const button = event.target;
+            const statusDiv = document.getElementById('advance-status');
+
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+            console.log('Advancing to playoff for schedule:', scheduleId);
+
+            // Get anti-forgery token
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            fetch('/Match/AdvanceToPlayoff?scheduleId=' + scheduleId, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token // *** FIXED: Pass token in header ***
+                }
+            })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('HTTP error ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+
+                    if (data.success) {
+                        statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + data.message + '</div>';
+
+                        // Reload the page after 1.5 seconds to show playoff bracket
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + data.message + '</div>';
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to advance to playoff: ' + error.message + '</div>';
+                    button.disabled = false;
+                    button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
+                });
+        };
     </script>
 }
