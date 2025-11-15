@@ -40,7 +40,7 @@ namespace PicklePlay.Data
         public DbSet<Endorsement> Endorsements { get; set; }
         public DbSet<Award> Awards { get; set; }
 
-
+public DbSet<Message> Messages { get; set; }
 
 
 
@@ -151,8 +151,35 @@ namespace PicklePlay.Data
         .WithMany() // No navigation property on User
         .HasForeignKey(e => e.ReceiverUserId)
         .OnDelete(DeleteBehavior.Restrict);
+
+         // Message configuration
+    modelBuilder.Entity<Message>()
+        .HasOne(m => m.Sender)
+        .WithMany()
+        .HasForeignKey(m => m.SenderId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<Message>()
+        .HasOne(m => m.Receiver)
+        .WithMany()
+        .HasForeignKey(m => m.ReceiverId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // Notification configuration
+    modelBuilder.Entity<Notification>()
+        .HasOne(n => n.User)
+        .WithMany()
+        .HasForeignKey(n => n.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    modelBuilder.Entity<Notification>()
+        .HasOne(n => n.RelatedUser)
+        .WithMany()
+        .HasForeignKey(n => n.RelatedUserId)
+        .OnDelete(DeleteBehavior.Restrict);
         }
-        // Add other DbSets for your 25+ tables later
+        
+        
     }
 
 }

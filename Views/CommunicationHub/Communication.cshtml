@@ -40,17 +40,354 @@
         margin-left: 0.5rem;
     }
 
-    .friend-list-item {
+    .friends-container {
+        display: flex;
+        height: calc(100vh - 250px);
+        min-height: 500px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+    }
+
+    .friends-left-panel {
+        width: 320px;
+        border-right: 1px solid #dee2e6;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .friends-search {
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .friends-tabs {
+        display: flex;
+        border-bottom: 1px solid #dee2e6;
+        background: #f8f9fa;
+    }
+
+    .friends-tab-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    .friends-tab-btn.active {
+        background: white;
+        border-bottom: 3px solid #2E8B57;
+        color: #2E8B57;
+    }
+
+    .friends-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .friend-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .friend-item:hover {
+        background: #f8f9fa;
+    }
+
+    .friend-item.active {
+        background: #e8f5e9;
+        border-left: 4px solid #2E8B57;
+    }
+
+    .friend-item.unread {
+        background: #fff3cd;
+    }
+
+    .friend-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 12px;
+        position: relative;
+    }
+
+    .online-indicator {
+        width: 12px;
+        height: 12px;
+        background: #28a745;
+        border: 2px solid white;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+    }
+
+    .offline-indicator {
+        background: #6c757d;
+    }
+
+    .friend-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .friend-name {
+        font-weight: 600;
+        color: #343a40;
+        margin-bottom: 2px;
+    }
+
+    .friend-last-message {
+        font-size: 0.85rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .friend-meta {
+        text-align: right;
+    }
+
+    .friend-time {
+        font-size: 0.75rem;
+        color: #adb5bd;
+    }
+
+    .unread-badge {
+        display: inline-block;
+        background: #2E8B57;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    .friends-right-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chat-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        background: #f8f9fa;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #eee;
     }
 
-    .friend-list-item:last-child {
-        border-bottom: 0;
+    .chat-header-info {
+        display: flex;
+        align-items: center;
     }
+
+    .chat-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 12px;
+    }
+
+    .chat-user-name {
+        font-weight: 600;
+        color: #343a40;
+    }
+
+    .chat-user-status {
+        font-size: 0.85rem;
+        color: #28a745;
+    }
+
+    .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: #f0f2f5;
+    }
+
+    .message-group {
+        margin-bottom: 20px;
+    }
+
+    .message-bubble {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 18px;
+        margin-bottom: 4px;
+        word-wrap: break-word;
+    }
+
+    .message-received {
+        background: white;
+        color: #343a40;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-sent {
+        background: #2E8B57;
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    .message-sent .message-time {
+        color: rgba(255, 255, 255, 0.7);
+        text-align: right;
+    }
+
+    .chat-input-area {
+        padding: 15px 20px;
+        border-top: 1px solid #dee2e6;
+        background: white;
+    }
+
+    .chat-input-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .chat-input {
+        flex: 1;
+        border: 1px solid #dee2e6;
+        border-radius: 25px;
+        padding: 10px 20px;
+        font-size: 0.95rem;
+    }
+
+    .chat-send-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: none;
+        background: #2E8B57;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .chat-send-btn:hover {
+        background: #1E5B32;
+        transform: scale(1.05);
+    }
+
+    .chat-send-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .empty-chat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+    }
+
+    .empty-chat i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 15px;
+        background: white;
+        border-radius: 18px;
+        width: fit-content;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #6c757d;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .request-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .request-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+    }
+
+    .notification-content img:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s;
+}
+
+.friend-avatar:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s;
+    box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.3);
+}
+
+.friend-name:hover,
+.notification-content strong:hover {
+    text-decoration: underline;
+}
+
+.chat-avatar:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s;
+    box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.3);
+}
+
+.chat-user-name:hover {
+    text-decoration: underline;
+}
 </style>
 
 <div class="container mt-4">
@@ -71,10 +408,18 @@
                 }
             </button>
        </li>
+
+       <li class="nav-item" role="presentation">
+            <button class="nav-link" id="friends-tab" data-bs-toggle="tab"
+                data-bs-target="#friends-pane" type="button" role="tab">
+                <i class="bi bi-people-fill me-1"></i> Friends
+            </button>
+        </li>
+
        </ul>
 
     <div class="tab-content" id="hubTabsContent">
-
+        @*//Notifications Pane*@
         <div class="tab-pane fade show active" id="notifications-pane" role="tabpanel"
             aria-labelledby="notifications-tab" tabindex="0">
             <div class="pt-4">
@@ -133,13 +478,17 @@
                     {
                         <div class="notification-list-item shadow-sm">
                             <div class="notification-content">
-                                <img src="@(string.IsNullOrEmpty(inv.Inviter?.ProfilePicture) ? "/images/profile_image.jpg" : inv.Inviter.ProfilePicture)"
-                                    alt="@inv.Inviter?.Username profile" />
-                                <div>
-                                    <strong>@inv.Inviter?.Username</strong> has invited you to join
-                                    <strong>@inv.Team?.TeamName</strong>.
-                                </div>
-                            </div>
+                <img src="@(string.IsNullOrEmpty(inv.Inviter?.ProfilePicture) ? "/images/profile_image.jpg" : inv.Inviter.ProfilePicture)"
+                    alt="@inv.Inviter?.Username profile" 
+                    onclick="showUserProfilePreview(@(inv.Inviter?.UserId ?? 0))"
+                    style="cursor: pointer;" />
+                <div>
+                    <strong onclick="showUserProfilePreview(@(inv.Inviter?.UserId ?? 0))" 
+                            style="cursor: pointer;" 
+                            class="text-primary">@inv.Inviter?.Username</strong> has invited you to join
+                    <strong>@inv.Team?.TeamName</strong>.
+                </div>
+            </div>
                             <div class="notification-actions">
                                 <form asp-controller="Team" asp-action="AcceptInvite" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
@@ -156,28 +505,7 @@
                     }
                 }
 
-                <!-- Friend Requests -->
-                @if (Model.PendingFriendRequests.Any())
-                {
-                    <h5 class="my-3">Friend Requests</h5>
-                    @foreach (var req in Model.PendingFriendRequests)
-                    {
-                        <div class="notification-list-item shadow-sm">
-                            <div class="notification-content">
-                                <img src="@(string.IsNullOrEmpty(req.UserOne?.ProfilePicture) ? "/images/profile_image.jpg" : req.UserOne.ProfilePicture)"
-                                    alt="@req.UserOne?.Username profile" />
-                                <div>
-                                    <strong>@req.UserOne?.Username</strong> sent you a friend request.
-                                </div>
-                            </div>
-                            <div class="notification-actions">
-                                <!-- Add Accept/Decline Friend Request forms here -->
-                                <button class="btn btn-sm btn-success" disabled>Accept</button>
-                                <button class="btn btn-sm btn-outline-danger" disabled>Decline</button>
-                            </div>
-                        </div>
-                    }
-                }
+
 
                 <!-- Community Invitations -->
                 @if (Model.PendingCommunityInvitations != null && Model.PendingCommunityInvitations.Any())
@@ -186,19 +514,24 @@
                     @foreach (var invite in Model.PendingCommunityInvitations)
                     {
                         <div class="notification-list-item shadow-sm" id="invite-@invite.InvitationId">
-                            <div class="notification-content">
-                                <img src="@(string.IsNullOrEmpty(invite.Inviter?.ProfilePicture)
-                                                         ? "/images/profile_image.jpg"
-                                                         : invite.Inviter.ProfilePicture)" alt="@invite.Inviter?.Username profile" />
-                                <div>
-                                    <strong>@invite.Inviter?.Username</strong> invited you to join
-                                    <strong>@invite.Community?.CommunityName</strong>
-                                    as <span class="text-primary">@invite.Role</span>.
-                                    <div class="text-muted small">
-                                        @invite.DateSent.ToString("dd MMM yyyy, h:mm tt")
-                                    </div>
-                                </div>
-                            </div>
+                             <div class="notification-content">
+                <img src="@(string.IsNullOrEmpty(invite.Inviter?.ProfilePicture)
+                                         ? "/images/profile_image.jpg"
+                                         : invite.Inviter.ProfilePicture)" 
+                     alt="@invite.Inviter?.Username profile"
+                     onclick="showUserProfilePreview(@(invite.Inviter?.UserId ?? 0))"
+                     style="cursor: pointer;" />
+                <div>
+                    <strong onclick="showUserProfilePreview(@(invite.Inviter?.UserId ?? 0))" 
+                            style="cursor: pointer;" 
+                            class="text-primary">@invite.Inviter?.Username</strong> invited you to join
+                    <strong>@invite.Community?.CommunityName</strong>
+                    as <span class="text-primary">@invite.Role</span>.
+                    <div class="text-muted small">
+                        @invite.DateSent.ToString("dd MMM yyyy, h:mm tt")
+                    </div>
+                </div>
+            </div>
                             <div class="notification-actions">
                                 @Html.AntiForgeryToken()
                                 <button type="button" class="btn btn-sm btn-success"
@@ -216,59 +549,72 @@
             </div>
         </div>
 
-        <!-- Friends Pane -->
-        <div class="tab-pane fade" id="friends-pane" role="tabpanel" aria-labelledby="friends-tab" tabindex="0">
+       <div class="tab-pane fade" id="friends-pane" role="tabpanel" aria-labelledby="friends-tab">
             <div class="pt-4">
-                <button class="btn btn-primary mb-3" disabled>Add Friend (Future)</button>
-                <div class="card shadow-sm">
-                    <div class="card-body p-0">
-                        @if (!Model.Friends.Any())
-                        {
-                            <p class="text-muted p-3">Your friend list is empty.</p>
-                        }
-                        else
-                        {
-                            @foreach (var friend in Model.Friends)
-                            {
-                                // Determine who is the "friend" (not the current user)
-                                var friendUser = friend.UserOneId == currentUserId ? friend.UserTwo : friend.UserOne;
+                <div class="friends-container shadow-sm">
+                    
+                    <!-- Left Panel: Friend List -->
+                    <div class="friends-left-panel">
+                        <!-- Search Bar -->
+                        <div class="friends-search">
+                            <input type="text" class="form-control" id="friendSearchInput" 
+                                   placeholder="Search friends..." />
+                        </div>
 
-                                <div class="friend-list-item">
-                                    <div class="notification-content">
-                                        <img src="@(string.IsNullOrEmpty(friendUser?.ProfilePicture) ? "/images/profile_image.jpg" : friendUser.ProfilePicture)"
-                                            alt="@friendUser?.Username profile" />
-                                        <div>
-                                            <strong>@friendUser?.Username</strong>
-                                        </div>
-                                    </div>
-                                    <div class="notification-actions">
-                                        <button class="btn btn-sm btn-outline-primary" disabled>Chat</button>
-                                    </div>
+                        <!-- Tabs: All, Requests, Sent -->
+                        <div class="friends-tabs">
+                            <button class="friends-tab-btn active" data-tab="all">
+                                All <span id="friendsCount" class="badge bg-secondary ms-1">0</span>
+                            </button>
+                            <button class="friends-tab-btn" data-tab="requests">
+                                Requests <span id="requestsCount" class="badge bg-danger ms-1">0</span>
+                            </button>
+                            <button class="friends-tab-btn" data-tab="sent">
+                                Sent <span id="sentCount" class="badge bg-info ms-1">0</span>
+                            </button>
+                        </div>
+
+                        <!-- Friend List -->
+                        <div class="friends-list" id="friendsList">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
                                 </div>
-                            }
-                        }
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Right Panel: Chat -->
+                    <div class="friends-right-panel" id="chatPanel">
+                        <div class="empty-chat">
+                            <i class="bi bi-chat-dots"></i>
+                            <h5>Select a friend to start chatting</h5>
+                            <p class="text-muted">Your messages will appear here</p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
 
-        <!-- Chat Pane -->
-        <div class="tab-pane fade" id="chat-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-            <div class="pt-4">
-                <p class="text-muted">Chat functionality is coming soon!</p>
-            </div>
-        </div>
     </div>
 </div>
 
 @section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
 <script>
-    function getCsrfToken() {
+(function() {
+    'use strict';
+    
+    console.log('🔵 Script execution started');
+
+    // ==================== NOTIFICATION LOGIC ====================
+    window.getCsrfToken = function() {
         const el = document.querySelector('input[name="__RequestVerificationToken"]');
         return el ? el.value : null;
-    }
+    };
 
-    async function respondCommunityInvitation(invitationId, actionType, btn) {
+    window.respondCommunityInvitation = async function(invitationId, actionType, btn) {
         const token = getCsrfToken();
         if (!token) return alert('Missing token. Please refresh.');
 
@@ -299,6 +645,496 @@
             btn.closest('.notification-actions')
                ?.querySelectorAll('button').forEach(b => b.disabled = false);
         }
+    };
+
+    // ==================== FRIENDS AND CHAT LOGIC ====================
+    let chatConnection = null;
+    let currentChatFriendId = null;
+    let friendsData = { friends: [], pendingRequests: [], sentRequests: [] };
+    let currentTab = 'all';
+    let isInitialized = false;
+    let isLoadingFriends = false;
+
+    async function initializeChatHub() {
+        if (chatConnection && chatConnection.state === signalR.HubConnectionState.Connected) {
+            console.log('✓ SignalR already connected');
+            return;
+        }
+
+        if (chatConnection && chatConnection.state === signalR.HubConnectionState.Connecting) {
+            console.log('⏳ SignalR connection in progress...');
+            return;
+        }
+
+        try {
+            chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .withAutomaticReconnect()
+                .build();
+
+            chatConnection.on("ReceivePrivateMessage", (data) => {
+                if (currentChatFriendId === data.senderId) {
+                    appendMessage(data, false);
+                }
+            });
+
+            chatConnection.on("MessageSent", (data) => {
+                appendMessage(data, true);
+            });
+
+            chatConnection.on("Error", (message) => {
+                console.error("SignalR Error:", message);
+                alert(message);
+            });
+
+            await chatConnection.start();
+            console.log("✓ SignalR Connected");
+            await chatConnection.invoke("GetOnlineFriends");
+
+        } catch (error) {
+            console.error("SignalR Connection Error:", error);
+        }
     }
+
+    async function loadFriendList() {
+        if (isLoadingFriends) {
+            console.log('⏳ Friend list already loading...');
+            return;
+        }
+
+        isLoadingFriends = true;
+
+        try {
+            const response = await fetch('/Friendship/GetFriendList');
+            const result = await response.json();
+
+            if (result.success) {
+                friendsData = result.data;
+                renderFriendList();
+                updateCounts();
+            }
+        } catch (error) {
+            console.error("Error loading friends:", error);
+        } finally {
+            isLoadingFriends = false;
+        }
+    }
+
+    function renderFriendList() {
+        const container = document.getElementById('friendsList');
+        if (!container) return;
+
+        let items = [];
+
+        if (currentTab === 'all') {
+            items = friendsData.friends;
+        } else if (currentTab === 'requests') {
+            items = friendsData.pendingRequests.filter(r => r.isIncoming);
+        } else if (currentTab === 'sent') {
+            items = friendsData.sentRequests.filter(r => !r.isIncoming);
+        }
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mt-2">No ${currentTab === 'all' ? 'friends' : currentTab} yet</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        if (currentTab === 'all') {
+            items.forEach(friend => html += renderFriendItem(friend));
+        } else {
+            items.forEach(request => html += renderRequestItem(request));
+        }
+
+        container.innerHTML = html;
+    }
+
+    function renderFriendItem(friend) {
+        const unreadBadge = friend.unreadMessageCount > 0 
+            ? `<span class="unread-badge">${friend.unreadMessageCount}</span>` 
+            : '';
+        
+        const onlineStatus = friend.isOnline 
+            ? '<div class="online-indicator"></div>' 
+            : '<div class="online-indicator offline-indicator"></div>';
+
+        const lastMessage = friend.lastMessage 
+            ? `<div class="friend-last-message">${friend.lastMessage}</div>` 
+            : '<div class="friend-last-message text-muted">No messages yet</div>';
+
+        const timeAgo = friend.lastMessageTime 
+            ? formatTimeAgo(new Date(friend.lastMessageTime)) 
+            : '';
+
+        return `
+            <div class="friend-item ${friend.unreadMessageCount > 0 ? 'unread' : ''}" 
+                 onclick="openChatFromList(${friend.userId})" 
+                 data-user-id="${friend.userId}">
+                <div style="position: relative;">
+                    <img src="${friend.profilePicture || '/images/profile_image.jpg'}" 
+                         class="friend-avatar" 
+                         alt="${friend.username}"
+                         onclick="event.stopPropagation(); showUserProfilePreview(${friend.userId});"
+                         style="cursor: pointer;">
+                    ${onlineStatus}
+                </div>
+                <div class="friend-info">
+                    <div class="friend-name" 
+                         onclick="event.stopPropagation(); showUserProfilePreview(${friend.userId});"
+                         style="cursor: pointer; color: #2E8B57;">
+                        ${friend.username}
+                    </div>
+                    ${lastMessage}
+                </div>
+                <div class="friend-meta">
+                    <div class="friend-time">${timeAgo}</div>
+                    ${unreadBadge}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderRequestItem(request) {
+        const actions = request.isIncoming 
+            ? `
+                <button class="btn btn-sm btn-success" onclick="window.acceptFriendRequest(${request.friendshipId}, event)">
+                    <i class="bi bi-check"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="window.declineFriendRequest(${request.friendshipId}, event)">
+                    <i class="bi bi-x"></i>
+                </button>
+              `
+            : `<small class="text-muted">Pending...</small>`;
+
+        return `
+            <div class="request-item">
+                <img src="${request.profilePicture || '/images/profile_image.jpg'}" 
+                     class="friend-avatar" 
+                     alt="${request.username}"
+                     onclick="showUserProfilePreview(${request.userId});"
+                     style="cursor: pointer;">
+                <div class="friend-info">
+                    <div class="friend-name"
+                         onclick="showUserProfilePreview(${request.userId});"
+                         style="cursor: pointer; color: #2E8B57;">
+                        ${request.username}
+                    </div>
+                    <div class="friend-last-message text-muted">
+                        ${formatTimeAgo(new Date(request.requestedAt))}
+                    </div>
+                </div>
+                <div class="request-actions">
+                    ${actions}
+                </div>
+            </div>
+        `;
+    }
+
+    // NEW: Local function that doesn't navigate
+    window.openChatFromList = async function(friendId) {
+        console.log('📩 Opening chat with friend:', friendId);
+        currentChatFriendId = friendId;
+
+        document.querySelectorAll('.friend-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        const friendElement = document.querySelector(`[data-user-id="${friendId}"]`);
+        if (friendElement) {
+            friendElement.classList.add('active');
+        }
+
+        try {
+            const response = await fetch(`/Friendship/GetChatMessages?friendId=${friendId}`);
+            const result = await response.json();
+
+            if (result.success) {
+                renderChatPanel(result.data);
+            } else {
+                console.error('Error loading chat:', result.message);
+            }
+        } catch (error) {
+            console.error("Error loading chat:", error);
+        }
+    };
+
+    function renderChatPanel(chatData) {
+        const panel = document.getElementById('chatPanel');
+        if (!panel) return;
+        
+        const statusText = chatData.isOnline 
+            ? '<span class="chat-user-status"><i class="bi bi-circle-fill"></i> Online</span>' 
+            : '<span class="chat-user-status text-muted"><i class="bi bi-circle"></i> Offline</span>';
+
+        panel.innerHTML = `
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <img src="${chatData.friendProfilePicture || '/images/profile_image.jpg'}" 
+                         class="chat-avatar" 
+                         alt="${chatData.friendUsername}"
+                         onclick="showUserProfilePreview(${chatData.friendId});"
+                         style="cursor: pointer;">
+                    <div>
+                        <div class="chat-user-name"
+                             onclick="showUserProfilePreview(${chatData.friendId});"
+                             style="cursor: pointer; color: #2E8B57;">
+                            ${chatData.friendUsername}
+                        </div>
+                        ${statusText}
+                    </div>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                ${renderMessages(chatData.messages)}
+            </div>
+            <div class="chat-input-area">
+                <form class="chat-input-form" onsubmit="window.sendMessage(event); return false;">
+                    <input type="text" class="chat-input" id="messageInput" 
+                           placeholder="Type a message..." required />
+                    <button type="submit" class="chat-send-btn">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </form>
+            </div>
+        `;
+
+        const messagesDiv = document.getElementById('chatMessages');
+        if (messagesDiv) {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    }
+
+    function renderMessages(messages) {
+        if (messages.length === 0) {
+            return '<div class="text-center text-muted py-5">No messages yet. Start the conversation!</div>';
+        }
+
+        let html = '';
+        messages.forEach(msg => {
+            html += `
+                <div class="message-group" style="display: flex; ${msg.isMine ? 'justify-content: flex-end;' : ''}">
+                    <div>
+                        <div class="message-bubble ${msg.isMine ? 'message-sent' : 'message-received'}">
+                            ${msg.content}
+                        </div>
+                        <div class="message-time ${msg.isMine ? 'text-end' : ''}">
+                            ${formatMessageTime(new Date(msg.sentAt))}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        return html;
+    }
+
+    window.sendMessage = async function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const input = document.getElementById('messageInput');
+        if (!input) return;
+        
+        const message = input.value.trim();
+        
+        if (!message || !currentChatFriendId) return;
+
+        try {
+            await chatConnection.invoke("SendPrivateMessage", currentChatFriendId, message);
+            input.value = '';
+        } catch (error) {
+            console.error("Error sending message:", error);
+            alert("Failed to send message");
+        }
+        
+        return false;
+    };
+
+    function appendMessage(data, isMine) {
+        const messagesDiv = document.getElementById('chatMessages');
+        if (!messagesDiv) return;
+
+        const messageHtml = `
+            <div class="message-group" style="display: flex; ${isMine ? 'justify-content: flex-end;' : ''}">
+                <div>
+                    <div class="message-bubble ${isMine ? 'message-sent' : 'message-received'}">
+                        ${data.content}
+                    </div>
+                    <div class="message-time ${isMine ? 'text-end' : ''}">
+                        Just now
+                    </div>
+                </div>
+            </div>
+        `;
+
+        messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    window.acceptFriendRequest = async function(friendshipId, event) {
+        event.stopPropagation();
+        
+        try {
+            const response = await fetch('/Friendship/AcceptFriendRequest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(friendshipId)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                await loadFriendList();
+                alert(result.message);
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error("Error accepting request:", error);
+        }
+    };
+
+    window.declineFriendRequest = async function(friendshipId, event) {
+        event.stopPropagation();
+        
+        if (!confirm('Are you sure you want to decline this friend request?')) return;
+
+        try {
+            const response = await fetch('/Friendship/DeclineFriendRequest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(friendshipId)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                await loadFriendList();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error("Error declining request:", error);
+        }
+    };
+
+    function updateCounts() {
+        const friendsCountEl = document.getElementById('friendsCount');
+        const requestsCountEl = document.getElementById('requestsCount');
+        const sentCountEl = document.getElementById('sentCount');
+        
+        if (friendsCountEl) friendsCountEl.textContent = friendsData.friends.length;
+        if (requestsCountEl) requestsCountEl.textContent = friendsData.pendingRequests.filter(r => r.isIncoming).length;
+        if (sentCountEl) sentCountEl.textContent = friendsData.sentRequests.filter(r => !r.isIncoming).length;
+    }
+
+    function formatTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        
+        if (seconds < 60) return 'Just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+        
+        return date.toLocaleDateString();
+    }
+
+    function formatMessageTime(date) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Tab switching
+    document.body.addEventListener('click', function(e) {
+        if (e.target.classList.contains('friends-tab-btn')) {
+            document.querySelectorAll('.friends-tab-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            currentTab = e.target.dataset.tab;
+            renderFriendList();
+        }
+    });
+
+    // Search friends
+    document.body.addEventListener('input', function(e) {
+        if (e.target.id === 'friendSearchInput') {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('.friend-item, .request-item').forEach(item => {
+                const nameEl = item.querySelector('.friend-name');
+                if (nameEl) {
+                    const name = nameEl.textContent.toLowerCase();
+                    item.style.display = name.includes(query) ? 'flex' : 'none';
+                }
+            });
+        }
+    });
+
+    // Handle URL parameters
+    async function handleUrlParameters() {
+        if (isInitialized) return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab');
+        const chatWith = urlParams.get('chatWith');
+
+        if (tab === 'friends') {
+            const friendsTab = document.getElementById('friends-tab');
+            const friendsPane = document.getElementById('friends-pane');
+            const notificationsTab = document.getElementById('notifications-tab');
+            const notificationsPane = document.getElementById('notifications-pane');
+
+            if (friendsTab && friendsPane) {
+                if (notificationsTab) notificationsTab.classList.remove('active');
+                if (notificationsPane) notificationsPane.classList.remove('show', 'active');
+                friendsTab.classList.add('active');
+                friendsPane.classList.add('show', 'active');
+
+                if (!chatConnection) {
+                    await initializeChatHub();
+                }
+                await loadFriendList();
+
+                if (chatWith) {
+                    const friendId = parseInt(chatWith);
+                    if (!isNaN(friendId)) {
+                        setTimeout(() => {
+                            openChatFromList(friendId);
+                            // Clear the chatWith parameter
+                            const url = new URL(window.location);
+                            url.searchParams.delete('chatWith');
+                            window.history.replaceState({}, '', url);
+                        }, 500);
+                    }
+                }
+
+                isInitialized = true;
+            }
+        }
+    }
+
+    // Initialize on Friends tab click
+    const friendsTabBtn = document.getElementById('friends-tab');
+    if (friendsTabBtn) {
+        friendsTabBtn.addEventListener('click', async function() {
+            if (!isInitialized) {
+                console.log('🚀 Initializing Friends tab...');
+                if (!chatConnection) {
+                    await initializeChatHub();
+                }
+                await loadFriendList();
+                isInitialized = true;
+            }
+        });
+    }
+
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', handleUrlParameters);
+    } else {
+        handleUrlParameters();
+    }
+
+    console.log('✓ Friends & Chat module loaded');
+})();
 </script>
 }

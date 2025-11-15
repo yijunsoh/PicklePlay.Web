@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using PicklePlay.Helpers;
 
 namespace PicklePlay.Models
 {
@@ -24,12 +25,16 @@ namespace PicklePlay.Models
         [Required]
         public FriendshipStatus Status { get; set; } = FriendshipStatus.Pending;
 
+        private DateTime _requestDate = DateTimeHelper.GetMalaysiaTime();
         [Required]
-        public DateTime RequestDate { get; set; } = DateTime.UtcNow;
+        public DateTime RequestDate 
+        { 
+            get => _requestDate; 
+            set => _requestDate = value; 
+        }
 
-        // This is the user ID of the person who last performed an action
-        // (e.g., sent request, accepted, blocked)
-        public int ActionUserId { get; set; }
+        // Date when the friend request was accepted
+        public DateTime? AcceptedDate { get; set; }
     }
 
     public enum FriendshipStatus

@@ -229,6 +229,9 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+     @* SignalR Client Library *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
+    
     @await RenderSectionAsync("Scripts", required: false)
      @await Html.PartialAsync("_UserProfilePreviewModal")
 
@@ -339,11 +342,12 @@
                 
                 actionButtons += `
                     <button class="btn btn-favorite" onclick="toggleFavorite(${user.userId})" title="Coming Soon">
-                        <i class="bi bi-star"></i>
-                    </button>
-                    <button class="btn btn-chat" onclick="openChat(${user.userId})" title="Coming Soon">
-                        <i class="bi bi-comment"></i>
-                    </button>
+        <i class="bi bi-star"></i>
+    </button>
+    <button class="btn btn-chat" onclick="openChat(${user.userId})" 
+            ${user.isFriend ? '' : 'disabled title="You must be friends to chat"'}>
+        <i class="bi bi-chat-dots"></i>
+    </button>
                 `;
             }
             
@@ -474,17 +478,51 @@
         }
         
         // Placeholder functions for future features
-        function sendFriendRequest(userId) {
-            alert('Friend request feature coming soon!');
+async function sendFriendRequest(userId) {
+    try {
+        const response = await fetch('/Friendship/SendFriendRequest', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userId)
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            // Reload the modal to show updated status
+            showUserProfilePreview(userId);
+        } else {
+            alert(result.message || 'Failed to send friend request');
         }
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        alert('An error occurred while sending the friend request');
+    }
+}
         
         function toggleFavorite(userId) {
             alert('Favorite feature coming soon!');
         }
         
-        function openChat(userId) {
-            alert('Chat feature coming soon!');
-        }
+function openChat(userId) {
+    console.log('🟢 openChat called with userId:', userId);
+    console.log('🟢 Current location:', window.location.href);
+    
+    // Close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('userProfilePreviewModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // IMPORTANT: Use window.location.href, NOT window.location.replace()
+    const newUrl = `/Friendship/Communication?tab=friends&chatWith=${userId}`;
+    console.log('🟢 Navigating to:', newUrl);
+    
+    window.location.href = newUrl;
+}
         
         console.log('✓ User Profile Preview Modal loaded globally');
     </script>

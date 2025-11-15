@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
 using PicklePlay.Services;
-using PicklePlay.Models; // Add this
+using PicklePlay.Models; 
+using PicklePlay.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,14 @@ builder.Services.AddLogging(logging =>
     logging.AddConsole();
     logging.AddDebug();
     logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+});
+
+// ⬇️ ADD SIGNALR
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
 });
 
 // Database
@@ -67,6 +76,9 @@ app.UseRouting();
 app.UseSession(); // Session FIRST
 app.UseAuthentication(); 
 app.UseAuthorization();
+
+// ⬇️ MAP SIGNALR HUB
+app.MapHub<ChatHub>("/chatHub");
 
 // Default route
 app.MapControllerRoute(
