@@ -33,10 +33,6 @@ public class HomeController : Controller
         _httpContextAccessor = httpContextAccessor;
     }
 
-    private int? GetCurrentUserId()
-    {
-        return _httpContextAccessor.HttpContext?.Session.GetInt32("UserId");
-    }
 
     // GET: /Home/EditProfile
 
@@ -388,4 +384,156 @@ public class HomeController : Controller
 
         return PartialView("~/Views/Shared/_EndorsementSection.cshtml", vm);
     }
+
+    // ADD this method to your HomeController
+
+[HttpGet]
+public async Task<IActionResult> GetUserProfilePreview(int userId)
+{
+    try
+    {
+        Console.WriteLine($"=== GetUserProfilePreview called for userId: {userId} ===");
+        
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            Console.WriteLine($"User {userId} not found");
+            return NotFound(new { success = false, message = "User not found" });
+        }
+
+        Console.WriteLine($"User found: {user.Username}");
+        
+        var currentUserId = GetCurrentUserId();
+        Console.WriteLine($"Current user ID: {currentUserId}");
+
+        // Get endorsement count and recent endorsements
+        var endorsementData = await _context.Endorsements
+            .Where(e => e.ReceiverUserId == userId)
+            .OrderByDescending(e => e.EndorsementId)
+            .Take(3)
+            .Select(e => new 
+            {
+                e.EndorsementId,
+                e.GiverUserId,
+                Comment = e.Skill.ToString() + (e.Personality != PersonalityEndorsement.None ? " • " + e.Personality.ToString() : ""),
+                e.DateGiven
+            })
+            .ToListAsync();
+
+        Console.WriteLine($"Found {endorsementData.Count} endorsements");
+
+        var endorsements = new List<EndorsementPreviewItem>();
+        foreach (var e in endorsementData)
+        {
+            var sender = await _context.Users.FindAsync(e.GiverUserId);
+            endorsements.Add(new EndorsementPreviewItem
+            {
+                EndorsementId = e.EndorsementId,
+                EndorserName = sender?.Username ?? "Unknown",
+                EndorserImage = sender?.ProfilePicture,
+                Comment = e.Comment,
+                CreatedAt = e.DateGiven
+            });
+        }
+
+        // Get achievement count and recent achievements
+        var achievements = await _context.Awards
+            .Include(a => a.Team)
+                .ThenInclude(t => t!.TeamMembers)
+            .Include(a => a.Schedule)
+            .Where(a => a.TeamId.HasValue && 
+                       a.Team!.TeamMembers.Any(tm => tm.UserId == userId))
+            .OrderByDescending(a => a.AwardedDate)
+            .Take(3)
+            .Select(a => new AchievementItem
+            {
+                AwardId = a.AwardId,
+                AwardName = a.AwardName,
+                AwardType = a.AwardType,
+                Description = a.Description,
+                Position = a.Position,
+                PositionName = a.Position == AwardPosition.Champion ? "Champion" :
+                              a.Position == AwardPosition.FirstRunnerUp ? "1st Runner Up" : "2nd Runner Up",
+                AwardedDate = a.AwardedDate,
+                CompetitionTitle = a.Schedule!.GameName ?? "Competition",
+                TeamName = a.Team!.TeamName ?? "Unknown Team"
+            })
+            .ToListAsync();
+
+        Console.WriteLine($"Found {achievements.Count} achievements");
+
+        // Get friend count
+        var friendCount = await _context.Friendships
+            .Where(f => (f.UserOneId == userId || f.UserTwoId == userId) && 
+                       f.Status == FriendshipStatus.Accepted)
+            .CountAsync();
+
+        Console.WriteLine($"Friend count: {friendCount}");
+
+        // Check friendship status
+        bool isFriend = false;
+        bool hasPendingRequest = false;
+
+        if (currentUserId.HasValue && currentUserId.Value != userId)
+        {
+            var friendship = await _context.Friendships
+                .FirstOrDefaultAsync(f => 
+                    (f.UserOneId == currentUserId.Value && f.UserTwoId == userId) ||
+                    (f.UserOneId == userId && f.UserTwoId == currentUserId.Value));
+
+            if (friendship != null)
+            {
+                isFriend = friendship.Status == FriendshipStatus.Accepted;
+                hasPendingRequest = friendship.Status == FriendshipStatus.Pending;
+                Console.WriteLine($"Friendship status - isFriend: {isFriend}, pending: {hasPendingRequest}");
+            }
+        }
+
+        var viewModel = new UserProfilePreviewViewModel
+        {
+            UserId = user.UserId,
+            Username = user.Username ?? "Unknown",
+            FullName = user.Username ?? "Unknown User",
+            ProfileImagePath = user.ProfilePicture,
+            Gender = user.Gender,
+            Age = user.Age,
+            Location = user.Location,
+            Bio = user.Bio,
+            EndorsementCount = await _context.Endorsements.CountAsync(e => e.ReceiverUserId == userId),
+            AchievementCount = achievements.Count,
+            FriendCount = friendCount,
+            RecentEndorsements = endorsements,
+            RecentAchievements = achievements,
+            IsFriend = isFriend,
+            HasPendingFriendRequest = hasPendingRequest,
+            IsCurrentUser = currentUserId.HasValue && currentUserId.Value == userId
+        };
+
+        Console.WriteLine("=== GetUserProfilePreview completed successfully ===");
+        return Json(new { success = true, data = viewModel });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"=== ERROR in GetUserProfilePreview ===");
+        Console.WriteLine($"Error: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+        }
+        
+        return Json(new { success = false, message = $"Error: {ex.Message}" });
+    }
+}
+
+// Make sure GetCurrentUserId helper exists
+private int? GetCurrentUserId()
+{
+    var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return userId;
+    }
+    return null;
+}
 }

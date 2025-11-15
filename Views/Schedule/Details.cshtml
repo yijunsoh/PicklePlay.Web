@@ -230,23 +230,27 @@
             <hr />
             <h4>Participants</h4>
 
-            <h5 class="mt-3"><i class="bi bi-person-check-fill text-primary"></i> Organizer</h5>
-            @if (organizers.Any())
-            {
-                <div class="d-flex flex-wrap align-items-center mt-3">
-                    @foreach (var p in organizers)
-                    {
-                        <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top" title="@p.User?.Username">
-                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                            <span class="player-name">@p.User?.Username</span>
-                        </div>
-                    }
-                </div>
-            }
-            else
-            {
-                <p class="text-muted">No organizer listed.</p>
-            }
+            
+           <h5 class="mt-3"><i class="bi bi-person-check-fill text-primary"></i> Organizer</h5>
+@if (organizers.Any())
+{
+    <div class="d-flex flex-wrap align-items-center mt-3">
+        @foreach (var p in organizers)
+        {
+            <div class="organizer-item" 
+                 style="cursor: pointer;" 
+                 onclick="showUserProfilePreview(@p.UserId)"
+                 title="Click to view @p.User?.Username's profile">
+                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
+                <span class="player-name">@p.User?.Username</span>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p class="text-muted">No organizer listed.</p>
+}
 
             <h5 class="mt-4">
                 <i class="bi bi-people-fill text-success"></i> Confirmed 
@@ -261,14 +265,17 @@
             </h5>
             <div class="participant-grid mt-3">
                 @foreach (var p in confirmedPlayers)
-                {
-                    <div class="player-slot-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="@p.User?.Username">
-                        <div class="player-slot">
-                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)" alt="Profile"/>
-                        </div>
-                        <span class="player-name">@p.User?.Username</span>
-                    </div>
-                }
+    {
+        <div class="player-slot-wrapper" 
+             style="cursor: pointer;" 
+             onclick="showUserProfilePreview(@p.UserId)"
+             title="Click to view @p.User?.Username's profile">
+            <div class="player-slot">
+                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)" alt="Profile"/>
+            </div>
+            <span class="player-name">@p.User?.Username</span>
+        </div>
+    }
 
                 @if (maxPlayers > 0)
                 {
@@ -289,12 +296,15 @@
                 <h5 class="mt-4"><i class="bi bi-credit-card text-info"></i> Pending Payment (@pendingPaymentPlayers.Count())</h5>
                 <div class="d-flex flex-wrap align-items-center mt-3">
                     @foreach (var p in pendingPaymentPlayers)
-                    {
-                        <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top" title="@p.User?.Username">
-                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                            <span class="player-name">@p.User?.Username</span>
-                        </div>
-                    }
+        {
+            <div class="organizer-item" 
+                 style="cursor: pointer;" 
+                 onclick="showUserProfilePreview(@p.UserId)"
+                 title="Click to view @p.User?.Username's profile">
+                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
+                <span class="player-name">@p.User?.Username</span>
+            </div>
+        }
                 </div>
             }
 
@@ -303,12 +313,15 @@
                 <h5 class="mt-4"><i class="bi bi-person-fill-exclamation text-warning"></i> On Hold (@onHoldPlayers.Count())</h5>
                 <div class="d-flex flex-wrap align-items-center mt-3">
                     @foreach (var p in onHoldPlayers)
-                    {
-                        <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top" title="@p.User?.Username">
-                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                            <span class="player-name">@p.User?.Username</span>
-                        </div>
-                    }
+        {
+            <div class="organizer-item" 
+                 style="cursor: pointer;" 
+                 onclick="showUserProfilePreview(@p.UserId)"
+                 title="Click to view @p.User?.Username's profile">
+                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
+                <span class="player-name">@p.User?.Username</span>
+            </div>
+        }
                 </div>
             }
         </div>

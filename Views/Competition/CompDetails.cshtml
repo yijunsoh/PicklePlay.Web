@@ -288,11 +288,11 @@
                                     <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
                                 </a>
                             </li>
-                             <li>
-                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#setAwardModal">
-                    <i class="bi bi-trophy-fill me-2"></i> Set Award
-                </a>
-            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#setAwardModal">
+                                    <i class="bi bi-trophy-fill me-2"></i> Set Award
+                                </a>
+                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -375,11 +375,11 @@
                 role="tab" aria-controls="match-tab-pane" aria-selected="false">Match</button>
         </li>
         <li class="nav-item" role="presentation">
-    <button class="nav-link" id="result-subtab" data-bs-toggle="tab" data-bs-target="#result-content"
-            type="button" role="tab">
-        <i class="bi bi-trophy-fill"></i> Results
-    </button>
-</li>
+            <button class="nav-link" id="result-subtab" data-bs-toggle="tab" data-bs-target="#result-content"
+                type="button" role="tab">
+                <i class="bi bi-trophy-fill"></i> Results
+            </button>
+        </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane"
                 type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
@@ -452,8 +452,8 @@
                         else
                         {
 
-                                <span>N/A</span>
-                            }
+                            <span>N/A</span>
+                        }
                     </p>
                 </div>
 
@@ -490,108 +490,112 @@
 
             <div class="tab-content" id="registrationSubTabsContent">
                 <div class="tab-pane fade" id="staff-subtab-pane" role="tabpanel" aria-labelledby="staff-subtab"
-    tabindex="0">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Competition Staff</h5>
-        @if (organizers.Any(o => o.UserId == currentUserId))
-        {
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                data-bs-target="#addStaffModal">
-                <i class="bi bi-person-plus-fill"></i> Add Staff
-            </button>
-        }
-    </div>
+                    tabindex="0">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Competition Staff</h5>
+                        @if (organizers.Any(o => o.UserId == currentUserId))
+                        {
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#addStaffModal">
+                                <i class="bi bi-person-plus-fill"></i> Add Staff
+                            </button>
+                        }
+                    </div>
 
-    @* Display Organizer/Creator *@
+                    @* Display Organizer/Creator *@
     <div class="mb-4">
-        <h6 class="text-muted mb-2">Organizer</h6>
-        @if (organizers.Any())
-        {
-            <div class="d-flex flex-wrap align-items-center">
-                @foreach (var p in organizers)
-                {
-                    <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top"
-                        title="@p.User?.Username - Organizer">
-                        <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
-                            alt="Profile" />
-                        <span class="player-name">@p.User?.Username</span>
-                        <span class="badge bg-warning text-dark mt-1">Organizer</span>
+                        <h6 class="text-muted mb-2">Organizer</h6>
+                        @if (organizers.Any())
+                        {
+                            <div class="d-flex flex-wrap align-items-center">
+                                @foreach (var p in organizers)
+                                {
+                                    <div class="organizer-item" style="cursor: pointer;"
+                                        onclick="showUserProfilePreview(@p.UserId)"
+                                        title="Click to view @p.User?.Username's profile">
+                                        <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                                            alt="Profile" />
+                                        <span class="player-name">@p.User?.Username</span>
+                                        <span class="badge bg-warning text-dark mt-1">Organizer</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No organizer found.</p>
+                        }
                     </div>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="text-muted">No organizer found.</p>
-        }
-    </div>
 
-    @* Display Staff Members *@
+                    @* Display Staff Members *@
     <div>
-        <h6 class="text-muted mb-2">Staff Members</h6>
-        @{
-            var staffMembers = Model.Participants.Where(p => p.Role == ParticipantRole.Staff).ToList();
-        }
+                        <h6 class="text-muted mb-2">Staff Members</h6>
+                        @{
+                            var staffMembers = Model.Participants.Where(p => p.Role == ParticipantRole.Staff).ToList();
+                        }
 
-        @if (staffMembers.Any())
-        {
-            <div class="d-flex flex-wrap align-items-start gap-3">
-                @foreach (var staff in staffMembers)
-                {
-                    <div class="card shadow-sm" style="width: 200px;">
-                        <div class="card-body text-center">
-                            <img src="@(string.IsNullOrEmpty(staff.User?.ProfilePicture) ? "/images/profile_image.jpg" : staff.User.ProfilePicture)"
-                                alt="Profile" 
-                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;" />
-                            
-                            <h6 class="mb-1">@staff.User?.Username</h6>
-                            <span class="badge bg-primary mb-2">Staff</span>
-                            
-                            <p class="text-muted small mb-2">
-                                <i class="bi bi-calendar-check"></i> Staff member
-                            </p>
+                        @if (staffMembers.Any())
+                        {
+                            <div class="d-flex flex-wrap align-items-start gap-3">
+                                @foreach (var staff in staffMembers)
+                                {
+                                    <div class="card shadow-sm" style="width: 200px;">
+                                        <div class="card-body text-center">
+                                            <img src="@(string.IsNullOrEmpty(staff.User?.ProfilePicture) ? "/images/profile_image.jpg" : staff.User.ProfilePicture)"
+                                                alt="Profile"
+                                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; cursor: pointer;"
+                                                onclick="showUserProfilePreview(@staff.UserId)"
+                                                title="Click to view @staff.User?.Username's profile" />
 
-                            @* Only organizer can remove staff *@
-                            @if (organizers.Any(o => o.UserId == currentUserId))
-                            {
-                                <button class="btn btn-sm btn-outline-danger w-100" 
-                                        onclick="removeStaff(@staff.UserId)"
-                                        title="Remove Staff">
-                                    <i class="bi bi-person-dash"></i> Remove
-                                </button>
-                            }
-                        </div>
+                                            <h6 class="mb-1" style="cursor: pointer;"
+                                                onclick="showUserProfilePreview(@staff.UserId)">
+                                                @staff.User?.Username
+                                            </h6>
+                                            <span class="badge bg-primary mb-2">Staff</span>
+
+                                            <p class="text-muted small mb-2">
+                                                <i class="bi bi-calendar-check"></i> Staff member
+                                            </p>
+
+                                            @if (organizers.Any(o => o.UserId == currentUserId))
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger w-100"
+                                                    onclick="removeStaff(@staff.UserId)" title="Remove Staff">
+                                                    <i class="bi bi-person-dash"></i> Remove
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No staff members assigned yet.
+                                @if (organizers.Any(o => o.UserId == currentUserId))
+                                {
+                                    <span>Click "Add Staff" to assign helpers for managing this competition.</span>
+                                }
+                            </div>
+                        }
                     </div>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                No staff members assigned yet. 
-                @if (organizers.Any(o => o.UserId == currentUserId))
-                {
-                    <span>Click "Add Staff" to assign helpers for managing this competition.</span>
-                }
-            </div>
-        }
-    </div>
 
-    @* Staff Permissions Info *@
+                    @* Staff Permissions Info *@
     <div class="alert alert-light mt-4">
-        <h6><i class="bi bi-shield-check me-2"></i>Staff Permissions</h6>
-        <ul class="mb-0 small">
-            <li>Update match scores and status</li>
-            <li>Set competition awards</li>
-            <li>Manage match schedules and courts</li>
-            <li>View all competition data</li>
-        </ul>
-        <p class="mb-0 mt-2 text-muted small">
-            <strong>Note:</strong> Staff cannot add/remove other staff or delete the competition.
-        </p>
-    </div>
-</div>
+                        <h6><i class="bi bi-shield-check me-2"></i>Staff Permissions</h6>
+                        <ul class="mb-0 small">
+                            <li>Update match scores and status</li>
+                            <li>Set competition awards</li>
+                            <li>Manage match schedules and courts</li>
+                            <li>View all competition data</li>
+                        </ul>
+                        <p class="mb-0 mt-2 text-muted small">
+                            <strong>Note:</strong> Staff cannot add/remove other staff or delete the competition.
+                        </p>
+                    </div>
+                </div>
 
                 <div class="tab-pane fade show active" id="teams-subtab-pane" role="tabpanel"
                     aria-labelledby="teams-subtab" tabindex="0">
@@ -662,8 +666,9 @@
                                         <div class="team-body">
                                             @foreach (var member in team.TeamMembers)
                                             {
-                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip"
-                                                    data-bs-placement="top" title="@member.User?.Username">
+                                                <div class="player-slot-wrapper" style="cursor: pointer;"
+                                                    onclick="showUserProfilePreview(@member.UserId)"
+                                                    title="Click to view @member.User?.Username's profile">
                                                     <div class="player-slot">
                                                         <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)"
                                                             alt="Profile" />
@@ -701,7 +706,7 @@
                                                     </div>
                                                 }
                                             }
-                                            @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) // Assuming 2 players max
+                                            @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) @* Assuming 2 players max *@
                                         {
                                         <div class="player-slot-wrapper">
                                             <div class="empty-slot" data-bs-toggle="modal"
@@ -747,8 +752,9 @@
                                         <div class="team-body">
                                             @foreach (var member in team.TeamMembers)
                                             {
-                                                <div class="player-slot-wrapper" data-bs-toggle="tooltip"
-                                                    data-bs-placement="top" title="@member.User?.Username">
+                                                <div class="player-slot-wrapper" style="cursor: pointer;"
+                                                    onclick="showUserProfilePreview(@member.UserId)"
+                                                    title="Click to view @member.User?.Username's profile">
                                                     <div class="player-slot">
                                                         <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ? "/images/profile_image.jpg" : member.User.ProfilePicture)"
                                                             alt="Profile" />
@@ -802,7 +808,7 @@
                 bool canViewDraw = isDrawPublished && !isRoundRobin;
 
                 @* --- Nested Match Tabs (MODIFIED) --- *@
-                     <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
+                         <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
 
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="format-subtab" data-bs-toggle="tab"
@@ -845,7 +851,7 @@
 
                 <div class="tab-content" id="matchSubTabsContent">
                     @* --- Format Sub-Tab Pane --- *@
-                        <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel"
+                            <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel"
                         aria-labelledby="format-subtab" tabindex="0">
                         <h5>Format & Rules</h5>
                         <div class="row">
@@ -887,8 +893,8 @@
                         </div>
                     </div> @* End Format Sub-Tab Pane *@
                         
-                         @* Draw Sub-Tab Pane *@
-                        <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
+                             @* Draw Sub-Tab Pane *@
+                            <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
                         tabindex="0">
                         @if (canViewDraw)
                         {
@@ -910,7 +916,7 @@
                     </div>
 
                     @* --- Listing Sub-Tab Pane --- *@
-    <div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" id="listing-subtab-pane"
+        <div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" id="listing-subtab-pane"
                         role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
                         <div id="listing-container">
                             <div class="text-center p-3">
@@ -922,7 +928,7 @@
                     </div>
 
                     @* --- Standing Sub-Tab Pane --- *@
-                         <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" id="standing-subtab-pane"
+                             <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" id="standing-subtab-pane"
                         role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
                         <div id="standing-container">
                             <div class="text-center p-3">
@@ -938,14 +944,14 @@
 
 
 <div class="tab-pane fade" id="result-content" role="tabpanel">
-    <div id="result-container">
-        <div class="text-center p-5">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
+            <div id="result-container">
+                <div class="text-center p-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
         @* --- Other Main Tab Panes (Placeholders) --- *@
         <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">
@@ -1143,7 +1149,7 @@
 
 <div class="alert alert-warning mt-3" id="editWarning" style="display: none;">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in the bracket. 
+    <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in the bracket.
     Teams that have already advanced will need to replay their matches.
 </div>
 
@@ -1154,27 +1160,27 @@
             <form id="setAwardForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="setAwardModalLabel">
                         <i class="bi bi-trophy-fill text-warning me-2"></i>Set Competition Award
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                
+
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        Award must be configured before starting the competition. Winners will be assigned automatically after matches complete.
+                        Award must be configured before starting the competition. Winners will be assigned automatically
+                        after matches complete.
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Award Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="awardName" 
-                               value="@Model.GameName Championship" required 
-                               placeholder="e.g., Summer Championship 2024" />
+                        <input type="text" class="form-control" name="awardName" value="@Model.GameName Championship"
+                            required placeholder="e.g., Summer Championship 2024" />
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Award Type <span class="text-danger">*</span></label>
                         <select class="form-select" name="awardType" required>
@@ -1188,16 +1194,16 @@
                             <option value="7">🎫 Ticket</option>
                         </select>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Description (Optional)</label>
-                        <textarea class="form-control" name="description" rows="3" 
-                                  placeholder="Add a special message or achievement description..."></textarea>
+                        <textarea class="form-control" name="description" rows="3"
+                            placeholder="Add a special message or achievement description..."></textarea>
                     </div>
-                    
+
                     <div id="setAwardStatus"></div>
                 </div>
-                
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
@@ -1216,17 +1222,18 @@
             <form asp-controller="Match" asp-action="UpdateMatch" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" id="editScoreMatchId" name="MatchId" value="0" />
-                
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="editScoreModalLabel">Edit Match Score</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                
+
                 <div class="modal-body">
                     <!-- Warning Alert -->
                     <div class="alert alert-warning" id="editWarningInModal">
                         <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in the bracket. 
+                        <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in
+                        the bracket.
                         Teams that have already advanced will need to replay their matches.
                     </div>
 
@@ -1251,9 +1258,9 @@
                     <div class="row">
                         <div class="col-md-5">
                             <label class="form-label fw-bold">Team 1 Score</label>
-                            <input type="text" id="editTeam1Score" name="Team1Score" class="form-control" 
-                                   placeholder="e.g., 21,19,15" 
-                                   title="Enter scores separated by commas (e.g., 21,19,15)" />
+                            <input type="text" id="editTeam1Score" name="Team1Score" class="form-control"
+                                placeholder="e.g., 21,19,15"
+                                title="Enter scores separated by commas (e.g., 21,19,15)" />
                             <small class="text-muted">Format: 21,19,15</small>
                         </div>
                         <div class="col-md-2 d-flex align-items-center justify-content-center">
@@ -1263,9 +1270,9 @@
                         </div>
                         <div class="col-md-5">
                             <label class="form-label fw-bold">Team 2 Score</label>
-                            <input type="text" id="editTeam2Score" name="Team2Score" class="form-control" 
-                                   placeholder="e.g., 18,21,13" 
-                                   title="Enter scores separated by commas (e.g., 18,21,13)" />
+                            <input type="text" id="editTeam2Score" name="Team2Score" class="form-control"
+                                placeholder="e.g., 18,21,13"
+                                title="Enter scores separated by commas (e.g., 18,21,13)" />
                             <small class="text-muted">Format: 18,21,13</small>
                         </div>
                     </div>
@@ -1281,7 +1288,7 @@
                         </ul>
                     </div>
                 </div>
-                
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
@@ -1295,7 +1302,7 @@
 
 @section Scripts {
     @* Make sure these scripts are loaded FIRST *@
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
 
@@ -1380,38 +1387,38 @@
         }
 
         // Global function to show edit score modal
-    window.showEditScoreModal = function(matchId, team1Name, team2Name, team1Score, team2Score, isCompleted) {
-        console.log('Opening edit score modal for match', matchId);
-        
-        var modal = document.getElementById('editScoreModal');
-        if (!modal) {
-            console.error('Edit score modal not found');
-            return;
-        }
+        window.showEditScoreModal = function (matchId, team1Name, team2Name, team1Score, team2Score, isCompleted) {
+            console.log('Opening edit score modal for match', matchId);
 
-        // Populate modal fields
-        document.getElementById('editScoreMatchId').value = matchId;
-        document.getElementById('editTeam1Name').textContent = team1Name || 'Team 1';
-        document.getElementById('editTeam2Name').textContent = team2Name || 'Team 2';
-        document.getElementById('editTeam1Score').value = team1Score || '';
-        document.getElementById('editTeam2Score').value = team2Score || '';
-
-        // Show/hide warning based on completion status
-        var warning = document.getElementById('editWarningInModal');
-        if (warning) {
-            if (isCompleted) {
-                warning.style.display = 'block';
-            } else {
-                warning.style.display = 'none';
+            var modal = document.getElementById('editScoreModal');
+            if (!modal) {
+                console.error('Edit score modal not found');
+                return;
             }
-        }
 
-        // Show the modal
-        var bsModal = new bootstrap.Modal(modal);
-        bsModal.show();
-    };
+            // Populate modal fields
+            document.getElementById('editScoreMatchId').value = matchId;
+            document.getElementById('editTeam1Name').textContent = team1Name || 'Team 1';
+            document.getElementById('editTeam2Name').textContent = team2Name || 'Team 2';
+            document.getElementById('editTeam1Score').value = team1Score || '';
+            document.getElementById('editTeam2Score').value = team2Score || '';
 
-    console.log('✓ Edit Score Modal function registered');
+            // Show/hide warning based on completion status
+            var warning = document.getElementById('editWarningInModal');
+            if (warning) {
+                if (isCompleted) {
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            // Show the modal
+            var bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        };
+
+        console.log('✓ Edit Score Modal function registered');
 
         function renderSearchResults(users, teamId) {
             searchResultsContainer.innerHTML = '';
@@ -1423,17 +1430,17 @@
             users.forEach(user => {
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 var userHtml = `
-                    <div class="user-search-item">
-                        <div class="d-flex align-items-center">
-                            <img src="${profilePic}" alt="${user.username}" />
-                            <strong>${user.username}</strong>
-                        </div>
-                        <button class="btn btn-sm btn-primary send-invite-btn" 
-                                data-team-id="${teamId}" 
-                                data-invitee-id="${user.userId}">
-                            Invite
-                        </button>
-                    </div>`;
+                        <div class="user-search-item">
+                            <div class="d-flex align-items-center">
+                                <img src="${profilePic}" alt="${user.username}" />
+                                <strong>${user.username}</strong>
+                            </div>
+                            <button class="btn btn-sm btn-primary send-invite-btn" 
+                                    data-team-id="${teamId}" 
+                                    data-invitee-id="${user.userId}">
+                                Invite
+                            </button>
+                        </div>`;
                 searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -1532,17 +1539,17 @@
             users.forEach(user => {
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 var userHtml = `
-                    <div class="user-search-item">
-                        <div class="d-flex align-items-center">
-                            <img src="${profilePic}" alt="${user.username}" />
-                            <strong>${user.username}</strong>
-                        </div>
-                        <button class="btn btn-sm btn-primary add-staff-btn" 
-                                data-schedule-id="${scheduleId}" 
-                                data-user-id="${user.userId}">
-                            Add Staff
-                        </button>
-                    </div>`;
+                        <div class="user-search-item">
+                            <div class="d-flex align-items-center">
+                                <img src="${profilePic}" alt="${user.username}" />
+                                <strong>${user.username}</strong>
+                            </div>
+                            <button class="btn btn-sm btn-primary add-staff-btn" 
+                                    data-schedule-id="${scheduleId}" 
+                                    data-user-id="${user.userId}">
+                                Add Staff
+                            </button>
+                        </div>`;
                 staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -1608,56 +1615,56 @@
 
         // Start Competition Button Logic
         var startCompBtn = document.getElementById('startCompetitionBtn');
-if (startCompBtn) {
-    var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
-    var startModalBody = document.getElementById('startCompetitionModalBody');
+        if (startCompBtn) {
+            var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
+            var startModalBody = document.getElementById('startCompetitionModalBody');
 
-    startCompBtn.addEventListener('click', function (event) {
-        event.preventDefault();
+            startCompBtn.addEventListener('click', function (event) {
+                event.preventDefault();
 
-        if (!COMP_DATA.isSetupComplete) {
-            alert('Please complete "Match Setup & Format" before starting.');
-            return;
-        }
-
-        if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
-            alert('Please publish the draw before starting the competition.');
-            return;
-        }
-
-        // ⬇️ ADD THIS NEW CHECK
-        // Check if award is configured
-        fetch('/Award/CheckAwardSettings?scheduleId=' + COMP_DATA.scheduleId)
-            .then(response => response.json())
-            .then(data => {
-                if (!data.hasAwardSettings) {
-                    alert('Please configure award settings in the Actions dropdown before starting the competition.');
+                if (!COMP_DATA.isSetupComplete) {
+                    alert('Please complete "Match Setup & Format" before starting.');
                     return;
                 }
 
-                // If all checks pass, show the confirmation modal
-                startModalBody.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading Details...</span>
-                        </div>
-                    </div>`;
-                startModal.show();
+                if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
+                    alert('Please publish the draw before starting the competition.');
+                    return;
+                }
 
-                fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
-                    .then(response => response.text())
-                    .then(html => {
-                        startModalBody.innerHTML = html;
+                // ⬇️ ADD THIS NEW CHECK
+                // Check if award is configured
+                fetch('/Award/CheckAwardSettings?scheduleId=' + COMP_DATA.scheduleId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.hasAwardSettings) {
+                            alert('Please configure award settings in the Actions dropdown before starting the competition.');
+                            return;
+                        }
+
+                        // If all checks pass, show the confirmation modal
+                        startModalBody.innerHTML = `
+                        <div class="text-center p-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading Details...</span>
+                            </div>
+                        </div>`;
+                        startModal.show();
+
+                        fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
+                            .then(response => response.text())
+                            .then(html => {
+                                startModalBody.innerHTML = html;
+                            })
+                            .catch(err => {
+                                startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
+                            });
                     })
-                    .catch(err => {
-                        startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
+                    .catch(error => {
+                        alert('Failed to check award settings. Please try again.');
                     });
-            })
-            .catch(error => {
-                alert('Failed to check award settings. Please try again.');
             });
-    });
-}
+        }
 
         // *** LISTING TAB LOADING (Pool Play & Elimination) ***
         var listingTab = document.getElementById('listing-subtab');
@@ -1677,12 +1684,12 @@ if (startCompBtn) {
 
                 console.log('Loading listing for schedule:', COMP_DATA.scheduleId);
                 container.innerHTML = `
-                <div class="text-center p-5">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading Matches...</span>
-                    </div>
-                    <p class="mt-2">Loading Matches...</p>
-                </div>`;
+                    <div class="text-center p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading Matches...</span>
+                        </div>
+                        <p class="mt-2">Loading Matches...</p>
+                    </div>`;
 
                 fetch('/Match/GetMatchListing?id=' + COMP_DATA.scheduleId)
                     .then(response => {
@@ -1884,11 +1891,11 @@ if (startCompBtn) {
 
                 console.log('Loading standing for schedule:', COMP_DATA.scheduleId);
                 container.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading Standings...</span>
-                        </div>
-                    </div>`;
+                        <div class="text-center p-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading Standings...</span>
+                            </div>
+                        </div>`;
 
                 fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
                     .then(response => {
@@ -1924,13 +1931,13 @@ if (startCompBtn) {
                     console.log('Loading draw visual...');
 
                     drawContainer.innerHTML = `
-                        <div class="text-center p-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading Draw...</span>
+                            <div class="text-center p-5">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading Draw...</span>
+                                </div>
+                                <p class="mt-2">Loading Draw...</p>
                             </div>
-                            <p class="mt-2">Loading Draw...</p>
-                        </div>
-                    `;
+                        `;
 
                     var competitionFormat = COMP_DATA.format;
                     console.log('Competition Format:', competitionFormat);
@@ -1956,19 +1963,19 @@ if (startCompBtn) {
                             .catch(error => {
                                 console.error('Failed to load Pool Play draw:', error);
                                 drawContainer.innerHTML = `
-                                    <div class="alert alert-danger">
-                                        <strong>Error:</strong> Could not load the draw.
-                                        <br><small>${error.message}</small>
-                                    </div>
-                                `;
+                                        <div class="alert alert-danger">
+                                            <strong>Error:</strong> Could not load the draw.
+                                            <br><small>${error.message}</small>
+                                        </div>
+                                    `;
                             });
                     } else if (competitionFormat === 'Elimination') {
                         // Load Bracket for Elimination
                         drawContainer.innerHTML = `
-                            <h5 class="mb-3">Tournament Bracket</h5>
-                            <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
-                            <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
-                        `;
+                                <h5 class="mb-3">Tournament Bracket</h5>
+                                <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+                                <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                            `;
 
                         function fetchAndRenderBracket() {
                             fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
@@ -1990,13 +1997,13 @@ if (startCompBtn) {
                                 .catch(error => {
                                     console.error('Failed to load bracket:', error);
                                     drawContainer.innerHTML = `
-                                        <div class="alert alert-danger">
-                                            <strong>Error:</strong> Could not load the bracket.
-                                            <br><small>${error.message}</small>
-                                            <br><br>
-                                            <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                        </div>
-                                    `;
+                                            <div class="alert alert-danger">
+                                                <strong>Error:</strong> Could not load the bracket.
+                                                <br><small>${error.message}</small>
+                                                <br><br>
+                                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                            </div>
+                                        `;
                                 });
                         }
 
@@ -2052,11 +2059,11 @@ if (startCompBtn) {
                             } catch (e) {
                                 console.error('Error rendering bracket:', e);
                                 drawContainer.innerHTML = `
-                                    <div class="alert alert-danger">
-                                        <strong>Error:</strong> Could not render bracket.
-                                        <br><small>${e.message}</small>
-                                    </div>
-                                `;
+                                        <div class="alert alert-danger">
+                                            <strong>Error:</strong> Could not render bracket.
+                                            <br><small>${e.message}</small>
+                                        </div>
+                                    `;
                             }
                         }
 
@@ -2436,7 +2443,7 @@ if (startCompBtn) {
                         }
                     });
                 }
-            }, 300); 
+            }, 300);
         });
         window.switchToPlayoffBracketTab = function () {
             console.log('switchToPlayoffBracketTab called');
@@ -2513,105 +2520,105 @@ if (startCompBtn) {
         };
 
         // *** RESULT TAB LOADING ***
-var resultTab = document.getElementById('result-subtab');
-if (resultTab) {
-    var resultContainer = document.getElementById('result-container');
-    var resultLoaded = false;
+        var resultTab = document.getElementById('result-subtab');
+        if (resultTab) {
+            var resultContainer = document.getElementById('result-container');
+            var resultLoaded = false;
 
-    resultTab.addEventListener('show.bs.tab', function (event) {
-        if (resultContainer && !resultLoaded) {
-            resultLoaded = true;
-            
-            console.log('Loading results...');
-            
-            fetch('/Award/GetAwards?scheduleId=' + COMP_DATA.scheduleId)
-                .then(response => response.text())
-                .then(html => {
-                    resultContainer.innerHTML = html;
-                    console.log('Results loaded successfully');
-                })
-                .catch(error => {
-                    console.error('Failed to load results:', error);
-                    resultContainer.innerHTML = '<div class="alert alert-danger">Could not load results.</div>';
-                });
-        }
-    });
-}
+            resultTab.addEventListener('show.bs.tab', function (event) {
+                if (resultContainer && !resultLoaded) {
+                    resultLoaded = true;
 
-// *** REMOVE STAFF FUNCTION ***
-window.removeStaff = function(userId) {
-    if (!confirm('Remove this staff member? They will no longer be able to manage this competition.')) {
-        return;
-    }
+                    console.log('Loading results...');
 
-    const scheduleId = COMP_DATA.scheduleId;
-    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-    fetch('/ManageTeam/RemoveStaff', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'RequestVerificationToken': token
-        },
-        body: `scheduleId=${scheduleId}&userId=${userId}`
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { 
-                throw new Error(err.message || 'Failed to remove staff'); 
+                    fetch('/Award/GetAwards?scheduleId=' + COMP_DATA.scheduleId)
+                        .then(response => response.text())
+                        .then(html => {
+                            resultContainer.innerHTML = html;
+                            console.log('Results loaded successfully');
+                        })
+                        .catch(error => {
+                            console.error('Failed to load results:', error);
+                            resultContainer.innerHTML = '<div class="alert alert-danger">Could not load results.</div>';
+                        });
+                }
             });
         }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            location.reload(); // Reload to update the staff list
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Failed to remove staff: ' + error.message);
-        console.error('Error:', error);
-    });
-};
 
-// *** SET AWARD FORM SUBMISSION ***
-$('#setAwardForm').on('submit', function(e) {
-    e.preventDefault();
-    
-    var $form = $(this);
-    var formData = $form.serialize();
-    var statusDiv = $('#setAwardStatus');
-    var submitBtn = $form.find('button[type="submit"]');
-    
-    submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
-    statusDiv.html('<div class="alert alert-info">Saving award settings...</div>');
-    
-    $.ajax({
-        url: '/Award/SetAwards',
-        type: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.success) {
-                statusDiv.html('<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + response.message + '</div>');
-                
-                setTimeout(function() {
-                    $('#setAwardModal').modal('hide');
-                    location.reload();
-                }, 1500);
-            } else {
-                statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + response.message + '</div>');
-                submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
+        // *** REMOVE STAFF FUNCTION ***
+        window.removeStaff = function (userId) {
+            if (!confirm('Remove this staff member? They will no longer be able to manage this competition.')) {
+                return;
             }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error:', error);
-            statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to save award settings. Please try again.</div>');
-            submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
-        }
-    });
-});
+
+            const scheduleId = COMP_DATA.scheduleId;
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            fetch('/ManageTeam/RemoveStaff', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `scheduleId=${scheduleId}&userId=${userId}`
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.message || 'Failed to remove staff');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // Reload to update the staff list
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Failed to remove staff: ' + error.message);
+                    console.error('Error:', error);
+                });
+        };
+
+        // *** SET AWARD FORM SUBMISSION ***
+        $('#setAwardForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var $form = $(this);
+            var formData = $form.serialize();
+            var statusDiv = $('#setAwardStatus');
+            var submitBtn = $form.find('button[type="submit"]');
+
+            submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+            statusDiv.html('<div class="alert alert-info">Saving award settings...</div>');
+
+            $.ajax({
+                url: '/Award/SetAwards',
+                type: 'POST',
+                data: formData,
+                success: function (response) {
+                    if (response.success) {
+                        statusDiv.html('<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + response.message + '</div>');
+
+                        setTimeout(function () {
+                            $('#setAwardModal').modal('hide');
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + response.message + '</div>');
+                        submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error:', error);
+                    statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to save award settings. Please try again.</div>');
+                    submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
+                }
+            });
+        });
     </script>
 }
