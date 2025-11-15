@@ -1141,6 +1141,12 @@
     </div>
 </div>
 
+<div class="alert alert-warning mt-3" id="editWarning" style="display: none;">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in the bracket. 
+    Teams that have already advanced will need to replay their matches.
+</div>
+
 <!-- Set Award Modal -->
 <div class="modal fade" id="setAwardModal" tabindex="-1" aria-labelledby="setAwardModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1196,6 +1202,90 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-save me-2"></i>Save Award Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Score Modal -->
+<div class="modal fade" id="editScoreModal" tabindex="-1" aria-labelledby="editScoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form asp-controller="Match" asp-action="UpdateMatch" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="editScoreMatchId" name="MatchId" value="0" />
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editScoreModalLabel">Edit Match Score</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- Warning Alert -->
+                    <div class="alert alert-warning" id="editWarningInModal">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning:</strong> Editing a completed match score will reset all subsequent matches in the bracket. 
+                        Teams that have already advanced will need to replay their matches.
+                    </div>
+
+                    <!-- Match Info -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-5">
+                                    <h6 id="editTeam1Name" class="mb-0">Team 1</h6>
+                                </div>
+                                <div class="col-2">
+                                    <span class="text-muted">VS</span>
+                                </div>
+                                <div class="col-5">
+                                    <h6 id="editTeam2Name" class="mb-0">Team 2</h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Score Input -->
+                    <div class="row">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Team 1 Score</label>
+                            <input type="text" id="editTeam1Score" name="Team1Score" class="form-control" 
+                                   placeholder="e.g., 21,19,15" 
+                                   title="Enter scores separated by commas (e.g., 21,19,15)" />
+                            <small class="text-muted">Format: 21,19,15</small>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center justify-content-center">
+                            <div class="text-center mt-4">
+                                <i class="bi bi-dash-lg fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Team 2 Score</label>
+                            <input type="text" id="editTeam2Score" name="Team2Score" class="form-control" 
+                                   placeholder="e.g., 18,21,13" 
+                                   title="Enter scores separated by commas (e.g., 18,21,13)" />
+                            <small class="text-muted">Format: 18,21,13</small>
+                        </div>
+                    </div>
+
+                    <!-- Score Format Help -->
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>How to enter scores:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Enter scores for each set separated by commas</li>
+                            <li>Example: <code>21,18,15</code> means Set 1: 21, Set 2: 18, Set 3: 15</li>
+                            <li>Number of scores must match for both teams</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Update Score
                     </button>
                 </div>
             </form>
@@ -1288,6 +1378,40 @@
                 }, 500);
             });
         }
+
+        // Global function to show edit score modal
+    window.showEditScoreModal = function(matchId, team1Name, team2Name, team1Score, team2Score, isCompleted) {
+        console.log('Opening edit score modal for match', matchId);
+        
+        var modal = document.getElementById('editScoreModal');
+        if (!modal) {
+            console.error('Edit score modal not found');
+            return;
+        }
+
+        // Populate modal fields
+        document.getElementById('editScoreMatchId').value = matchId;
+        document.getElementById('editTeam1Name').textContent = team1Name || 'Team 1';
+        document.getElementById('editTeam2Name').textContent = team2Name || 'Team 2';
+        document.getElementById('editTeam1Score').value = team1Score || '';
+        document.getElementById('editTeam2Score').value = team2Score || '';
+
+        // Show/hide warning based on completion status
+        var warning = document.getElementById('editWarningInModal');
+        if (warning) {
+            if (isCompleted) {
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+
+        // Show the modal
+        var bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    };
+
+    console.log('✓ Edit Score Modal function registered');
 
         function renderSearchResults(users, teamId) {
             searchResultsContainer.innerHTML = '';

@@ -202,9 +202,11 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="MatchId" value="@Model.MatchId" />
                                 <input type="hidden" name="Status" value="@MatchStatus.Progressing" />
-                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Edit Score">
-                                    <i class="bi bi-pencil"></i> Edit Score
-                                </button>
+                                <button type="button" 
+            class="btn btn-sm btn-outline-secondary"
+            onclick="showEditScoreModal(@Model.MatchId, '@Model.Team1?.TeamName', '@Model.Team2?.TeamName', '@Model.Team1Score', '@Model.Team2Score', true)">
+        <i class="bi bi-pencil"></i> Edit Score
+    </button>
                             </form>
                         }
 

@@ -81,7 +81,7 @@ namespace PicklePlay.Controllers
 public async Task<IActionResult> StartCompetition(int id)
 {
     var schedule = await _context.Schedules
-        .Include(s => s.Participants) // ⬅️ ADD THIS
+        .Include(s => s.Participants)
         .FirstOrDefaultAsync(s => s.ScheduleId == id);
     
     var competition = await _context.Competitions
@@ -89,7 +89,7 @@ public async Task<IActionResult> StartCompetition(int id)
 
     if (schedule == null || competition == null) return NotFound();
 
-    // *** VALIDATION 1: Check if user is organizer/staff ***
+    // *** VALIDATION 1-4 (keep as is) ***
     var currentUserId = GetCurrentUserId();
     if (!currentUserId.HasValue)
     {
@@ -107,14 +107,12 @@ public async Task<IActionResult> StartCompetition(int id)
         return RedirectToAction("CompDetails", "Competition", new { id = id });
     }
 
-    // *** VALIDATION 2: Check if draw is published (except Round Robin) ***
     if (competition.Format != CompetitionFormat.RoundRobin && !competition.DrawPublished)
     {
         TempData["ErrorMessage"] = "Please publish the draw before starting the competition.";
         return RedirectToAction("CompDetails", "Competition", new { id = id });
     }
 
-    // *** VALIDATION 3: Check if award is configured ***
     var hasAwardSettings = await _context.Awards
         .AnyAsync(a => a.ScheduleId == id);
 
@@ -124,7 +122,6 @@ public async Task<IActionResult> StartCompetition(int id)
         return RedirectToAction("CompDetails", "Competition", new { id = id });
     }
 
-    // *** VALIDATION 4: Check if teams exist ***
     var confirmedTeams = await _context.Teams
         .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
         .ToListAsync();
@@ -143,140 +140,103 @@ public async Task<IActionResult> StartCompetition(int id)
         await _context.SaveChangesAsync();
     }
 
-            // *** FIX: Properly save matches based on format ***
-            switch (competition.Format)
-{
-    case CompetitionFormat.PoolPlay:
-        // Generate pool matches + empty playoff bracket
-        // *** FIX: This method now saves internally, don't save again ***
-        var poolMatches = await GeneratePoolPlayMatchesWithPlayoff(id, competition);
-        Console.WriteLine($"Generated {poolMatches.Count} Pool Play matches (including playoff structure)");
-        // *** REMOVED: await _context.Matches.AddRangeAsync(poolMatches); ***
-        // *** REMOVED: await _context.SaveChangesAsync(); ***
-        break;
-
-    case CompetitionFormat.Elimination:
-        // This function saves matches directly to DB
-        await GenerateEliminationBracket(confirmedTeams, id, competition.ThirdPlaceMatch);
-        break;
-
-    case CompetitionFormat.RoundRobin:
-        var rrMatches = GenerateRoundRobinMatches(confirmedTeams, id);
-        await _context.Matches.AddRangeAsync(rrMatches);
-        await _context.SaveChangesAsync(); // Save here for RoundRobin
-        break;
-}
-
-            // Update schedule status to "In Progress"
-            schedule.Status = ScheduleStatus.InProgress;
-            _context.Schedules.Update(schedule);
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Competition Started! Match listing is now available.";
-            return RedirectToAction("CompDetails", "Competition", new { id = id, tab = "match-listing" });
-        }
-
-        private async Task<List<Match>> GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competition competition)
-        {
-            var matches = new List<Match>();
-
-            // Load all pools with teams
-            var pools = await _context.Pools
-                .Where(p => p.ScheduleId == scheduleId)
-                .ToListAsync();
-
-            // Load all confirmed teams for this schedule
-            var allTeams = await _context.Teams
-                .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
-                .ToListAsync();
-
-            // STEP 1: Generate Round Robin matches within each pool
-            foreach (var pool in pools)
-            {
-                var teamsInPool = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
-
-                if (teamsInPool.Count < 2)
-                {
-                    continue; // Skip pool if less than 2 teams
-                }
-
-                int matchNumber = 1;
-
-                // Round Robin: Each team plays every other team once
-                for (int i = 0; i < teamsInPool.Count; i++)
-                {
-                    for (int j = i + 1; j < teamsInPool.Count; j++)
-                    {
-                        matches.Add(new Match
-                        {
-                            ScheduleId = scheduleId,
-                            Team1Id = teamsInPool[i].TeamId,
-                            Team2Id = teamsInPool[j].TeamId,
-                            RoundName = pool.PoolName, // e.g., "Pool A"
-                            RoundNumber = 1, // Pool stage is round 1
-                            MatchNumber = matchNumber++,
-                            Status = MatchStatus.Active,
-                            IsThirdPlaceMatch = false
-                        });
-                    }
-                }
-            }
-
-            // STEP 2: Calculate how many teams will advance
-int totalAdvancingTeams = pools.Count * competition.WinnersPerPool;
-
-if (totalAdvancingTeams > 1)
-{
-    // Determine playoff bracket size
-    int playoffBracketSize = (int)Math.Pow(2, Math.Ceiling(Math.Log(totalAdvancingTeams, 2)));
-
-    Console.WriteLine($"Generating playoff bracket structure: {playoffBracketSize} slots");
-
-    // Generate empty playoff matches
-    int matchNumber = matches.Count + 1;
-    int roundNumber = 2; // Start from round 2 (pool stage is round 1)
-    int totalRounds = (int)Math.Log(playoffBracketSize, 2);
-
-    // *** FIX: Store rounds in a list so we can link them ***
-    var allRounds = new List<List<Match>>();
-    var currentRoundMatches = new List<Match>();
-
-    // Generate first playoff round
-    for (int i = 0; i < playoffBracketSize / 2; i++)
+    // *** FIX: Generate matches based on format ***
+    switch (competition.Format)
     {
-        string roundName = GetPlayoffRoundName(playoffBracketSize, 1);
+        case CompetitionFormat.PoolPlay:
+            // ⬇️ CHANGED: This method now saves internally
+            await GeneratePoolPlayMatchesWithPlayoff(id, competition);
+            Console.WriteLine("Pool Play matches generated and saved");
+            break;
 
-        var match = new Match
-        {
-            ScheduleId = scheduleId,
-            Team1Id = null, // TBD
-            Team2Id = null, // TBD
-            RoundName = roundName,
-            RoundNumber = roundNumber,
-            MatchNumber = matchNumber++,
-            Status = MatchStatus.Pending,
-            MatchPosition = (i % 2) + 1, // *** FIX: Position within next match (1 or 2) ***
-            IsThirdPlaceMatch = false
-        };
+        case CompetitionFormat.Elimination:
+            // This function saves matches directly to DB
+            await GenerateEliminationBracket(confirmedTeams, id, competition.ThirdPlaceMatch);
+            break;
 
-        matches.Add(match);
-        currentRoundMatches.Add(match);
+        case CompetitionFormat.RoundRobin:
+            var rrMatches = GenerateRoundRobinMatches(confirmedTeams, id);
+            await _context.Matches.AddRangeAsync(rrMatches);
+            await _context.SaveChangesAsync();
+            break;
     }
 
-    allRounds.Add(currentRoundMatches.ToList()); // Save first round
+    // Update schedule status to "In Progress"
+    schedule.Status = ScheduleStatus.InProgress;
+    _context.Schedules.Update(schedule);
 
-    // Generate subsequent rounds
-    for (int round = 2; round <= totalRounds; round++)
+    await _context.SaveChangesAsync();
+
+    TempData["SuccessMessage"] = "Competition Started! Match listing is now available.";
+    return RedirectToAction("CompDetails", "Competition", new { id = id, tab = "match-listing" });
+}
+
+// ⬇️ CHANGE RETURN TYPE TO Task (void async)
+private async Task GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competition competition)
+{
+    var matches = new List<Match>();
+
+    // Load all pools with teams
+    var pools = await _context.Pools
+        .Where(p => p.ScheduleId == scheduleId)
+        .ToListAsync();
+
+    var allTeams = await _context.Teams
+        .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
+        .ToListAsync();
+
+    // STEP 1: Generate Round Robin matches within each pool
+    foreach (var pool in pools)
     {
-        roundNumber++;
-        var nextRoundMatches = new List<Match>();
-        int matchesInRound = (int)Math.Pow(2, totalRounds - round);
+        var teamsInPool = allTeams.Where(t => t.PoolId == pool.PoolId).ToList();
 
-        string roundName = GetPlayoffRoundName(playoffBracketSize, round);
-
-        for (int i = 0; i < matchesInRound; i++)
+        if (teamsInPool.Count < 2)
         {
+            continue;
+        }
+
+        int matchNumber = 1;
+
+        for (int i = 0; i < teamsInPool.Count; i++)
+        {
+            for (int j = i + 1; j < teamsInPool.Count; j++)
+            {
+                matches.Add(new Match
+                {
+                    ScheduleId = scheduleId,
+                    Team1Id = teamsInPool[i].TeamId,
+                    Team2Id = teamsInPool[j].TeamId,
+                    RoundName = pool.PoolName,
+                    RoundNumber = 1,
+                    MatchNumber = matchNumber++,
+                    Status = MatchStatus.Active,
+                    IsThirdPlaceMatch = false
+                });
+            }
+        }
+    }
+
+    // STEP 2: Calculate playoff bracket
+    int totalAdvancingTeams = pools.Count * competition.WinnersPerPool;
+
+    if (totalAdvancingTeams > 1)
+    {
+        int playoffBracketSize = (int)Math.Pow(2, Math.Ceiling(Math.Log(totalAdvancingTeams, 2)));
+
+        Console.WriteLine($"Generating playoff bracket structure: {playoffBracketSize} slots");
+
+        int matchNumber = matches.Count + 1;
+        int roundNumber = 2;
+        int totalRounds = (int)Math.Log(playoffBracketSize, 2);
+
+        var allRounds = new List<List<Match>>();
+        var currentRoundMatches = new List<Match>();
+
+        // Generate first playoff round
+        for (int i = 0; i < playoffBracketSize / 2; i++)
+        {
+            string roundName = GetPlayoffRoundName(playoffBracketSize, 1);
+
             var match = new Match
             {
                 ScheduleId = scheduleId,
@@ -286,79 +246,115 @@ if (totalAdvancingTeams > 1)
                 RoundNumber = roundNumber,
                 MatchNumber = matchNumber++,
                 Status = MatchStatus.Pending,
-                MatchPosition = (i % 2) + 1, // *** FIX: Position in next match ***
+                MatchPosition = (i % 2) + 1,
                 IsThirdPlaceMatch = false
             };
 
             matches.Add(match);
-            nextRoundMatches.Add(match);
+            currentRoundMatches.Add(match);
         }
 
-        allRounds.Add(nextRoundMatches.ToList()); // Save this round
-    }
+        allRounds.Add(currentRoundMatches.ToList());
 
-    // *** NEW: Link matches using NextMatchId ***
-    // IMPORTANT: We need to save matches first to get their IDs
-    await _context.Matches.AddRangeAsync(matches);
-    await _context.SaveChangesAsync();
-    Console.WriteLine("Playoff structure saved, now linking matches...");
-
-    // Now link each round to the next
-    for (int r = 0; r < allRounds.Count - 1; r++)
-    {
-        var currentRound = allRounds[r];
-        var nextRound = allRounds[r + 1];
-
-        for (int i = 0; i < currentRound.Count; i++)
+        // Generate subsequent rounds
+        for (int round = 2; round <= totalRounds; round++)
         {
-            var currentMatch = currentRound[i];
-            int nextMatchIndex = i / 2; // Two matches feed into one next match
+            roundNumber++;
+            var nextRoundMatches = new List<Match>();
+            int matchesInRound = (int)Math.Pow(2, totalRounds - round);
 
-            if (nextMatchIndex < nextRound.Count)
+            string roundName = GetPlayoffRoundName(playoffBracketSize, round);
+
+            for (int i = 0; i < matchesInRound; i++)
             {
-                currentMatch.NextMatchId = nextRound[nextMatchIndex].MatchId;
-                _context.Matches.Update(currentMatch);
+                var match = new Match
+                {
+                    ScheduleId = scheduleId,
+                    Team1Id = null,
+                    Team2Id = null,
+                    RoundName = roundName,
+                    RoundNumber = roundNumber,
+                    MatchNumber = matchNumber++,
+                    Status = MatchStatus.Pending,
+                    MatchPosition = (i % 2) + 1,
+                    IsThirdPlaceMatch = false
+                };
+
+                matches.Add(match);
+                nextRoundMatches.Add(match);
+            }
+
+            allRounds.Add(nextRoundMatches.ToList());
+        }
+
+        // Save all matches to get IDs
+        await _context.Matches.AddRangeAsync(matches);
+        await _context.SaveChangesAsync();
+        Console.WriteLine("Playoff structure saved, now linking matches...");
+
+        // Link matches using NextMatchId
+        for (int r = 0; r < allRounds.Count - 1; r++)
+        {
+            var currentRound = allRounds[r];
+            var nextRound = allRounds[r + 1];
+
+            for (int i = 0; i < currentRound.Count; i++)
+            {
+                var currentMatch = currentRound[i];
+                int nextMatchIndex = i / 2;
+
+                if (nextMatchIndex < nextRound.Count)
+                {
+                    currentMatch.NextMatchId = nextRound[nextMatchIndex].MatchId;
+                    _context.Matches.Update(currentMatch);
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        Console.WriteLine("Match linking complete!");
+
+        // Add third place match if enabled
+        if (competition.ThirdPlaceMatch && totalRounds >= 2)
+        {
+            var semiFinals = allRounds[allRounds.Count - 2];
+
+            var thirdPlaceMatch = new Match
+            {
+                ScheduleId = scheduleId,
+                Team1Id = null,
+                Team2Id = null,
+                RoundName = "3rd Place Match",
+                RoundNumber = roundNumber + 1,
+                MatchNumber = matchNumber++,
+                Status = MatchStatus.Pending,
+                IsThirdPlaceMatch = true
+            };
+
+            await _context.Matches.AddAsync(thirdPlaceMatch);
+            await _context.SaveChangesAsync();
+
+            // Link semi-finals to third place match
+            if (semiFinals.Count >= 2)
+            {
+                semiFinals[0].NextLoserMatchId = thirdPlaceMatch.MatchId;
+                semiFinals[1].NextLoserMatchId = thirdPlaceMatch.MatchId;
+
+                _context.Matches.UpdateRange(semiFinals);
+                await _context.SaveChangesAsync();
             }
         }
     }
-
-    await _context.SaveChangesAsync();
-    Console.WriteLine("Match linking complete!");
-
-    // Add third place match if enabled
-    if (competition.ThirdPlaceMatch && totalRounds >= 2)
+    else
     {
-        var semiFinals = allRounds[allRounds.Count - 2]; // Second-to-last round
-
-        var thirdPlaceMatch = new Match
-        {
-            ScheduleId = scheduleId,
-            Team1Id = null,
-            Team2Id = null,
-            RoundName = "3rd Place Match",
-            RoundNumber = roundNumber + 1,
-            MatchNumber = matchNumber++,
-            Status = MatchStatus.Pending,
-            IsThirdPlaceMatch = true
-        };
-
-        await _context.Matches.AddAsync(thirdPlaceMatch);
+        // No playoff - just save pool matches
+        await _context.Matches.AddRangeAsync(matches);
         await _context.SaveChangesAsync();
-
-        // Link semi-finals to third place match (losers)
-        if (semiFinals.Count >= 2)
-        {
-            semiFinals[0].NextLoserMatchId = thirdPlaceMatch.MatchId;
-            semiFinals[1].NextLoserMatchId = thirdPlaceMatch.MatchId;
-
-            _context.Matches.UpdateRange(semiFinals);
-            await _context.SaveChangesAsync();
-        }
     }
+
+    Console.WriteLine($"Total matches generated: {matches.Count}");
 }
 
-return matches; // *** NOTE: Matches are already saved, so calling code shouldn't save again ***
-        }
 
         // Helper method to generate empty playoff bracket
         private List<Match> GenerateEmptyPlayoffBracket(int scheduleId, int bracketSize, bool hasThirdPlace)
@@ -852,7 +848,13 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
         }
 
         Console.WriteLine($"Match found - Team1Id: {match.Team1Id}, Team2Id: {match.Team2Id}");
+        Console.WriteLine($"Current status: {match.Status}, Current winner: {match.WinnerId}");
 
+        // *** DETECT IF THIS IS A SCORE EDIT ***
+        bool isScoreEdit = match.Status == MatchStatus.Done && match.WinnerId.HasValue;
+        int? oldWinnerId = match.WinnerId;
+
+        // Update scores
         match.Team1Score = Team1Score;
         match.Team2Score = Team2Score;
 
@@ -864,15 +866,11 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
         {
             match.LastUpdatedByUserId = currentUserId.Value;
         }
-        else
-        {
-            Console.WriteLine("WARNING: No current user ID");
-        }
 
-        // Determine winner
+        // Determine NEW winner
         Console.WriteLine("Calling DetermineWinnerId...");
         match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
-        Console.WriteLine($"WinnerId determined: {match.WinnerId}");
+        Console.WriteLine($"NEW WinnerId determined: {match.WinnerId}");
 
         // Check if there are real scores
         bool hasRealScores = false;
@@ -887,15 +885,36 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
         if (hasRealScores && match.Status != MatchStatus.Bye)
         {
             match.Status = MatchStatus.Done;
-            Console.WriteLine("Status set to Done, calling AdvanceWinner...");
-            await AdvanceWinner(match);
+
+            // *** CHECK IF WINNER CHANGED ***
+            if (isScoreEdit && oldWinnerId != match.WinnerId)
+            {
+                Console.WriteLine($"⚠ WINNER CHANGED! Old: {oldWinnerId}, New: {match.WinnerId}");
+                Console.WriteLine("Recalculating bracket progression...");
+
+                _context.Matches.Update(match);
+                await _context.SaveChangesAsync();
+
+                // Recalculate entire bracket progression
+                await RecalculateBracketProgression(match);
+            }
+            else if (!isScoreEdit)
+            {
+                // First time completing this match
+                Console.WriteLine("First time completion, calling AdvanceWinner...");
+                await AdvanceWinner(match);
+            }
+            else
+            {
+                Console.WriteLine("Score edit but winner unchanged, updating match only");
+            }
         }
 
         Console.WriteLine("Updating match in database...");
         _context.Matches.Update(match);
         await _context.SaveChangesAsync();
 
-        // *** STEP 2: AUTO-UPDATE AWARD WINNERS IF FINAL MATCH COMPLETED ***
+        // *** AUTO-UPDATE AWARD WINNERS IF FINAL MATCH COMPLETED ***
         if (match.Status == MatchStatus.Done && match.WinnerId.HasValue)
         {
             bool isFinalMatch = match.RoundName != null && 
@@ -908,7 +927,6 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
             {
                 Console.WriteLine($"⭐ {(isFinalMatch ? "FINAL" : "3RD PLACE")} match completed! Updating award winners...");
                 
-                // Check if awards are configured
                 var hasAwards = await _context.Awards
                     .AnyAsync(a => a.ScheduleId == match.ScheduleId);
 
@@ -916,10 +934,6 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
                 {
                     await UpdateAwardWinnersForSchedule(match.ScheduleId);
                     Console.WriteLine("✓ Award winners updated successfully");
-                }
-                else
-                {
-                    Console.WriteLine("⚠ No awards configured for this competition");
                 }
             }
         }
@@ -1689,129 +1703,354 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
     }
 }
 
-        private async Task AdvanceWinner(Match completedMatch)
+        private async Task AdvanceWinner(Match match)
+{
+    Console.WriteLine($"=== AdvanceWinner called for Match {match.MatchId} ===");
+
+    if (!match.WinnerId.HasValue)
+    {
+        Console.WriteLine("No winner determined, skipping advancement");
+        return;
+    }
+
+    Console.WriteLine($"Winner: Team {match.WinnerId}");
+
+    // *** ADVANCE WINNER TO NEXT MATCH ***
+    if (match.NextMatchId.HasValue)
+    {
+        var nextMatch = await _context.Matches.FindAsync(match.NextMatchId.Value);
+        if (nextMatch != null)
         {
-            try
+            Console.WriteLine($"Advancing winner to Match {nextMatch.MatchId}");
+
+            if (!nextMatch.Team1Id.HasValue)
             {
-                Console.WriteLine($"=== AdvanceWinner for Match {completedMatch.MatchId} ===");
-                Console.WriteLine($"Status: {completedMatch.Status}, WinnerId: {completedMatch.WinnerId}");
-                Console.WriteLine($"Team1Id: {completedMatch.Team1Id}, Team2Id: {completedMatch.Team2Id}");
-
-                // *** IMPORTANT: Double BYEs should use AdvanceDoubleByeRecursive instead ***
-                if (completedMatch.Status == MatchStatus.Bye &&
-                    !completedMatch.Team1Id.HasValue &&
-                    !completedMatch.Team2Id.HasValue)
-                {
-                    Console.WriteLine("ERROR: This is a double BYE, should use AdvanceDoubleByeRecursive!");
-                    return;
-                }
-
-                // Regular matches and single BYEs must have a winner
-                if (!completedMatch.WinnerId.HasValue)
-                {
-                    Console.WriteLine("ERROR: No winner determined, cannot advance");
-                    return;
-                }
-
-                var winnerId = completedMatch.WinnerId.Value;
-                Console.WriteLine($"Advancing winner: {winnerId}");
-
-                // --- Advance to Next Match ---
-                if (completedMatch.NextMatchId.HasValue)
-                {
-                    var nextMatch = await _context.Matches.FindAsync(completedMatch.NextMatchId.Value);
-                    if (nextMatch != null)
-                    {
-                        Console.WriteLine($"Setting winner {winnerId} in NextMatch {nextMatch.MatchId} at position {completedMatch.MatchPosition}");
-
-                        // Assign winner to correct position
-                        if (completedMatch.MatchPosition == 1)
-                        {
-                            nextMatch.Team1Id = winnerId;
-                        }
-                        else if (completedMatch.MatchPosition == 2)
-                        {
-                            nextMatch.Team2Id = winnerId;
-                        }
-
-                        // Update next match status
-                        if (nextMatch.Team1Id.HasValue && nextMatch.Team2Id.HasValue)
-                        {
-                            // Both teams ready
-                            nextMatch.Status = MatchStatus.Active;
-                            nextMatch.IsBye = false;
-                            Console.WriteLine($"✓ NextMatch {nextMatch.MatchId} is now ACTIVE (both teams present)");
-                        }
-                        else if (nextMatch.Team1Id.HasValue || nextMatch.Team2Id.HasValue)
-                        {
-                            // One team present = single BYE
-                            nextMatch.Status = MatchStatus.Bye;
-                            nextMatch.IsBye = true;
-                            nextMatch.WinnerId = nextMatch.Team1Id ?? nextMatch.Team2Id;
-                            Console.WriteLine($"✓ NextMatch {nextMatch.MatchId} is now a SINGLE BYE (winner: {nextMatch.WinnerId})");
-
-                            // Recursively advance this BYE
-                            _context.Matches.Update(nextMatch);
-                            await _context.SaveChangesAsync(); // Save before recursion
-                            await AdvanceWinner(nextMatch);
-                            return; // Don't update again below
-                        }
-
-                        _context.Matches.Update(nextMatch);
-                    }
-                }
-
-                // --- Advance Loser to 3rd Place Match ---
-                if (completedMatch.NextLoserMatchId.HasValue)
-                {
-                    int? loserId = null;
-
-                    // Determine loser
-                    if (completedMatch.Team1Id.HasValue && completedMatch.Team2Id.HasValue)
-                    {
-                        loserId = (winnerId == completedMatch.Team1Id.Value)
-                            ? completedMatch.Team2Id.Value
-                            : completedMatch.Team1Id.Value;
-                    }
-
-                    if (loserId.HasValue)
-                    {
-                        var thirdPlaceMatch = await _context.Matches.FindAsync(completedMatch.NextLoserMatchId.Value);
-                        if (thirdPlaceMatch != null)
-                        {
-                            Console.WriteLine($"Advancing loser {loserId} to 3rd Place Match {thirdPlaceMatch.MatchId}");
-
-                            // Assign loser to first available position
-                            if (!thirdPlaceMatch.Team1Id.HasValue)
-                            {
-                                thirdPlaceMatch.Team1Id = loserId.Value;
-                            }
-                            else if (!thirdPlaceMatch.Team2Id.HasValue)
-                            {
-                                thirdPlaceMatch.Team2Id = loserId.Value;
-                            }
-
-                            // Activate if both losers present
-                            if (thirdPlaceMatch.Team1Id.HasValue && thirdPlaceMatch.Team2Id.HasValue)
-                            {
-                                thirdPlaceMatch.Status = MatchStatus.Active;
-                                Console.WriteLine($"✓ 3rd Place Match {thirdPlaceMatch.MatchId} is now ACTIVE");
-                            }
-
-                            _context.Matches.Update(thirdPlaceMatch);
-                        }
-                    }
-                }
-
-                Console.WriteLine("=== AdvanceWinner completed ===");
+                nextMatch.Team1Id = match.WinnerId;
+                Console.WriteLine($"Set as Team1 in Match {nextMatch.MatchId}");
             }
-            catch (Exception ex)
+            else if (!nextMatch.Team2Id.HasValue)
             {
-                Console.WriteLine($"ERROR in AdvanceWinner: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
-                throw;
+                nextMatch.Team2Id = match.WinnerId;
+                Console.WriteLine($"Set as Team2 in Match {nextMatch.MatchId}");
+            }
+            else
+            {
+                Console.WriteLine($"⚠ Both teams already set in Match {nextMatch.MatchId}");
+            }
+
+            // Check if next match is ready to start
+            if (nextMatch.Team1Id.HasValue && nextMatch.Team2Id.HasValue)
+            {
+                nextMatch.Status = MatchStatus.Active;
+                Console.WriteLine($"Match {nextMatch.MatchId} is now Active (both teams assigned)");
+            }
+
+            _context.Matches.Update(nextMatch);
+        }
+    }
+
+    // *** ADVANCE LOSER TO THIRD PLACE MATCH ***
+    if (match.NextLoserMatchId.HasValue)
+    {
+        var thirdPlaceMatch = await _context.Matches.FindAsync(match.NextLoserMatchId.Value);
+        if (thirdPlaceMatch != null)
+        {
+            // *** FIX: Calculate loser correctly ***
+            int? loserId = null;
+            if (match.Team1Id.HasValue && match.Team2Id.HasValue)
+            {
+                loserId = (match.Team1Id == match.WinnerId) ? match.Team2Id : match.Team1Id;
+            }
+
+            Console.WriteLine($"Advancing loser (Team {loserId}) to 3rd Place Match {thirdPlaceMatch.MatchId}");
+
+            if (loserId.HasValue)
+            {
+                if (!thirdPlaceMatch.Team1Id.HasValue)
+                {
+                    thirdPlaceMatch.Team1Id = loserId;
+                    Console.WriteLine($"Set loser as Team1 in 3rd Place Match");
+                }
+                else if (!thirdPlaceMatch.Team2Id.HasValue)
+                {
+                    thirdPlaceMatch.Team2Id = loserId;
+                    Console.WriteLine($"Set loser as Team2 in 3rd Place Match");
+                }
+                else
+                {
+                    // *** NEW: Replace existing team if it came from this semi-final ***
+                    Console.WriteLine($"⚠ 3rd Place Match already has both teams");
+                    Console.WriteLine($"Current: Team1={thirdPlaceMatch.Team1Id}, Team2={thirdPlaceMatch.Team2Id}");
+                    Console.WriteLine($"Checking if either team came from this semi-final...");
+                    
+                    // Check if Team1 or Team2 was previously in this semi-final
+                    bool team1WasInThisSemi = (match.Team1Id == thirdPlaceMatch.Team1Id || match.Team2Id == thirdPlaceMatch.Team1Id);
+                    bool team2WasInThisSemi = (match.Team1Id == thirdPlaceMatch.Team2Id || match.Team2Id == thirdPlaceMatch.Team2Id);
+                    
+                    if (team1WasInThisSemi)
+                    {
+                        thirdPlaceMatch.Team1Id = loserId;
+                        Console.WriteLine($"Replaced Team1 with new loser {loserId}");
+                    }
+                    else if (team2WasInThisSemi)
+                    {
+                        thirdPlaceMatch.Team2Id = loserId;
+                        Console.WriteLine($"Replaced Team2 with new loser {loserId}");
+                    }
+                }
+
+                // Activate 3rd place match if both teams are ready
+                if (thirdPlaceMatch.Team1Id.HasValue && thirdPlaceMatch.Team2Id.HasValue)
+                {
+                    thirdPlaceMatch.Status = MatchStatus.Active;
+                    Console.WriteLine($"3rd Place Match {thirdPlaceMatch.MatchId} is now Active");
+                }
+            }
+
+            _context.Matches.Update(thirdPlaceMatch);
+        }
+    }
+
+    await _context.SaveChangesAsync();
+    Console.WriteLine("=== AdvanceWinner completed ===");
+}
+private async Task RecalculateBracketProgression(Match editedMatch)
+{
+    Console.WriteLine($"=== RecalculateBracketProgression for Match {editedMatch.MatchId} ===");
+    
+    // Get all downstream matches (matches that depend on this one)
+    var affectedMatches = new List<Match>();
+    await CollectAffectedMatches(editedMatch, affectedMatches);
+    
+    Console.WriteLine($"Found {affectedMatches.Count} affected matches");
+    
+    // *** STEP 1: CLEAR TEAMS AND RESET ALL AFFECTED MATCHES ***
+    foreach (var match in affectedMatches.OrderByDescending(m => m.RoundNumber))
+    {
+        Console.WriteLine($"Resetting Match {match.MatchId} ({match.RoundName})");
+        
+        // Clear teams
+        match.Team1Id = null;
+        match.Team2Id = null;
+        
+        // Reset match state
+        match.WinnerId = null;
+        match.Team1Score = null;
+        match.Team2Score = null;
+        match.Status = MatchStatus.Pending;
+        match.IsBye = false; // ⬅️ ADD THIS: Reset BYE flag
+        
+        Console.WriteLine($"  ✓ Cleared both teams and reset to Pending");
+        
+        _context.Matches.Update(match);
+    }
+    
+    await _context.SaveChangesAsync();
+    Console.WriteLine("✓ All affected matches cleared and reset");
+    
+    // *** STEP 2: RE-ADVANCE EDITED MATCH WITH NEW WINNER ***
+    Console.WriteLine($"Re-advancing edited match {editedMatch.MatchId} with new winner: {editedMatch.WinnerId}");
+    await AdvanceWinner(editedMatch);
+    await _context.SaveChangesAsync();
+    Console.WriteLine("✓ Edited match re-advanced");
+    
+    // *** STEP 3: FIND AND RE-ADVANCE ALL MATCHES IN THE SAME ROUND ***
+    var sameRoundMatches = await _context.Matches
+        .Where(m => m.ScheduleId == editedMatch.ScheduleId &&
+                   m.RoundNumber == editedMatch.RoundNumber &&
+                   !m.IsThirdPlaceMatch &&
+                   m.MatchId != editedMatch.MatchId) // Exclude the edited match
+        .ToListAsync();
+    
+    Console.WriteLine($"Found {sameRoundMatches.Count} other matches in the same round");
+    
+    // *** STEP 4: RE-ADVANCE ALL COMPLETED MATCHES IN THE SAME ROUND ***
+    foreach (var sameRoundMatch in sameRoundMatches)
+    {
+        // Check if match has scores (completed match)
+        if (!string.IsNullOrEmpty(sameRoundMatch.Team1Score) && 
+            !string.IsNullOrEmpty(sameRoundMatch.Team2Score) &&
+            sameRoundMatch.WinnerId.HasValue)
+        {
+            Console.WriteLine($"Re-advancing completed match {sameRoundMatch.MatchId}, winner: {sameRoundMatch.WinnerId}");
+            await AdvanceWinner(sameRoundMatch);
+            await _context.SaveChangesAsync();
+        }
+        // ⬇️ NEW: Check if match is a BYE
+        else if (sameRoundMatch.IsBye || sameRoundMatch.Status == MatchStatus.Bye)
+        {
+            Console.WriteLine($"Re-advancing BYE match {sameRoundMatch.MatchId}");
+            
+            // Re-determine BYE status based on current teams
+            if (!sameRoundMatch.Team1Id.HasValue && !sameRoundMatch.Team2Id.HasValue)
+            {
+                // Double BYE
+                sameRoundMatch.Status = MatchStatus.Bye;
+                sameRoundMatch.IsBye = true;
+                sameRoundMatch.WinnerId = null;
+                _context.Matches.Update(sameRoundMatch);
+                await _context.SaveChangesAsync();
+                
+                await AdvanceDoubleByeRecursive(sameRoundMatch);
+            }
+            else if (!sameRoundMatch.Team1Id.HasValue || !sameRoundMatch.Team2Id.HasValue)
+            {
+                // Single BYE
+                sameRoundMatch.Status = MatchStatus.Bye;
+                sameRoundMatch.IsBye = true;
+                sameRoundMatch.WinnerId = sameRoundMatch.Team1Id ?? sameRoundMatch.Team2Id;
+                _context.Matches.Update(sameRoundMatch);
+                await _context.SaveChangesAsync();
+                
+                Console.WriteLine($"  Single BYE - Winner: {sameRoundMatch.WinnerId}");
+                await AdvanceWinner(sameRoundMatch);
+            }
+            
+            await _context.SaveChangesAsync();
+        }
+    }
+    
+    Console.WriteLine("✓ All same-round matches re-advanced");
+    
+    // *** STEP 5: CHECK AND RE-ADVANCE BYE MATCHES IN AFFECTED ROUNDS ***
+    var affectedRounds = affectedMatches
+        .Select(m => m.RoundNumber)
+        .Distinct()
+        .OrderBy(r => r)
+        .ToList();
+    
+    foreach (var roundNum in affectedRounds)
+    {
+        var byeMatchesInRound = await _context.Matches
+            .Where(m => m.ScheduleId == editedMatch.ScheduleId &&
+                       m.RoundNumber == roundNum &&
+                       (m.IsBye || m.Status == MatchStatus.Bye))
+            .ToListAsync();
+        
+        if (byeMatchesInRound.Any())
+        {
+            Console.WriteLine($"Re-checking BYE matches in round {roundNum}: {byeMatchesInRound.Count} found");
+            
+            foreach (var byeMatch in byeMatchesInRound)
+            {
+                // Refresh match from DB to get latest state
+                var freshMatch = await _context.Matches.FindAsync(byeMatch.MatchId);
+                if (freshMatch == null) continue;
+                
+                if (!freshMatch.Team1Id.HasValue && !freshMatch.Team2Id.HasValue)
+                {
+                    Console.WriteLine($"  Match {freshMatch.MatchId}: Double BYE");
+                    await AdvanceDoubleByeRecursive(freshMatch);
+                }
+                else if ((!freshMatch.Team1Id.HasValue || !freshMatch.Team2Id.HasValue) && 
+                         freshMatch.WinnerId.HasValue)
+                {
+                    Console.WriteLine($"  Match {freshMatch.MatchId}: Single BYE, re-advancing winner {freshMatch.WinnerId}");
+                    await AdvanceWinner(freshMatch);
+                }
+                
+                await _context.SaveChangesAsync();
             }
         }
+    }
+    
+    // *** STEP 6: RE-PROCESS ANY OTHER COMPLETED MATCHES IN DOWNSTREAM ROUNDS ***
+    var downstreamCompletedMatches = await _context.Matches
+        .Where(m => affectedMatches.Select(am => am.MatchId).Contains(m.MatchId) &&
+                   !string.IsNullOrEmpty(m.Team1Score) && 
+                   !string.IsNullOrEmpty(m.Team2Score) &&
+                   m.Status != MatchStatus.Bye)
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.MatchNumber)
+        .ToListAsync();
+    
+    Console.WriteLine($"Re-processing {downstreamCompletedMatches.Count} downstream completed matches");
+    
+    foreach (var match in downstreamCompletedMatches)
+    {
+        Console.WriteLine($"Re-processing Match {match.MatchId} ({match.RoundName})");
+        
+        // Refresh match from DB to get latest teams
+        var updatedMatch = await _context.Matches.FindAsync(match.MatchId);
+        
+        if (updatedMatch != null && 
+            updatedMatch.Team1Id.HasValue && 
+            updatedMatch.Team2Id.HasValue)
+        {
+            // Both teams assigned, recalculate winner
+            updatedMatch.WinnerId = DetermineWinnerId(
+                updatedMatch.Team1Id, 
+                updatedMatch.Team2Id, 
+                updatedMatch.Team1Score, 
+                updatedMatch.Team2Score
+            );
+            
+            if (updatedMatch.WinnerId.HasValue)
+            {
+                updatedMatch.Status = MatchStatus.Done;
+                _context.Matches.Update(updatedMatch);
+                await _context.SaveChangesAsync();
+                
+                // Re-advance this match's winner
+                await AdvanceWinner(updatedMatch);
+                await _context.SaveChangesAsync();
+                
+                Console.WriteLine($"✓ Re-processed Match {updatedMatch.MatchId}, winner: {updatedMatch.WinnerId}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"⚠ Match {match.MatchId} cannot be re-processed (missing teams)");
+        }
+    }
+    
+    // *** STEP 7: UPDATE AWARDS IF FINAL WAS AFFECTED ***
+    var finalMatch = affectedMatches.FirstOrDefault(m => 
+        m.RoundName != null && 
+        m.RoundName.Contains("Final") && 
+        !m.RoundName.Contains("Semi")
+    );
+    
+    if (finalMatch != null)
+    {
+        Console.WriteLine("Final match was affected, updating awards...");
+        await UpdateAwardWinnersForSchedule(editedMatch.ScheduleId);
+    }
+    
+    Console.WriteLine("=== RecalculateBracketProgression completed ===");
+}
+
+/// <summary>
+/// Recursively collects all matches affected by editing a match score
+/// </summary>
+private async Task CollectAffectedMatches(Match match, List<Match> affected)
+{
+    Console.WriteLine($"Collecting affected matches from Match {match.MatchId}");
+    
+    // Add winner's next match (e.g., Semi-Final → Final)
+    if (match.NextMatchId.HasValue)
+    {
+        var nextMatch = await _context.Matches.FindAsync(match.NextMatchId.Value);
+        if (nextMatch != null && !affected.Any(m => m.MatchId == nextMatch.MatchId))
+        {
+            Console.WriteLine($"  Adding NextMatch {nextMatch.MatchId} ({nextMatch.RoundName})");
+            affected.Add(nextMatch);
+            await CollectAffectedMatches(nextMatch, affected);
+        }
+    }
+    
+    // Add loser's next match (e.g., Semi-Final → 3rd Place Match)
+    if (match.NextLoserMatchId.HasValue)
+    {
+        var loserMatch = await _context.Matches.FindAsync(match.NextLoserMatchId.Value);
+        if (loserMatch != null && !affected.Any(m => m.MatchId == loserMatch.MatchId))
+        {
+            Console.WriteLine($"  Adding NextLoserMatch {loserMatch.MatchId} ({loserMatch.RoundName})");
+            affected.Add(loserMatch);
+            await CollectAffectedMatches(loserMatch, affected);
+        }
+    }
+}
 
         /// <summary>
         /// Recursively propagates double BYEs through the bracket until reaching a non-BYE match
