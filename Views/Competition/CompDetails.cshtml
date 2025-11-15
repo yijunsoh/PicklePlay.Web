@@ -288,6 +288,11 @@
                                     <i class="bi bi-gear-fill me-2"></i> Edit Format & Rules
                                 </a>
                             </li>
+                             <li>
+                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#setAwardModal">
+                    <i class="bi bi-trophy-fill me-2"></i> Set Award
+                </a>
+            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -370,9 +375,11 @@
                 role="tab" aria-controls="match-tab-pane" aria-selected="false">Match</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link disabled" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-tab-pane"
-                type="button" role="tab" aria-controls="result-tab-pane" aria-selected="false">Result</button>
-        </li>
+    <button class="nav-link" id="result-subtab" data-bs-toggle="tab" data-bs-target="#result-content"
+            type="button" role="tab">
+        <i class="bi bi-trophy-fill"></i> Results
+    </button>
+</li>
         <li class="nav-item" role="presentation">
             <button class="nav-link disabled" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane"
                 type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">Chat</button>
@@ -483,36 +490,108 @@
 
             <div class="tab-content" id="registrationSubTabsContent">
                 <div class="tab-pane fade" id="staff-subtab-pane" role="tabpanel" aria-labelledby="staff-subtab"
-                    tabindex="0">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Organizers</h5>
-                        @if (organizers.Any(o => o.UserId == currentUserId))
-                        {
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                                data-bs-target="#addStaffModal">
-                                <i class="bi bi-person-plus-fill"></i> Add Staff
-                            </button>
-                        }
+    tabindex="0">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Competition Staff</h5>
+        @if (organizers.Any(o => o.UserId == currentUserId))
+        {
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                data-bs-target="#addStaffModal">
+                <i class="bi bi-person-plus-fill"></i> Add Staff
+            </button>
+        }
+    </div>
+
+    @* Display Organizer/Creator *@
+    <div class="mb-4">
+        <h6 class="text-muted mb-2">Organizer</h6>
+        @if (organizers.Any())
+        {
+            <div class="d-flex flex-wrap align-items-center">
+                @foreach (var p in organizers)
+                {
+                    <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="@p.User?.Username - Organizer">
+                        <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                            alt="Profile" />
+                        <span class="player-name">@p.User?.Username</span>
+                        <span class="badge bg-warning text-dark mt-1">Organizer</span>
                     </div>
-                    @if (organizers.Any())
-                    {
-                        <div class="d-flex flex-wrap align-items-center mt-3">
-                            @foreach (var p in organizers)
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No organizer found.</p>
+        }
+    </div>
+
+    @* Display Staff Members *@
+    <div>
+        <h6 class="text-muted mb-2">Staff Members</h6>
+        @{
+            var staffMembers = Model.Participants.Where(p => p.Role == ParticipantRole.Staff).ToList();
+        }
+
+        @if (staffMembers.Any())
+        {
+            <div class="d-flex flex-wrap align-items-start gap-3">
+                @foreach (var staff in staffMembers)
+                {
+                    <div class="card shadow-sm" style="width: 200px;">
+                        <div class="card-body text-center">
+                            <img src="@(string.IsNullOrEmpty(staff.User?.ProfilePicture) ? "/images/profile_image.jpg" : staff.User.ProfilePicture)"
+                                alt="Profile" 
+                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;" />
+                            
+                            <h6 class="mb-1">@staff.User?.Username</h6>
+                            <span class="badge bg-primary mb-2">Staff</span>
+                            
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-calendar-check"></i> Staff member
+                            </p>
+
+                            @* Only organizer can remove staff *@
+                            @if (organizers.Any(o => o.UserId == currentUserId))
                             {
-                                <div class="organizer-item" data-bs-toggle="tooltip" data-bs-placement="top"
-                                    title="@p.User?.Username">
-                                    <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
-                                        alt="Profile" />
-                                    <span class="player-name">@p.User?.Username</span>
-                                </div>
+                                <button class="btn btn-sm btn-outline-danger w-100" 
+                                        onclick="removeStaff(@staff.UserId)"
+                                        title="Remove Staff">
+                                    <i class="bi bi-person-dash"></i> Remove
+                                </button>
                             }
                         </div>
-                    }
-                    else
-                    {
-                        <p class="text-muted">No staff listed.</p>
-                    }
-                </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No staff members assigned yet. 
+                @if (organizers.Any(o => o.UserId == currentUserId))
+                {
+                    <span>Click "Add Staff" to assign helpers for managing this competition.</span>
+                }
+            </div>
+        }
+    </div>
+
+    @* Staff Permissions Info *@
+    <div class="alert alert-light mt-4">
+        <h6><i class="bi bi-shield-check me-2"></i>Staff Permissions</h6>
+        <ul class="mb-0 small">
+            <li>Update match scores and status</li>
+            <li>Set competition awards</li>
+            <li>Manage match schedules and courts</li>
+            <li>View all competition data</li>
+        </ul>
+        <p class="mb-0 mt-2 text-muted small">
+            <strong>Note:</strong> Staff cannot add/remove other staff or delete the competition.
+        </p>
+    </div>
+</div>
 
                 <div class="tab-pane fade show active" id="teams-subtab-pane" role="tabpanel"
                     aria-labelledby="teams-subtab" tabindex="0">
@@ -807,6 +886,7 @@
                             </div>
                         </div>
                     </div> @* End Format Sub-Tab Pane *@
+                        
                          @* Draw Sub-Tab Pane *@
                         <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
                         tabindex="0">
@@ -856,6 +936,16 @@
              } @* End else block for setupPending / Competition null check *@
         </div> @* End Match Tab Pane *@
 
+
+<div class="tab-pane fade" id="result-content" role="tabpanel">
+    <div id="result-container">
+        <div class="text-center p-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
 
         @* --- Other Main Tab Panes (Placeholders) --- *@
         <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">
@@ -1045,6 +1135,68 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Details</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Set Award Modal -->
+<div class="modal fade" id="setAwardModal" tabindex="-1" aria-labelledby="setAwardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="setAwardForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="setAwardModalLabel">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i>Set Competition Award
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Award must be configured before starting the competition. Winners will be assigned automatically after matches complete.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Award Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="awardName" 
+                               value="@Model.GameName Championship" required 
+                               placeholder="e.g., Summer Championship 2024" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Award Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="awardType" required>
+                            <option value="0">🏆 Trophy</option>
+                            <option value="1">🥇 Medal</option>
+                            <option value="2">🎀 Ribbon</option>
+                            <option value="3">👑 Crown</option>
+                            <option value="4">⭐ Star</option>
+                            <option value="5">👕 Shirt</option>
+                            <option value="6">👟 Shoe</option>
+                            <option value="7">🎫 Ticket</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" name="description" rows="3" 
+                                  placeholder="Add a special message or achievement description..."></textarea>
+                    </div>
+                    
+                    <div id="setAwardStatus"></div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Save Award Settings
+                    </button>
                 </div>
             </form>
         </div>
@@ -1332,23 +1484,34 @@
 
         // Start Competition Button Logic
         var startCompBtn = document.getElementById('startCompetitionBtn');
-        if (startCompBtn) {
-            var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
-            var startModalBody = document.getElementById('startCompetitionModalBody');
+if (startCompBtn) {
+    var startModal = new bootstrap.Modal(document.getElementById('startCompetitionModal'));
+    var startModalBody = document.getElementById('startCompetitionModalBody');
 
-            startCompBtn.addEventListener('click', function (event) {
-                event.preventDefault();
+    startCompBtn.addEventListener('click', function (event) {
+        event.preventDefault();
 
-                if (!COMP_DATA.isSetupComplete) {
-                    alert('Please complete "Match Setup & Format" before starting.');
+        if (!COMP_DATA.isSetupComplete) {
+            alert('Please complete "Match Setup & Format" before starting.');
+            return;
+        }
+
+        if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
+            alert('Please publish the draw before starting the competition.');
+            return;
+        }
+
+        // ⬇️ ADD THIS NEW CHECK
+        // Check if award is configured
+        fetch('/Award/CheckAwardSettings?scheduleId=' + COMP_DATA.scheduleId)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.hasAwardSettings) {
+                    alert('Please configure award settings in the Actions dropdown before starting the competition.');
                     return;
                 }
 
-                if (!COMP_DATA.isRoundRobin && !COMP_DATA.isDrawPublished) {
-                    alert('Please publish the draw at generate draw to proceed.');
-                    return;
-                }
-
+                // If all checks pass, show the confirmation modal
                 startModalBody.innerHTML = `
                     <div class="text-center p-5">
                         <div class="spinner-border" role="status">
@@ -1365,8 +1528,12 @@
                     .catch(err => {
                         startModalBody.innerHTML = '<div class="alert alert-danger">Could not load details. Please try again.</div>';
                     });
+            })
+            .catch(error => {
+                alert('Failed to check award settings. Please try again.');
             });
-        }
+    });
+}
 
         // *** LISTING TAB LOADING (Pool Play & Elimination) ***
         var listingTab = document.getElementById('listing-subtab');
@@ -2220,5 +2387,107 @@
                     button.innerHTML = '<i class="bi bi-trophy-fill me-2"></i>Advance to Playoff';
                 });
         };
+
+        // *** RESULT TAB LOADING ***
+var resultTab = document.getElementById('result-subtab');
+if (resultTab) {
+    var resultContainer = document.getElementById('result-container');
+    var resultLoaded = false;
+
+    resultTab.addEventListener('show.bs.tab', function (event) {
+        if (resultContainer && !resultLoaded) {
+            resultLoaded = true;
+            
+            console.log('Loading results...');
+            
+            fetch('/Award/GetAwards?scheduleId=' + COMP_DATA.scheduleId)
+                .then(response => response.text())
+                .then(html => {
+                    resultContainer.innerHTML = html;
+                    console.log('Results loaded successfully');
+                })
+                .catch(error => {
+                    console.error('Failed to load results:', error);
+                    resultContainer.innerHTML = '<div class="alert alert-danger">Could not load results.</div>';
+                });
+        }
+    });
+}
+
+// *** REMOVE STAFF FUNCTION ***
+window.removeStaff = function(userId) {
+    if (!confirm('Remove this staff member? They will no longer be able to manage this competition.')) {
+        return;
+    }
+
+    const scheduleId = COMP_DATA.scheduleId;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+    fetch('/ManageTeam/RemoveStaff', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': token
+        },
+        body: `scheduleId=${scheduleId}&userId=${userId}`
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { 
+                throw new Error(err.message || 'Failed to remove staff'); 
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // Reload to update the staff list
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Failed to remove staff: ' + error.message);
+        console.error('Error:', error);
+    });
+};
+
+// *** SET AWARD FORM SUBMISSION ***
+$('#setAwardForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    var $form = $(this);
+    var formData = $form.serialize();
+    var statusDiv = $('#setAwardStatus');
+    var submitBtn = $form.find('button[type="submit"]');
+    
+    submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+    statusDiv.html('<div class="alert alert-info">Saving award settings...</div>');
+    
+    $.ajax({
+        url: '/Award/SetAwards',
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                statusDiv.html('<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>' + response.message + '</div>');
+                
+                setTimeout(function() {
+                    $('#setAwardModal').modal('hide');
+                    location.reload();
+                }, 1500);
+            } else {
+                statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + response.message + '</div>');
+                submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            statusDiv.html('<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Failed to save award settings. Please try again.</div>');
+            submitBtn.prop('disabled', false).html('<i class="bi bi-save me-2"></i>Save Award Settings');
+        }
+    });
+});
     </script>
 }

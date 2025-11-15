@@ -23,5 +23,14 @@ namespace PicklePlay.Models
 
         [Required]
         public ParticipantStatus Status { get; set; }
+
+         // ⬇️ ADD THIS PROPERTY
+        public DateTime? JoinedDate { get; set; }
+
+        // ⬇️ ADD THIS PROPERTY (optional but useful)
+        public DateTime? RequestDate { get; set; }
+
+        // ⬇️ ADD THIS PROPERTY (optional but useful)
+        public DateTime? ResponseDate { get; set; }
     }
 }

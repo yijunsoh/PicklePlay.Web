@@ -1,15 +1,19 @@
 @model PicklePlay.ViewModels.EditProfileModel
+@using Microsoft.EntityFrameworkCore
+@using PicklePlay.Data
+@using PicklePlay.Models.ViewModels
+@using PicklePlay.Models
 @{
     ViewData["Title"] = "Edit Profile - PicklePlay";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     // Malaysian states for dropdown
     var malaysianStates = new List<string>
-    {
-        "Johor", "Kedah", "Kelantan", "Kuala Lumpur", "Labuan", "Melaka", 
-        "Negeri Sembilan", "Pahang", "Penang", "Perak", "Perlis", "Putrajaya", 
-        "Sabah", "Sarawak", "Selangor", "Terengganu"
-    };
+{
+"Johor", "Kedah", "Kelantan", "Kuala Lumpur", "Labuan", "Melaka",
+"Negeri Sembilan", "Pahang", "Penang", "Perak", "Perlis", "Putrajaya",
+"Sabah", "Sarawak", "Selangor", "Terengganu"
+};
 }
 
 @section Styles {
@@ -36,7 +40,7 @@
             padding: 30px 0;
             border-radius: 0 0 20px 20px;
             margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
         .profile-header {
@@ -52,7 +56,7 @@
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid #A1D336;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         .form-container {
@@ -95,7 +99,7 @@
             background: #1E5B32;
             color: white;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
         .btn-edit {
@@ -112,7 +116,7 @@
             background: #e55a2b;
             color: white;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
         .btn-cancel {
@@ -344,14 +348,14 @@
             padding: 20px 15px;
             border-radius: 12px;
             background: white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
             transition: all 0.3s;
             border: 1px solid rgba(46, 139, 87, 0.1);
         }
 
         .stats-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
         .stats-card i {
@@ -460,29 +464,29 @@
 
 <div class="container mt-4">
     <!-- Display Messages -->
-    @if (TempData["SuccessMessage"] != null)
-    {
+@if (TempData["SuccessMessage"] != null)
+{
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-    }
+}
 
-    @if (TempData["ErrorMessage"] != null)
-    {
+@if (TempData["ErrorMessage"] != null)
+{
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-    }
+}
 
-    @if (TempData["InfoMessage"] != null)
-    {
+@if (TempData["InfoMessage"] != null)
+{
         <div class="alert alert-info alert-dismissible fade show" role="alert">
             <i class="fas fa-info-circle me-2"></i>@TempData["InfoMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-    }
+}
 
     <div class="row">
         <!-- Left side: Profile form -->
@@ -518,7 +522,8 @@
                             <input type="file" class="form-control d-none" id="profileImage" name="ProfileImage"
                                 accept="image/*" style="max-width: 300px;">
                             <small class="text-muted d-none" id="imageHelp">
-                                <i class="fas fa-info-circle me-1"></i>Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                                <i class="fas fa-info-circle me-1"></i>Max file size: 5MB. Supported formats: JPG, PNG,
+                                GIF
                             </small>
                         </div>
                     </div>
@@ -649,462 +654,395 @@
                 <div class="mt-4">
                     @await Component.InvokeAsync("EndorsementSection", new { userId = Model.UserId })
                 </div>
-            </div>
+                </div>
 
+                <div class="mt-4">
+                    @{
+                        var achievements = await GetUserAchievements(Model.UserId);
+                    }
+                    @await Html.PartialAsync("_UserAchievementsSection", achievements)
+                </div>
+                </div>
             
-        </div>
 
-        <!-- Right side: Wallet + Communities -->
-        <div class="col-lg-4 col-md-5">
-            <!-- Wallet Section -->
-            <div class="side-box text-center">
-                <h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Wallet Balance & Overview</h5>
-                <div class="chart-container">
-                    <canvas id="walletChart"></canvas>
-                </div>
+@functions {
+    private async Task<UserAchievementViewModel> GetUserAchievements(int userId)
+    {
+        using (var scope = Context.RequestServices.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            
+            var user = await context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return new UserAchievementViewModel();
+            }
 
-                <!-- Legend -->
-                <div class="mt-3">
-                    <span class="badge bg-success me-1">Balance</span>
-                    <span class="badge bg-primary me-1">Escrow</span>
-                    <span class="badge bg-danger">Spent</span>
-                </div>
-                <div class="wallet-balance mt-2">RM 250.00</div>
-                <div class="wallet-overview text-muted">
-                    <p class="mb-1">Total Escrow: RM 120.00</p>
-                    <p class="mb-2">Total Spent: RM 80.00</p>
-                    <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-save mt-2">
-                        <i class="fas fa-arrow-right me-2"></i>Go to Wallet Management
-                    </a>
-                </div>
-            </div>
+            var achievements = await context.Awards
+                .Include(a => a.Team)
+                    .ThenInclude(t => t!.TeamMembers)
+                .Include(a => a.Schedule)
+                .Where(a => a.TeamId.HasValue && 
+                           a.Team!.TeamMembers.Any(tm => tm.UserId == userId))
+                .OrderByDescending(a => a.AwardedDate)
+                .Select(a => new AchievementItem
+                {
+                    AwardId = a.AwardId,
+                    AwardName = a.AwardName,
+                    AwardType = a.AwardType,
+                    Description = a.Description,
+                    Position = a.Position,
+                    PositionName = a.Position == AwardPosition.Champion ? "Champion" :
+                                  a.Position == AwardPosition.FirstRunnerUp ? "1st Runner Up" : "2nd Runner Up",
+                    AwardedDate = a.AwardedDate,
+                    CompetitionTitle = a.Schedule!.GameName ?? "Competition",
+                    TeamName = a.Team!.TeamName ?? "Unknown Team"
+                })
+                .ToListAsync();
 
-            <!-- Communities Section -->
-            <div class="side-box">
-                <h5 class="mb-3"><i class="fas fa-users me-2"></i>Communities Joined</h5>
-                <ul class="community-list list-unstyled">
-                    <li>
-                        <a href="@Url.Action("CommunityPages", "Home")" class="text-decoration-none">
-                            🏸 KL Pickleball Club
+            return new UserAchievementViewModel
+            {
+                UserId = userId,
+                Username = user.Username ?? "User",
+                Achievements = achievements
+            };
+        }
+    }
+}
+
+            <!-- Right side: Wallet + Communities -->
+            <div class="col-lg-4 col-md-5">
+                <!-- Wallet Section -->
+                <div class="side-box text-center">
+                    <h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Wallet Balance & Overview</h5>
+                    <div class="chart-container">
+                        <canvas id="walletChart"></canvas>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="mt-3">
+                        <span class="badge bg-success me-1">Balance</span>
+                        <span class="badge bg-primary me-1">Escrow</span>
+                        <span class="badge bg-danger">Spent</span>
+                    </div>
+                    <div class="wallet-balance mt-2">RM 250.00</div>
+                    <div class="wallet-overview text-muted">
+                        <p class="mb-1">Total Escrow: RM 120.00</p>
+                        <p class="mb-2">Total Spent: RM 80.00</p>
+                        <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-save mt-2">
+                            <i class="fas fa-arrow-right me-2"></i>Go to Wallet Management
                         </a>
-                    </li>
-                    <li>🎾 Penang Pickleballers</li>
-                    <li>⚡ Weekend Warriors</li>
-                </ul>
-                <div class="text-center mt-3">
-                    <a href="@Url.Action("Community", "Home")" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-eye me-2"></i>View All Communities
-                    </a>
-                </div>
-            </div>
-
-            <!-- Quick Stats -->
-            <div class="side-box">
-                <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Quick Stats</h5>
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <div class="stats-card">
-                            <i class="fas fa-calendar-check"></i>
-                            <h4>12</h4>
-                            <p>Bookings</p>
-                        </div>
                     </div>
-                    <div class="col-6 mb-3">
-                        <div class="stats-card">
-                            <i class="fas fa-trophy"></i>
-                            <h4>8</h4>
-                            <p>Matches</p>
+                </div>
+
+                <!-- Communities Section -->
+                <div class="side-box">
+                    <h5 class="mb-3"><i class="fas fa-users me-2"></i>Communities Joined</h5>
+                    <ul class="community-list list-unstyled">
+                        <li>
+                            <a href="@Url.Action("CommunityPages", "Home")" class="text-decoration-none">
+                                🏸 KL Pickleball Club
+                            </a>
+                        </li>
+                        <li>🎾 Penang Pickleballers</li>
+                        <li>⚡ Weekend Warriors</li>
+                    </ul>
+                    <div class="text-center mt-3">
+                        <a href="@Url.Action("Community", "Home")" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye me-2"></i>View All Communities
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="side-box">
+                    <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Quick Stats</h5>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="stats-card">
+                                <i class="fas fa-calendar-check"></i>
+                                <h4>12</h4>
+                                <p>Bookings</p>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="stats-card">
+                                <i class="fas fa-trophy"></i>
+                                <h4>8</h4>
+                                <p>Matches</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Change Password Modal -->
-<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="changePasswordModalLabel">
-                    <i class="fas fa-key me-2"></i>Change Password
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="changePasswordForm" method="post" asp-controller="Auth" asp-action="ChangePassword">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="email" value="@Model.Email" />
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm" method="post" asp-controller="Auth" asp-action="ChangePassword">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="@Model.Email" />
 
-                    <div class="mb-3">
-                        <label for="currentPassword" class="form-label fw-bold">Current Password</label>
-                        <input type="password" class="form-control" id="currentPassword" name="currentPassword"
-                            required>
-                        <div class="invalid-feedback">Please enter your current password</div>
-                    </div>
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label fw-bold">Current Password</label>
+                            <input type="password" class="form-control" id="currentPassword" name="currentPassword"
+                                required>
+                            <div class="invalid-feedback">Please enter your current password</div>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="newPassword" class="form-label fw-bold">New Password</label>
-                        <input type="password" class="form-control" id="newPassword" name="newPassword" minlength="6"
-                            required>
-                        <div class="invalid-feedback">Password must be at least 6 characters long</div>
-                    </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label fw-bold">New Password</label>
+                            <input type="password" class="form-control" id="newPassword" name="newPassword"
+                                minlength="6" required>
+                            <div class="invalid-feedback">Password must be at least 6 characters long</div>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="confirmPassword" class="form-label fw-bold">Confirm New Password</label>
-                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
-                            required>
-                        <div class="invalid-feedback">Passwords do not match</div>
-                    </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label fw-bold">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+                                required>
+                            <div class="invalid-feedback">Passwords do not match</div>
+                        </div>
 
-                    <div class="alert alert-info">
-                        <small>
-                            <strong>Password Requirements:</strong><br>
-                            • Minimum 6 characters
-                        </small>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-save" id="submitPasswordChange">Change Password</button>
+                        <div class="alert alert-info">
+                            <small>
+                                <strong>Password Requirements:</strong><br>
+                                • Minimum 6 characters
+                            </small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-save" id="submitPasswordChange">Change Password</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialize wallet chart
-            const ctx = document.getElementById('walletChart').getContext('2d');
-            const walletChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Balance', 'Escrow', 'Spent'],
-                    datasets: [{
-                        data: [250, 120, 80],
-                        backgroundColor: [
-                            'rgba(25, 135, 84, 0.8)',
-                            'rgba(13, 110, 253, 0.8)',
-                            'rgba(220, 53, 69, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(25, 135, 84, 1)',
-                            'rgba(13, 110, 253, 1)',
-                            'rgba(220, 53, 69, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        datalabels: {
-                            color: '#fff',
-                            font: {
-                                weight: 'bold',
-                                size: 12
-                            },
-                            formatter: (value, ctx) => {
-                                let label = ctx.chart.data.labels[ctx.dataIndex];
-                                return label + "\nRM " + value;
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Initialize wallet chart
+                const ctx = document.getElementById('walletChart').getContext('2d');
+                const walletChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Balance', 'Escrow', 'Spent'],
+                        datasets: [{
+                            data: [250, 120, 80],
+                            backgroundColor: [
+                                'rgba(25, 135, 84, 0.8)',
+                                'rgba(13, 110, 253, 0.8)',
+                                'rgba(220, 53, 69, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(25, 135, 84, 1)',
+                                'rgba(13, 110, 253, 1)',
+                                'rgba(220, 53, 69, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                color: '#fff',
+                                font: {
+                                    weight: 'bold',
+                                    size: 12
+                                },
+                                formatter: (value, ctx) => {
+                                    let label = ctx.chart.data.labels[ctx.dataIndex];
+                                    return label + "\nRM " + value;
+                                }
                             }
                         }
+                    },
+                    plugins: [ChartDataLabels]
+                });
+
+                const editToggleBtn = document.getElementById('editToggleBtn');
+                const saveBtn = document.getElementById('saveBtn');
+                const cancelBtn = document.getElementById('cancelBtn');
+                const form = document.getElementById('profileForm');
+                const inputs = form.querySelectorAll('input, select, textarea');
+                const profileImageInput = document.getElementById('profileImage');
+                const imageHelp = document.getElementById('imageHelp');
+                const bioTextarea = document.getElementById('Bio');
+                const bioCharCount = document.getElementById('bioCharCount');
+                const fullNameInput = document.getElementById('FullName');
+                const locationSelect = document.querySelector('select[name="Location"]');
+                const changePasswordBtn = document.getElementById('changePasswordBtn');
+
+                // Store original values for cancel functionality
+                const originalValues = {};
+                inputs.forEach(input => {
+                    if (input.type !== 'file') {
+                        originalValues[input.name] = input.value;
                     }
-                },
-                plugins: [ChartDataLabels]
-            });
+                });
 
-            const editToggleBtn = document.getElementById('editToggleBtn');
-            const saveBtn = document.getElementById('saveBtn');
-            const cancelBtn = document.getElementById('cancelBtn');
-            const form = document.getElementById('profileForm');
-            const inputs = form.querySelectorAll('input, select, textarea');
-            const profileImageInput = document.getElementById('profileImage');
-            const imageHelp = document.getElementById('imageHelp');
-            const bioTextarea = document.getElementById('Bio');
-            const bioCharCount = document.getElementById('bioCharCount');
-            const fullNameInput = document.getElementById('FullName');
-            const locationSelect = document.querySelector('select[name="Location"]');
-            const changePasswordBtn = document.getElementById('changePasswordBtn');
+                // Edit mode toggle
+                // Edit mode toggle
+                editToggleBtn.addEventListener('click', function () {
+                    form.classList.add('edit-mode');
+                    inputs.forEach(input => {
+                        if (input.id !== 'Age' && input.name !== 'Email') { // Keep age and email readonly
+                            input.readOnly = false;
+                        }
+                        if (input.tagName === 'SELECT') {
+                            input.disabled = false;
+                        }
+                    });
 
-            // Store original values for cancel functionality
-            const originalValues = {};
-            inputs.forEach(input => {
-                if (input.type !== 'file') {
-                    originalValues[input.name] = input.value;
+                    // Show file input
+                    profileImageInput.classList.remove('d-none');
+                    imageHelp.classList.remove('d-none');
+
+                    // Show action buttons
+                    saveBtn.classList.remove('d-none');
+                    cancelBtn.classList.remove('d-none');
+                    editToggleBtn.classList.add('d-none');
+
+                    // ✅ FIX: Enable the Change Password button
+                    changePasswordBtn.disabled = false;
+                    changePasswordBtn.classList.add('btn-password-change-enabled');
+                });
+
+
+                // Cancel edit
+                cancelBtn.addEventListener('click', function () {
+                    form.classList.remove('edit-mode');
+                    inputs.forEach(input => {
+                        input.readOnly = true;
+                        if (input.tagName === 'SELECT') {
+                            input.disabled = true;
+                        }
+                        // Restore original values
+                        if (originalValues[input.name] !== undefined) {
+                            input.value = originalValues[input.name];
+                        }
+                    });
+
+                    // Hide file input and reset
+                    profileImageInput.classList.add('d-none');
+                    imageHelp.classList.add('d-none');
+                    profileImageInput.value = '';
+
+                    // Hide action buttons
+                    saveBtn.classList.add('d-none');
+                    cancelBtn.classList.add('d-none');
+                    editToggleBtn.classList.remove('d-none');
+
+                    changePasswordBtn.disabled = true;
+                    changePasswordBtn.classList.remove('btn-password-change-enabled');
+
+                    // Clear validation errors
+                    clearValidationErrors();
+                    updateBioCharCount();
+                });
+
+                // Bio character counter
+                function updateBioCharCount() {
+                    if (bioTextarea) {
+                        const charCount = bioTextarea.value.length;
+                        bioCharCount.textContent = charCount;
+                    }
                 }
-            });
 
-            // Edit mode toggle
-            // Edit mode toggle
-            editToggleBtn.addEventListener('click', function () {
-                form.classList.add('edit-mode');
-                inputs.forEach(input => {
-                    if (input.id !== 'Age' && input.name !== 'Email') { // Keep age and email readonly
-                        input.readOnly = false;
-                    }
-                    if (input.tagName === 'SELECT') {
-                        input.disabled = false;
-                    }
-                });
-
-                // Show file input
-                profileImageInput.classList.remove('d-none');
-                imageHelp.classList.remove('d-none');
-
-                // Show action buttons
-                saveBtn.classList.remove('d-none');
-                cancelBtn.classList.remove('d-none');
-                editToggleBtn.classList.add('d-none');
-
-                // ✅ FIX: Enable the Change Password button
-                changePasswordBtn.disabled = false;
-                changePasswordBtn.classList.add('btn-password-change-enabled');
-            });
-
-
-            // Cancel edit
-            cancelBtn.addEventListener('click', function () {
-                form.classList.remove('edit-mode');
-                inputs.forEach(input => {
-                    input.readOnly = true;
-                    if (input.tagName === 'SELECT') {
-                        input.disabled = true;
-                    }
-                    // Restore original values
-                    if (originalValues[input.name] !== undefined) {
-                        input.value = originalValues[input.name];
-                    }
-                });
-
-                // Hide file input and reset
-                profileImageInput.classList.add('d-none');
-                imageHelp.classList.add('d-none');
-                profileImageInput.value = '';
-
-                // Hide action buttons
-                saveBtn.classList.add('d-none');
-                cancelBtn.classList.add('d-none');
-                editToggleBtn.classList.remove('d-none');
-
-                changePasswordBtn.disabled = true;
-                changePasswordBtn.classList.remove('btn-password-change-enabled');
-
-                // Clear validation errors
-                clearValidationErrors();
-                updateBioCharCount();
-            });
-
-            // Bio character counter
-            function updateBioCharCount() {
                 if (bioTextarea) {
-                    const charCount = bioTextarea.value.length;
-                    bioCharCount.textContent = charCount;
-                }
-            }
-
-            if (bioTextarea) {
-                bioTextarea.addEventListener('input', updateBioCharCount);
-            }
-
-            // Real-time validation
-            inputs.forEach(input => {
-                if (input.type !== 'file') {
-                    input.addEventListener('blur', function () {
-                        validateField(this);
-                    });
-
-                    input.addEventListener('input', function () {
-                        // Clear error when user starts typing
-                        clearFieldError(this);
-                    });
-                }
-            });
-
-            // Clear field error
-            function clearFieldError(field) {
-                field.classList.remove('input-validation-error');
-                let errorSpan = getErrorSpan(field);
-                if (errorSpan) {
-                    errorSpan.style.display = 'none';
-                }
-            }
-
-            // Get error span for a field
-            function getErrorSpan(field) {
-                let errorSpan = field.nextElementSibling;
-                if (!errorSpan || !errorSpan.classList.contains('field-validation-error')) {
-                    errorSpan = field.parentNode.querySelector('.field-validation-error');
-                }
-                return errorSpan;
-            }
-
-            // Field validation function
-            function validateField(field) {
-                // Clear previous validation
-                clearFieldError(field);
-
-                let errorSpan = getErrorSpan(field);
-                let isValid = true;
-                let errorMessage = '';
-
-                // Full Name validation - ALWAYS required when in edit mode
-                if (field.name === 'FullName') {
-                    if (!field.value.trim()) {
-                        errorMessage = 'Full name is required.';
-                        isValid = false;
-                    } else if (field.value.trim().length < 2) {
-                        errorMessage = 'Full name must be at least 2 characters long.';
-                        isValid = false;
-                    } else if (field.value.trim().length > 100) {
-                        errorMessage = 'Full name cannot exceed 100 characters.';
-                        isValid = false;
-                    }
-                }
-                // Phone number validation
-                else if (field.name === 'PhoneNumber' && field.value.trim()) {
-                    const phoneRegex = /^(\+?6?01)[0-46-9]-*[0-9]{7,8}$/;
-                    if (!phoneRegex.test(field.value.trim())) {
-                        errorMessage = 'Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)';
-                        isValid = false;
-                    }
-                }
-                // Phone number is empty - THIS IS ALLOWED, so no error
-                else if (field.name === 'PhoneNumber' && !field.value.trim()) {
-                    // Empty phone number is allowed, so no validation error
-                    isValid = true;
-                }
-                // Date of birth validation (must be 18+)
-                else if (field.type === 'date' && field.value) {
-                    const dob = new Date(field.value);
-                    const today = new Date();
-                    let age = today.getFullYear() - dob.getFullYear();
-                    const monthDiff = today.getMonth() - dob.getMonth();
-
-                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-                        age--;
-                    }
-
-                    if (age < 18) {
-                        errorMessage = 'You must be at least 18 years old.';
-                        isValid = false;
-                    }
-                }
-                // Bio length validation
-                else if (field.name === 'Bio' && field.value.length > 500) {
-                    errorMessage = 'Bio cannot exceed 500 characters.';
-                    isValid = false;
-                }
-                // Location validation
-                else if (field.name === 'Location' && field.value && field.value.length > 100) {
-                    errorMessage = 'Location cannot exceed 100 characters.';
-                    isValid = false;
+                    bioTextarea.addEventListener('input', updateBioCharCount);
                 }
 
-                // Show error if invalid
-                if (!isValid) {
-                    field.classList.add('input-validation-error');
-                    if (errorSpan) {
-                        errorSpan.textContent = errorMessage;
-                        errorSpan.style.display = 'block';
-                    }
-                }
-
-                return isValid;
-            }
-
-            // Clear all validation errors
-            function clearValidationErrors() {
+                // Real-time validation
                 inputs.forEach(input => {
-                    clearFieldError(input);
-                });
-            }
-
-            // Form submission validation - STRICT validation
-            form.addEventListener('submit', function (e) {
-                let isFormValid = true;
-
-                // Validate all editable fields
-                inputs.forEach(input => {
-                    if (input.type !== 'file' && !input.readOnly) {
-                        if (!validateField(input)) {
-                            isFormValid = false;
-                        }
-                    }
-                });
-
-                // SPECIAL CHECK: FullName must not be empty
-                if (fullNameInput && !fullNameInput.readOnly) {
-                    if (!fullNameInput.value.trim()) {
-                        validateField(fullNameInput); // This will show the error
-                        isFormValid = false;
-                    }
-                }
-
-                if (!isFormValid) {
-                    e.preventDefault();
-                    e.stopPropagation(); // Important: Stop the form from submitting
-
-                    // Scroll to first error
-                    const firstError = form.querySelector('.input-validation-error');
-                    if (firstError) {
-                        firstError.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
+                    if (input.type !== 'file') {
+                        input.addEventListener('blur', function () {
+                            validateField(this);
                         });
-                        firstError.focus(); // Focus on the first error field
-                    }
 
-                    return false;
-                }
-
-                // If we get here, form is valid and will submit
-                console.log('Form is valid, submitting...');
-            });
-
-            // Profile image preview
-            if (profileImageInput) {
-                profileImageInput.addEventListener('change', function () {
-                    if (this.files && this.files[0]) {
-                        // Validate file type
-                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-                        if (!allowedTypes.includes(this.files[0].type)) {
-                            alert('Please select a valid image file (JPG, PNG, GIF).');
-                            this.value = '';
-                            return;
-                        }
-
-                        // Validate file size (5MB)
-                        if (this.files[0].size > 5 * 1024 * 1024) {
-                            alert('File size must be less than 5MB.');
-                            this.value = '';
-                            return;
-                        }
-
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            document.getElementById('profileImagePreview').src = e.target.result;
-                        }
-                        reader.readAsDataURL(this.files[0]);
+                        input.addEventListener('input', function () {
+                            // Clear error when user starts typing
+                            clearFieldError(this);
+                        });
                     }
                 });
-            }
 
-            // Age calculation from date of birth
-            const dobInput = document.getElementById('DateOfBirth');
-            const ageInput = document.getElementById('Age');
-            if (dobInput && ageInput) {
-                dobInput.addEventListener('change', function () {
-                    if (this.value) {
-                        const dob = new Date(this.value);
+                // Clear field error
+                function clearFieldError(field) {
+                    field.classList.remove('input-validation-error');
+                    let errorSpan = getErrorSpan(field);
+                    if (errorSpan) {
+                        errorSpan.style.display = 'none';
+                    }
+                }
+
+                // Get error span for a field
+                function getErrorSpan(field) {
+                    let errorSpan = field.nextElementSibling;
+                    if (!errorSpan || !errorSpan.classList.contains('field-validation-error')) {
+                        errorSpan = field.parentNode.querySelector('.field-validation-error');
+                    }
+                    return errorSpan;
+                }
+
+                // Field validation function
+                function validateField(field) {
+                    // Clear previous validation
+                    clearFieldError(field);
+
+                    let errorSpan = getErrorSpan(field);
+                    let isValid = true;
+                    let errorMessage = '';
+
+                    // Full Name validation - ALWAYS required when in edit mode
+                    if (field.name === 'FullName') {
+                        if (!field.value.trim()) {
+                            errorMessage = 'Full name is required.';
+                            isValid = false;
+                        } else if (field.value.trim().length < 2) {
+                            errorMessage = 'Full name must be at least 2 characters long.';
+                            isValid = false;
+                        } else if (field.value.trim().length > 100) {
+                            errorMessage = 'Full name cannot exceed 100 characters.';
+                            isValid = false;
+                        }
+                    }
+                    // Phone number validation
+                    else if (field.name === 'PhoneNumber' && field.value.trim()) {
+                        const phoneRegex = /^(\+?6?01)[0-46-9]-*[0-9]{7,8}$/;
+                        if (!phoneRegex.test(field.value.trim())) {
+                            errorMessage = 'Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)';
+                            isValid = false;
+                        }
+                    }
+                    // Phone number is empty - THIS IS ALLOWED, so no error
+                    else if (field.name === 'PhoneNumber' && !field.value.trim()) {
+                        // Empty phone number is allowed, so no validation error
+                        isValid = true;
+                    }
+                    // Date of birth validation (must be 18+)
+                    else if (field.type === 'date' && field.value) {
+                        const dob = new Date(field.value);
                         const today = new Date();
                         let age = today.getFullYear() - dob.getFullYear();
                         const monthDiff = today.getMonth() - dob.getMonth();
@@ -1113,22 +1051,142 @@
                             age--;
                         }
 
-                        ageInput.value = age > 0 ? age : '';
-                    } else {
-                        ageInput.value = '';
+                        if (age < 18) {
+                            errorMessage = 'You must be at least 18 years old.';
+                            isValid = false;
+                        }
+                    }
+                    // Bio length validation
+                    else if (field.name === 'Bio' && field.value.length > 500) {
+                        errorMessage = 'Bio cannot exceed 500 characters.';
+                        isValid = false;
+                    }
+                    // Location validation
+                    else if (field.name === 'Location' && field.value && field.value.length > 100) {
+                        errorMessage = 'Location cannot exceed 100 characters.';
+                        isValid = false;
+                    }
+
+                    // Show error if invalid
+                    if (!isValid) {
+                        field.classList.add('input-validation-error');
+                        if (errorSpan) {
+                            errorSpan.textContent = errorMessage;
+                            errorSpan.style.display = 'block';
+                        }
+                    }
+
+                    return isValid;
+                }
+
+                // Clear all validation errors
+                function clearValidationErrors() {
+                    inputs.forEach(input => {
+                        clearFieldError(input);
+                    });
+                }
+
+                // Form submission validation - STRICT validation
+                form.addEventListener('submit', function (e) {
+                    let isFormValid = true;
+
+                    // Validate all editable fields
+                    inputs.forEach(input => {
+                        if (input.type !== 'file' && !input.readOnly) {
+                            if (!validateField(input)) {
+                                isFormValid = false;
+                            }
+                        }
+                    });
+
+                    // SPECIAL CHECK: FullName must not be empty
+                    if (fullNameInput && !fullNameInput.readOnly) {
+                        if (!fullNameInput.value.trim()) {
+                            validateField(fullNameInput); // This will show the error
+                            isFormValid = false;
+                        }
+                    }
+
+                    if (!isFormValid) {
+                        e.preventDefault();
+                        e.stopPropagation(); // Important: Stop the form from submitting
+
+                        // Scroll to first error
+                        const firstError = form.querySelector('.input-validation-error');
+                        if (firstError) {
+                            firstError.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                            firstError.focus(); // Focus on the first error field
+                        }
+
+                        return false;
+                    }
+
+                    // If we get here, form is valid and will submit
+                    console.log('Form is valid, submitting...');
+                });
+
+                // Profile image preview
+                if (profileImageInput) {
+                    profileImageInput.addEventListener('change', function () {
+                        if (this.files && this.files[0]) {
+                            // Validate file type
+                            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                            if (!allowedTypes.includes(this.files[0].type)) {
+                                alert('Please select a valid image file (JPG, PNG, GIF).');
+                                this.value = '';
+                                return;
+                            }
+
+                            // Validate file size (5MB)
+                            if (this.files[0].size > 5 * 1024 * 1024) {
+                                alert('File size must be less than 5MB.');
+                                this.value = '';
+                                return;
+                            }
+
+                            const reader = new FileReader();
+                            reader.onload = function (e) {
+                                document.getElementById('profileImagePreview').src = e.target.result;
+                            }
+                            reader.readAsDataURL(this.files[0]);
+                        }
+                    });
+                }
+
+                // Age calculation from date of birth
+                const dobInput = document.getElementById('DateOfBirth');
+                const ageInput = document.getElementById('Age');
+                if (dobInput && ageInput) {
+                    dobInput.addEventListener('change', function () {
+                        if (this.value) {
+                            const dob = new Date(this.value);
+                            const today = new Date();
+                            let age = today.getFullYear() - dob.getFullYear();
+                            const monthDiff = today.getMonth() - dob.getMonth();
+
+                            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                                age--;
+                            }
+
+                            ageInput.value = age > 0 ? age : '';
+                        } else {
+                            ageInput.value = '';
+                        }
+                    });
+                }
+
+                // Additional: Prevent form submission on Enter key in readonly mode
+                form.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && !form.classList.contains('edit-mode')) {
+                        e.preventDefault();
                     }
                 });
-            }
 
-            // Additional: Prevent form submission on Enter key in readonly mode
-            form.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' && !form.classList.contains('edit-mode')) {
-                    e.preventDefault();
-                }
-            });
-
-            // Password Change Modal Functionality
-            @* document.getElementById('submitPasswordChange').addEventListener('click', function () {
+                // Password Change Modal Functionality
+                @* document.getElementById('submitPasswordChange').addEventListener('click', function () {
                 const form = document.getElementById('changePasswordForm');
                 const currentPassword = document.getElementById('currentPassword');
                 const newPassword = document.getElementById('newPassword');
@@ -1170,78 +1228,80 @@
                 }
             }); *@
 
-                // Password Change Modal Functionality
-                document.getElementById('submitPasswordChange').addEventListener('click', function () {
-                    const form = document.getElementById('changePasswordForm');
-                    const currentPassword = document.getElementById('currentPassword');
-                    const newPassword = document.getElementById('newPassword');
-                    const confirmPassword = document.getElementById('confirmPassword');
+                    // Password Change Modal Functionality
+                    document.getElementById('submitPasswordChange').addEventListener('click', function () {
+                        const form = document.getElementById('changePasswordForm');
+                        const currentPassword = document.getElementById('currentPassword');
+                        const newPassword = document.getElementById('newPassword');
+                        const confirmPassword = document.getElementById('confirmPassword');
 
-                    let isValid = true;
+                        let isValid = true;
 
-                    // Reset validation
-                    [currentPassword, newPassword, confirmPassword].forEach(input => {
-                        input.classList.remove('is-invalid');
+                        // Reset validation
+                        [currentPassword, newPassword, confirmPassword].forEach(input => {
+                            input.classList.remove('is-invalid');
+                        });
+
+                        // Validate current password
+                        if (!currentPassword.value.trim()) {
+                            currentPassword.classList.add('is-invalid');
+                            isValid = false;
+                        }
+
+                        // ✅ SIMPLIFIED: Validate new password (only length)
+                        if (newPassword.value.length < 6) {
+                            newPassword.classList.add('is-invalid');
+                            isValid = false;
+                        }
+
+                        // Validate password confirmation
+                        if (newPassword.value !== confirmPassword.value) {
+                            confirmPassword.classList.add('is-invalid');
+                            isValid = false;
+                        }
+
+                        if (isValid) {
+                            // Show loading state
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Changing...';
+                            this.disabled = true;
+
+                            // Submit the form
+                            form.submit();
+                        }
                     });
 
-                    // Validate current password
-                    if (!currentPassword.value.trim()) {
-                        currentPassword.classList.add('is-invalid');
-                        isValid = false;
-                    }
+                // Password match validation in real-time
+                document.getElementById('confirmPassword').addEventListener('input', function () {
+                    const newPassword = document.getElementById('newPassword').value;
+                    const confirmPassword = this.value;
 
-                    // ✅ SIMPLIFIED: Validate new password (only length)
-                    if (newPassword.value.length < 6) {
-                        newPassword.classList.add('is-invalid');
-                        isValid = false;
-                    }
-
-                    // Validate password confirmation
-                    if (newPassword.value !== confirmPassword.value) {
-                        confirmPassword.classList.add('is-invalid');
-                        isValid = false;
-                    }
-
-                    if (isValid) {
-                        // Show loading state
-                        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Changing...';
-                        this.disabled = true;
-
-                        // Submit the form
-                        form.submit();
+                    if (confirmPassword && newPassword !== confirmPassword) {
+                        this.classList.add('is-invalid');
+                    } else {
+                        this.classList.remove('is-invalid');
                     }
                 });
 
-            // Password match validation in real-time
-            document.getElementById('confirmPassword').addEventListener('input', function () {
-                const newPassword = document.getElementById('newPassword').value;
-                const confirmPassword = this.value;
+                // Reset modal when closed
+                document.getElementById('changePasswordModal').addEventListener('hidden.bs.modal', function () {
+                    const form = document.getElementById('changePasswordForm');
+                    form.reset();
 
-                if (confirmPassword && newPassword !== confirmPassword) {
-                    this.classList.add('is-invalid');
-                } else {
-                    this.classList.remove('is-invalid');
-                }
-            });
+                    // Reset validation states
+                    ['currentPassword', 'newPassword', 'confirmPassword'].forEach(id => {
+                        const input = document.getElementById(id);
+                        if (input) {
+                            input.classList.remove('is-invalid');
+                        }
+                    });
 
-            // Reset modal when closed
-            document.getElementById('changePasswordModal').addEventListener('hidden.bs.modal', function () {
-                const form = document.getElementById('changePasswordForm');
-                form.reset();
-
-                // Reset validation states
-                ['currentPassword', 'newPassword', 'confirmPassword'].forEach(id => {
-                    const input = document.getElementById(id);
-                    if (input) {
-                        input.classList.remove('is-invalid');
-                    }
+                    // Reset submit button
+                    const submitBtn = document.getElementById('submitPasswordChange');
+                    submitBtn.innerHTML = 'Change Password';
+                    submitBtn.disabled = false;
                 });
-
-                // Reset submit button
-                const submitBtn = document.getElementById('submitPasswordChange');
-                submitBtn.innerHTML = 'Change Password';
-                submitBtn.disabled = false;
             });
-        });
-    </script>
+
+
+        </script>
 }

@@ -198,5 +198,179 @@ namespace PicklePlay.Controllers
             TempData["SuccessMessage"] = "Captain updated successfully.";
             return RedirectToAction("Index", new { id = team.ScheduleId });
         }
+
+        // FIND your AddStaff method and update it to use ParticipantRole.Staff
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddStaff(int scheduleId, int userId)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Json(new { success = false, message = "Please log in." });
+                }
+
+                var schedule = await _context.Schedules
+                    .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+                if (schedule == null)
+                {
+                    return Json(new { success = false, message = "Schedule not found." });
+                }
+
+                // Check if current user is the organizer/creator
+                if (schedule.CreatedByUserId != currentUserId.Value)
+                {
+                    return Json(new { success = false, message = "Only the organizer can add staff." });
+                }
+
+                // Check if user already has a role in this schedule
+                var existingParticipant = await _context.ScheduleParticipants
+                    .FirstOrDefaultAsync(sp => sp.ScheduleId == scheduleId && sp.UserId == userId);
+
+                if (existingParticipant != null)
+                {
+                    // Update existing participant to Staff role
+                    existingParticipant.Role = ParticipantRole.Staff;
+                    _context.ScheduleParticipants.Update(existingParticipant);
+                }
+                else
+                {
+                    // Create new staff participant
+                    var newStaff = new ScheduleParticipant
+                    {
+                        ScheduleId = scheduleId,
+                        UserId = userId,
+                        Role = ParticipantRole.Staff,
+                        Status = ParticipantStatus.Confirmed, // Staff are auto-accepted
+                        JoinedDate = DateTime.UtcNow
+                    };
+
+                    await _context.ScheduleParticipants.AddAsync(newStaff);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Staff added successfully!" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR in AddStaff: {ex.Message}");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveStaff(int scheduleId, int userId)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Json(new { success = false, message = "Please log in." });
+                }
+
+                var schedule = await _context.Schedules
+                    .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+                if (schedule == null)
+                {
+                    return Json(new { success = false, message = "Schedule not found." });
+                }
+
+                // Check if current user is the organizer/creator
+                if (schedule.CreatedByUserId != currentUserId.Value)
+                {
+                    return Json(new { success = false, message = "Only the organizer can remove staff." });
+                }
+
+                // Find the staff member
+                var staffMember = await _context.ScheduleParticipants
+                    .FirstOrDefaultAsync(sp => sp.ScheduleId == scheduleId && 
+                                      sp.UserId == userId && 
+                                      sp.Role == ParticipantRole.Staff);
+
+                if (staffMember == null)
+                {
+                    return Json(new { success = false, message = "Staff member not found." });
+                }
+
+                // Check if user is also a player in teams
+                var isPlayerInTeams = await _context.Teams
+                    .Include(t => t.TeamMembers)
+                    .AnyAsync(t => t.ScheduleId == scheduleId && 
+                                  t.TeamMembers.Any(tm => tm.UserId == userId));
+
+                if (isPlayerInTeams)
+                {
+                    // Demote to Player role instead of removing
+                    staffMember.Role = ParticipantRole.Player;
+                    _context.ScheduleParticipants.Update(staffMember);
+                }
+                else
+                {
+                    // Remove completely if not a player
+                    _context.ScheduleParticipants.Remove(staffMember);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Staff removed successfully!" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR in RemoveStaff: {ex.Message}");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        // Helper method to get staff list for display
+        [HttpGet]
+        public async Task<IActionResult> GetStaffList(int scheduleId)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Json(new { success = false, message = "Please log in." });
+                }
+
+                var schedule = await _context.Schedules
+                    .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+                if (schedule == null)
+                {
+                    return Json(new { success = false, message = "Schedule not found." });
+                }
+
+                bool isOrganizer = schedule.CreatedByUserId == currentUserId.Value;
+
+                var staffMembers = await _context.ScheduleParticipants
+                    .Include(sp => sp.User)
+                    .Where(sp => sp.ScheduleId == scheduleId && sp.Role == ParticipantRole.Staff)
+                    .Select(sp => new
+                    {
+                        userId = sp.UserId,
+                        username = sp.User!.Username,
+                        email = sp.User.Email,
+                        joinedDate = sp.JoinedDate,
+                        canRemove = isOrganizer && sp.UserId != schedule.CreatedByUserId // Can't remove organizer
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, staff = staffMembers });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR in GetStaffList: {ex.Message}");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
     }
 }

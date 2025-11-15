@@ -1,0 +1,288 @@
+@model UserAchievementViewModel
+@using PicklePlay.Models
+@using PicklePlay.Models.ViewModels
+
+<style>
+    .achievement-section {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        margin-top: 25px;
+        border: 1px solid rgba(46, 139, 87, 0.1);
+    }
+
+    .achievement-header {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 2px solid #2E8B57;
+        margin-bottom: 15px;
+    }
+
+    .achievement-header h5 {
+        margin: 0;
+        color: #2E8B57;
+        font-weight: 700;
+    }
+
+    .achievement-toggle {
+        transition: transform 0.3s;
+    }
+
+    .achievement-toggle.collapsed {
+        transform: rotate(-180deg);
+    }
+
+    .achievement-badge {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 12px;
+        padding: 15px 20px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s;
+        cursor: pointer;
+        border: 2px solid transparent;
+        position: relative;
+    }
+
+    .achievement-badge:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        border-color: #2E8B57;
+    }
+
+    .achievement-icon {
+        font-size: 2.5rem;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    .achievement-details {
+        flex-grow: 1;
+    }
+
+    .achievement-title {
+        font-weight: 700;
+        color: #343A40;
+        margin-bottom: 3px;
+        font-size: 1.1rem;
+    }
+
+    .achievement-meta {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+
+    .position-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-left: 8px;
+    }
+
+    .pos-champion {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #333;
+    }
+
+    .pos-firstrunnerup {
+        background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+        color: #333;
+    }
+
+    .pos-secondrunnerup {
+        background: linear-gradient(135deg, #cd7f32, #e6a664);
+        color: white;
+    }
+
+    .achievement-tooltip {
+        position: absolute;
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        bottom: 110%;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .achievement-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: rgba(0,0,0,0.9);
+    }
+
+    .achievement-badge:hover .achievement-tooltip {
+        opacity: 1;
+    }
+
+    .empty-achievements {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .empty-achievements i {
+        font-size: 3rem;
+        color: #dee2e6;
+        margin-bottom: 15px;
+    }
+
+    .achievement-count {
+        background: #2E8B57;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+</style>
+
+<div class="achievement-section">
+    <div class="achievement-header" data-bs-toggle="collapse" data-bs-target="#achievementCollapse" aria-expanded="false">
+        <h5>
+            <i class="fas fa-trophy me-2"></i>Achievements
+            @if (Model.Achievements.Any())
+            {
+                <span class="achievement-count">@Model.Achievements.Count</span>
+            }
+        </h5>
+        <i class="fas fa-chevron-up achievement-toggle collapsed"></i>
+    </div>
+
+    <div class="collapse" id="achievementCollapse">
+        @if (Model.Achievements.Any())
+        {
+            <div class="achievement-list">
+                @foreach (var achievement in Model.Achievements)
+                {
+                    <div class="achievement-badge" data-bs-toggle="modal" data-bs-target="#achievementModal-@achievement.AwardId">
+                        <div class="achievement-icon">
+                            @GetAwardIcon(achievement.AwardType)
+                        </div>
+                        <div class="achievement-details">
+                            <div class="achievement-title">
+                                @achievement.AwardName
+                                <span class="position-badge pos-@achievement.Position.ToString().ToLower()">
+                                    @achievement.PositionName
+                                </span>
+                            </div>
+                            <div class="achievement-meta">
+                                <i class="fas fa-users me-1"></i>@achievement.TeamName
+                            </div>
+                            <div class="achievement-meta">
+                                <i class="fas fa-trophy me-1"></i>@achievement.CompetitionTitle
+                            </div>
+                        </div>
+                        <div class="achievement-tooltip">
+                            <i class="fas fa-calendar me-1"></i>Awarded: @achievement.AwardedDate.ToString("MMM dd, yyyy")
+                        </div>
+                    </div>
+
+                    @* Achievement Detail Modal *@
+                    <div class="modal fade" id="achievementModal-@achievement.AwardId" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-light">
+                                    <h5 class="modal-title">
+                                        <span style="font-size: 2.5rem; margin-right: 10px;">@GetAwardIcon(achievement.AwardType)</span>
+                                        @achievement.AwardName
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-award me-2"></i>Position:</strong>
+                                        <span class="position-badge pos-@achievement.Position.ToString().ToLower()">
+                                            @achievement.PositionName
+                                        </span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-trophy me-2"></i>Competition:</strong>
+                                        <span>@achievement.CompetitionTitle</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-users me-2"></i>Team:</strong>
+                                        <span>@achievement.TeamName</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-calendar me-2"></i>Awarded:</strong>
+                                        <span>@achievement.AwardedDate.ToString("MMMM dd, yyyy")</span>
+                                    </div>
+                                    
+                                    @if (!string.IsNullOrEmpty(achievement.Description))
+                                    {
+                                        <hr />
+                                        <div>
+                                            <strong><i class="fas fa-info-circle me-2"></i>Description:</strong>
+                                            <p class="fst-italic mt-2 mb-0">@achievement.Description</p>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-achievements">
+                <i class="fas fa-trophy"></i>
+                <p class="mb-0">No achievements yet. Participate in competitions to earn awards!</p>
+            </div>
+        }
+    </div>
+</div>
+
+@functions {
+    string GetAwardIcon(AwardType type)
+    {
+        return type switch
+        {
+            AwardType.Trophy => "🏆",
+            AwardType.Medal => "🥇",
+            AwardType.Ribbon => "🎀",
+            AwardType.Crown => "👑",
+            AwardType.Star => "⭐",
+            AwardType.Shirt => "👕",
+            AwardType.Shoe => "👟",
+            AwardType.Ticket => "🎫",
+            _ => "🏆"
+        };
+    }
+}
+
+<script>
+    // Toggle icon rotation
+    document.querySelector('[data-bs-target="#achievementCollapse"]')?.addEventListener('click', function() {
+        const icon = this.querySelector('.achievement-toggle');
+        icon?.classList.toggle('collapsed');
+    });
+</script>

@@ -152,7 +152,8 @@ namespace PicklePlay.Models
 public enum ParticipantRole
 {
     Organizer,
-    Player
+    Player,
+    Staff
 }
 
     public enum ParticipantStatus

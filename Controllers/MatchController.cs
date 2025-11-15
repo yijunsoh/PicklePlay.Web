@@ -76,33 +76,72 @@ namespace PicklePlay.Controllers
         }
 
 
-        // POST: /Match/StartCompetition/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> StartCompetition(int id)
-        {
-            var schedule = await _context.Schedules.FindAsync(id);
-            var competition = await _context.Competitions.FirstOrDefaultAsync(c => c.ScheduleId == id);
+       [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> StartCompetition(int id)
+{
+    var schedule = await _context.Schedules
+        .Include(s => s.Participants) // ⬅️ ADD THIS
+        .FirstOrDefaultAsync(s => s.ScheduleId == id);
+    
+    var competition = await _context.Competitions
+        .FirstOrDefaultAsync(c => c.ScheduleId == id);
 
-            if (schedule == null || competition == null) return NotFound();
+    if (schedule == null || competition == null) return NotFound();
 
-            if (competition.Format != CompetitionFormat.RoundRobin && !competition.DrawPublished)
-            {
-                TempData["ErrorMessage"] = "Please publish the draw to proceed.";
-                return RedirectToAction("CompDetails", "Competition", new { id = id });
-            }
+    // *** VALIDATION 1: Check if user is organizer/staff ***
+    var currentUserId = GetCurrentUserId();
+    if (!currentUserId.HasValue)
+    {
+        TempData["ErrorMessage"] = "Please log in to start the competition.";
+        return RedirectToAction("CompDetails", "Competition", new { id = id });
+    }
 
-            var confirmedTeams = await _context.Teams
-                .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
-                .ToListAsync();
+    var isOrganizer = schedule.Participants
+        .Any(p => p.UserId == currentUserId.Value && 
+                 (p.Role == ParticipantRole.Organizer || p.Role == ParticipantRole.Staff));
 
-            // Clear any old matches if they exist
-            var oldMatches = await _context.Matches.Where(m => m.ScheduleId == id).ToListAsync();
-            if (oldMatches.Any())
-            {
-                _context.Matches.RemoveRange(oldMatches);
-                await _context.SaveChangesAsync();
-            }
+    if (!isOrganizer)
+    {
+        TempData["ErrorMessage"] = "Only organizers or staff can start the competition.";
+        return RedirectToAction("CompDetails", "Competition", new { id = id });
+    }
+
+    // *** VALIDATION 2: Check if draw is published (except Round Robin) ***
+    if (competition.Format != CompetitionFormat.RoundRobin && !competition.DrawPublished)
+    {
+        TempData["ErrorMessage"] = "Please publish the draw before starting the competition.";
+        return RedirectToAction("CompDetails", "Competition", new { id = id });
+    }
+
+    // *** VALIDATION 3: Check if award is configured ***
+    var hasAwardSettings = await _context.Awards
+        .AnyAsync(a => a.ScheduleId == id);
+
+    if (!hasAwardSettings)
+    {
+        TempData["ErrorMessage"] = "Please configure award settings in the Actions dropdown before starting the competition.";
+        return RedirectToAction("CompDetails", "Competition", new { id = id });
+    }
+
+    // *** VALIDATION 4: Check if teams exist ***
+    var confirmedTeams = await _context.Teams
+        .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
+        .ToListAsync();
+
+    if (!confirmedTeams.Any())
+    {
+        TempData["ErrorMessage"] = "No confirmed teams found. Please add teams before starting.";
+        return RedirectToAction("CompDetails", "Competition", new { id = id });
+    }
+
+    // Clear any old matches if they exist
+    var oldMatches = await _context.Matches.Where(m => m.ScheduleId == id).ToListAsync();
+    if (oldMatches.Any())
+    {
+        _context.Matches.RemoveRange(oldMatches);
+        await _context.SaveChangesAsync();
+    }
 
             // *** FIX: Properly save matches based on format ***
             switch (competition.Format)
@@ -795,86 +834,218 @@ return matches; // *** NOTE: Matches are already saved, so calling code shouldn'
 
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, string Team2Score)
+{
+    try
+    {
+        Console.WriteLine($"=== UpdateMatch called ===");
+        Console.WriteLine($"MatchId: {MatchId}");
+        Console.WriteLine($"Team1Score: {Team1Score}");
+        Console.WriteLine($"Team2Score: {Team2Score}");
+
+        var match = await _context.Matches.FindAsync(MatchId);
+        if (match == null)
         {
-            try
+            Console.WriteLine("ERROR: Match not found");
+            return NotFound();
+        }
+
+        Console.WriteLine($"Match found - Team1Id: {match.Team1Id}, Team2Id: {match.Team2Id}");
+
+        match.Team1Score = Team1Score;
+        match.Team2Score = Team2Score;
+
+        // Get current user ID
+        var currentUserId = GetCurrentUserId();
+        Console.WriteLine($"Current UserId: {currentUserId}");
+
+        if (currentUserId.HasValue)
+        {
+            match.LastUpdatedByUserId = currentUserId.Value;
+        }
+        else
+        {
+            Console.WriteLine("WARNING: No current user ID");
+        }
+
+        // Determine winner
+        Console.WriteLine("Calling DetermineWinnerId...");
+        match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
+        Console.WriteLine($"WinnerId determined: {match.WinnerId}");
+
+        // Check if there are real scores
+        bool hasRealScores = false;
+        if (!string.IsNullOrEmpty(Team1Score) && !string.IsNullOrEmpty(Team2Score))
+        {
+            hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
+                           Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
+        }
+
+        Console.WriteLine($"Has real scores: {hasRealScores}");
+
+        if (hasRealScores && match.Status != MatchStatus.Bye)
+        {
+            match.Status = MatchStatus.Done;
+            Console.WriteLine("Status set to Done, calling AdvanceWinner...");
+            await AdvanceWinner(match);
+        }
+
+        Console.WriteLine("Updating match in database...");
+        _context.Matches.Update(match);
+        await _context.SaveChangesAsync();
+
+        // *** STEP 2: AUTO-UPDATE AWARD WINNERS IF FINAL MATCH COMPLETED ***
+        if (match.Status == MatchStatus.Done && match.WinnerId.HasValue)
+        {
+            bool isFinalMatch = match.RoundName != null && 
+                                match.RoundName.Contains("Final") && 
+                                !match.RoundName.Contains("Semi");
+            
+            bool isThirdPlaceMatch = match.IsThirdPlaceMatch;
+
+            if (isFinalMatch || isThirdPlaceMatch)
             {
-                Console.WriteLine($"=== UpdateMatch called ===");
-                Console.WriteLine($"MatchId: {MatchId}");
-                Console.WriteLine($"Team1Score: {Team1Score}");
-                Console.WriteLine($"Team2Score: {Team2Score}");
+                Console.WriteLine($"⭐ {(isFinalMatch ? "FINAL" : "3RD PLACE")} match completed! Updating award winners...");
+                
+                // Check if awards are configured
+                var hasAwards = await _context.Awards
+                    .AnyAsync(a => a.ScheduleId == match.ScheduleId);
 
-                var match = await _context.Matches.FindAsync(MatchId);
-                if (match == null)
+                if (hasAwards)
                 {
-                    Console.WriteLine("ERROR: Match not found");
-                    return NotFound();
-                }
-
-                Console.WriteLine($"Match found - Team1Id: {match.Team1Id}, Team2Id: {match.Team2Id}");
-
-                match.Team1Score = Team1Score;
-                match.Team2Score = Team2Score;
-
-                // Get current user ID
-                var currentUserId = GetCurrentUserId();
-                Console.WriteLine($"Current UserId: {currentUserId}");
-
-                if (currentUserId.HasValue)
-                {
-                    match.LastUpdatedByUserId = currentUserId.Value;
+                    await UpdateAwardWinnersForSchedule(match.ScheduleId);
+                    Console.WriteLine("✓ Award winners updated successfully");
                 }
                 else
                 {
-                    Console.WriteLine("WARNING: No current user ID");
+                    Console.WriteLine("⚠ No awards configured for this competition");
                 }
-
-                // Determine winner
-                Console.WriteLine("Calling DetermineWinnerId...");
-                match.WinnerId = DetermineWinnerId(match.Team1Id, match.Team2Id, Team1Score, Team2Score);
-                Console.WriteLine($"WinnerId determined: {match.WinnerId}");
-
-                // Check if there are real scores
-                bool hasRealScores = false;
-                if (!string.IsNullOrEmpty(Team1Score) && !string.IsNullOrEmpty(Team2Score))
-                {
-                    hasRealScores = Team1Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim())) ||
-                                   Team2Score.Split(',').Any(s => s.Trim() != "0" && !string.IsNullOrEmpty(s.Trim()));
-                }
-
-                Console.WriteLine($"Has real scores: {hasRealScores}");
-
-                if (hasRealScores && match.Status != MatchStatus.Bye)
-                {
-                    match.Status = MatchStatus.Done;
-                    Console.WriteLine("Status set to Done, calling AdvanceWinner...");
-                    await AdvanceWinner(match);
-                }
-
-                Console.WriteLine("Updating match in database...");
-                _context.Matches.Update(match);
-                await _context.SaveChangesAsync();
-
-                Console.WriteLine("=== UpdateMatch completed successfully ===");
-
-                return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"=== ERROR in UpdateMatch ===");
-                Console.WriteLine($"Exception Type: {ex.GetType().Name}");
-                Console.WriteLine($"Message: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
-
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
-                }
-
-                throw; // Re-throw to see in debugger
             }
         }
+
+        Console.WriteLine("=== UpdateMatch completed successfully ===");
+
+        return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"=== ERROR in UpdateMatch ===");
+        Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+        Console.WriteLine($"Message: {ex.Message}");
+        Console.WriteLine($"StackTrace: {ex.StackTrace}");
+
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+        }
+
+        throw;
+    }
+}
+
+// *** ADD THIS NEW HELPER METHOD ***
+private async Task UpdateAwardWinnersForSchedule(int scheduleId)
+{
+    try
+    {
+        Console.WriteLine($"=== UpdateAwardWinnersForSchedule: {scheduleId} ===");
+
+        var competition = await _context.Competitions
+            .FirstOrDefaultAsync(c => c.ScheduleId == scheduleId);
+
+        if (competition == null)
+        {
+            Console.WriteLine("Competition not found");
+            return;
+        }
+
+        // Get existing awards
+        var awards = await _context.Awards
+            .Where(a => a.ScheduleId == scheduleId)
+            .ToListAsync();
+
+        if (!awards.Any())
+        {
+            Console.WriteLine("No awards to update");
+            return;
+        }
+
+        // Get winner info from matches
+        var matches = await _context.Matches
+            .Where(m => m.ScheduleId == scheduleId && !m.IsThirdPlaceMatch)
+            .OrderByDescending(m => m.RoundNumber)
+            .ToListAsync();
+
+        var finalMatch = matches.FirstOrDefault(m => m.RoundName != null && 
+                                                     m.RoundName.Contains("Final") && 
+                                                     !m.RoundName.Contains("Semi"));
+        
+        var thirdPlaceMatch = await _context.Matches
+            .FirstOrDefaultAsync(m => m.ScheduleId == scheduleId && m.IsThirdPlaceMatch);
+
+        // Determine winners
+        int? championTeamId = finalMatch?.WinnerId;
+        int? firstRunnerUpTeamId = null;
+        int? secondRunnerUpTeamId = thirdPlaceMatch?.WinnerId;
+
+        if (championTeamId.HasValue && finalMatch != null)
+        {
+            firstRunnerUpTeamId = (finalMatch.Team1Id == championTeamId) 
+                ? finalMatch.Team2Id 
+                : finalMatch.Team1Id;
+        }
+
+        Console.WriteLine($"Champions: {championTeamId}, 1st Runner: {firstRunnerUpTeamId}, 2nd Runner: {secondRunnerUpTeamId}");
+
+        // Update awards with winners
+        bool updated = false;
+
+        var championAward = awards.FirstOrDefault(a => a.Position == AwardPosition.Champion);
+        if (championAward != null && championTeamId.HasValue && championAward.TeamId != championTeamId)
+        {
+            championAward.TeamId = championTeamId.Value;
+            _context.Awards.Update(championAward);
+            updated = true;
+            Console.WriteLine($"✓ Updated Champion award to Team {championTeamId}");
+        }
+
+        var firstRunnerAward = awards.FirstOrDefault(a => a.Position == AwardPosition.FirstRunnerUp);
+        if (firstRunnerAward != null && firstRunnerUpTeamId.HasValue && firstRunnerAward.TeamId != firstRunnerUpTeamId)
+        {
+            firstRunnerAward.TeamId = firstRunnerUpTeamId.Value;
+            _context.Awards.Update(firstRunnerAward);
+            updated = true;
+            Console.WriteLine($"✓ Updated 1st Runner Up award to Team {firstRunnerUpTeamId}");
+        }
+
+        var secondRunnerAward = awards.FirstOrDefault(a => a.Position == AwardPosition.SecondRunnerUp);
+        if (secondRunnerAward != null && secondRunnerUpTeamId.HasValue && secondRunnerAward.TeamId != secondRunnerUpTeamId)
+        {
+            secondRunnerAward.TeamId = secondRunnerUpTeamId.Value;
+            _context.Awards.Update(secondRunnerAward);
+            updated = true;
+            Console.WriteLine($"✓ Updated 2nd Runner Up award to Team {secondRunnerUpTeamId}");
+        }
+
+        if (updated)
+        {
+            await _context.SaveChangesAsync();
+            Console.WriteLine("✓ Award winners saved to database");
+        }
+        else
+        {
+            Console.WriteLine("No award updates needed");
+        }
+
+        Console.WriteLine("=== UpdateAwardWinnersForSchedule completed ===");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERROR in UpdateAwardWinnersForSchedule: {ex.Message}");
+        Console.WriteLine($"StackTrace: {ex.StackTrace}");
+    }
+}
 
         // In Controllers/MatchController.cs
 

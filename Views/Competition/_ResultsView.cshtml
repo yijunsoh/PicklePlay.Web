@@ -1,0 +1,417 @@
+@model AwardViewModel
+@using PicklePlay.Models
+@using PicklePlay.Models.ViewModels
+
+
+<style>
+    .podium-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 20px;
+        padding: 40px 20px;
+        min-height: 500px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .podium-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+        background-size: cover;
+        pointer-events: none;
+    }
+
+    .podium-position {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        transition: transform 0.3s ease;
+    }
+
+    .podium-position:hover {
+        transform: translateY(-10px);
+    }
+
+    .podium-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        width: 220px;
+        text-align: center;
+        margin-bottom: 15px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .podium-base {
+        width: 220px;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 2rem;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .champion-base {
+        height: 200px;
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        order: 2;
+    }
+
+    .first-runner-base {
+        height: 150px;
+        background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+        order: 1;
+    }
+
+    .second-runner-base {
+        height: 100px;
+        background: linear-gradient(135deg, #cd7f32, #e6a664);
+        order: 3;
+    }
+
+    .award-icon {
+        font-size: 4rem;
+        margin: 15px 0;
+        animation: bounce 2s infinite;
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .team-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #333;
+        margin: 10px 0;
+    }
+
+    .player-names {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 5px 0;
+    }
+
+    .position-badge {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: white;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .champion-badge { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #333; }
+    .first-badge { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #333; }
+    .second-badge { background: linear-gradient(135deg, #cd7f32, #e6a664); color: white; }
+
+    .award-settings-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .award-description {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 20px;
+        font-style: italic;
+        color: #555;
+    }
+
+    .podium-row {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 20px;
+    }
+
+    .empty-podium-card {
+        background: white;
+        border: 3px dashed #ccc;
+        border-radius: 15px;
+        padding: 20px;
+        width: 220px;
+        text-align: center;
+        margin-bottom: 15px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .empty-podium-card .empty-icon {
+        font-size: 3rem;
+        color: #ddd;
+        margin: 15px 0;
+    }
+
+    .empty-podium-card .empty-text {
+        color: #999;
+        font-size: 0.9rem;
+        font-style: italic;
+    }
+</style>
+
+@{
+    bool canSetAwards = Model.IsOrganizer && !Model.HasAwards;
+    bool hasAwardSettings = !string.IsNullOrEmpty(Model.AwardName);
+}
+
+
+@if (canSetAwards)
+{
+    @* Show award form when no awards configured yet *@
+    <div class="award-settings-card">
+        <h4 class="mb-4"><i class="bi bi-trophy-fill text-warning me-2"></i>Set Competition Awards</h4>
+        
+        <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle me-2"></i>
+            You can set award details now. Winners will automatically appear when matches are completed.
+        </div>
+        
+        <form id="setAwardsForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+            
+            <div class="mb-3">
+                <label class="form-label">Award Name</label>
+                <input type="text" class="form-control" name="awardName" 
+                       value="@Model.CompetitionTitle Championship" required 
+                       placeholder="e.g., Summer Championship 2024" />
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Award Type</label>
+                <select class="form-select" name="awardType" required>
+                    <option value="0">🏆 Trophy</option>
+                    <option value="1">🥇 Medal</option>
+                    <option value="2">🎀 Ribbon</option>
+                    <option value="3">👑 Crown</option>
+                    <option value="4">⭐ Star</option>
+                    <option value="5">👕 Shirt</option>
+                    <option value="6">👟 Shoe</option>
+                    <option value="7">🎫 Ticket</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Description (Optional)</label>
+                <textarea class="form-control" name="description" rows="3" 
+                          placeholder="Add a special message or achievement description..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-lg w-100">
+                <i class="bi bi-trophy-fill me-2"></i>Save Award Settings
+            </button>
+        </form>
+        
+        <div id="awardFormStatus" class="mt-3"></div>
+    </div>
+    
+    @* Show empty podium below *@
+    <div class="text-center mb-3 mt-4">
+        <h5 class="text-muted">Podium Preview</h5>
+    </div>
+}
+else if (hasAwardSettings)
+{
+    @* Show award header with edit button *@
+    <div class="award-settings-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3><i class="bi bi-trophy-fill text-warning me-2"></i>@Model.AwardName</h3>
+            @if (Model.IsOrganizer)
+            {
+                <button class="btn btn-outline-primary btn-sm" onclick="showEditForm()">
+                    <i class="bi bi-pencil"></i> Edit Settings
+                </button>
+            }
+        </div>
+        
+        @if (!string.IsNullOrEmpty(Model.Description))
+        {
+            <div class="award-description">
+                <i class="bi bi-quote"></i> @Model.Description
+            </div>
+        }
+        
+        @if (Model.Champion == null && Model.FirstRunnerUp == null)
+        {
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-hourglass-split me-2"></i>
+                Winners will appear here automatically once the final matches are completed!
+            </div>
+        }
+    </div>
+}
+
+@* Podium Display *@
+@if (hasAwardSettings || Model.Champion != null)
+{
+    <div class="podium-container">
+        <div class="podium-row">
+            @* First Runner Up *@
+            <div class="podium-position" style="order: 1;">
+                @if (Model.FirstRunnerUp != null)
+                {
+                    <div class="podium-card">
+                        <div class="position-badge first-badge">2nd</div>
+                         <div class="award-icon">@GetAwardIcon(Model.FirstRunnerUp.AwardType)</div>
+                        <div class="team-name">@Model.FirstRunnerUp.TeamName</div>
+                        @foreach (var player in Model.FirstRunnerUp.PlayerNames)
+                        {
+                            <div class="player-names">👤 @player</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                     <div class="empty-podium-card">
+            @* ⬇️ SHOW CONFIGURED AWARD TYPE EVEN IF NO WINNER YET *@
+            <div class="empty-icon">@GetAwardIcon(Model.AwardType)</div>
+            <div class="empty-text">1st Runner Up</div>
+            <div class="empty-text">TBD</div>
+        </div>
+                }
+                <div class="podium-base first-runner-base">2nd</div>
+            </div>
+
+            @* Champion *@
+            <div class="podium-position" style="order: 2;">
+                @if (Model.Champion != null)
+                {
+                    <div class="podium-card">
+                        <div class="position-badge champion-badge">1st</div>
+                        <div class="award-icon">@GetAwardIcon(Model.AwardType)</div>
+                        <div class="team-name">@Model.Champion.TeamName</div>
+                        @foreach (var player in Model.Champion.PlayerNames)
+                        {
+                            <div class="player-names">👤 @player</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                     <div class="empty-podium-card">
+            @* ⬇️ SHOW CONFIGURED AWARD TYPE EVEN IF NO WINNER YET *@
+            <div class="empty-icon">@GetAwardIcon(Model.AwardType)</div>
+            <div class="empty-text">Champion</div>
+            <div class="empty-text">TBD</div>
+        </div>
+                }
+                <div class="podium-base champion-base">🏆</div>
+            </div>
+
+            @* Second Runner Up *@
+            @if (Model.HasThirdPlace)
+            {
+                <div class="podium-position" style="order: 3;">
+                    @if (Model.SecondRunnerUp != null)
+                    {
+                        <div class="podium-card">
+                            <div class="position-badge second-badge">3rd</div>
+                            <div class="award-icon">@GetAwardIcon(Model.AwardType)</div>
+                            <div class="team-name">@Model.SecondRunnerUp.TeamName</div>
+                            @foreach (var player in Model.SecondRunnerUp.PlayerNames)
+                            {
+                                <div class="player-names">👤 @player</div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                                   <div class="empty-podium-card">
+                <div class="empty-icon">@GetAwardIcon(Model.AwardType)</div>
+                <div class="empty-text">2nd Runner Up</div>
+                <div class="empty-text">TBD</div>
+            </div>
+                    }
+                    <div class="podium-base second-runner-base">3rd</div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    @* Show completely empty state if no settings *@
+    <div class="text-center p-5">
+        <i class="bi bi-trophy" style="font-size: 4rem; color: #ccc;"></i>
+        <h4 class="mt-3">No Awards Configured</h4>
+        <p class="text-muted">Organizer can set up awards at action drop down button.</p>
+    </div>
+}
+
+@functions {
+    string GetAwardIcon(AwardType type)
+    {
+        return type switch
+        {
+            AwardType.Trophy => "🏆",
+            AwardType.Medal => "🥇",
+            AwardType.Ribbon => "🎀",
+            AwardType.Crown => "👑",
+            AwardType.Star => "⭐",
+            AwardType.Shirt => "👕",
+            AwardType.Shoe => "👟",
+            AwardType.Ticket => "🎫",
+            _ => "🏆"
+        };
+    }
+}
+
+<script>
+    $(document).ready(function() {
+        $('#setAwardsForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            var formData = $(this).serialize();
+            var statusDiv = $('#awardFormStatus');
+            
+            statusDiv.html('<div class="alert alert-info">Creating awards...</div>');
+            
+            $.ajax({
+                url: '/Award/SetAwards',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        statusDiv.html('<div class="alert alert-success">' + response.message + '</div>');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        statusDiv.html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                },
+                error: function() {
+                    statusDiv.html('<div class="alert alert-danger">Error creating awards.</div>');
+                }
+            });
+        });
+    });
+</script>

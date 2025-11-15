@@ -38,6 +38,7 @@ namespace PicklePlay.Data
         // --- ADD THIS NEW DbSet ---
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Endorsement> Endorsements { get; set; }
+        public DbSet<Award> Awards { get; set; }
 
 
 

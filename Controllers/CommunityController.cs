@@ -50,6 +50,13 @@ namespace PicklePlay.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateRecurring(ScheduleRecurringViewModel vm)
         {
+
+            var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Json(new { success = false, message = "Please log in." });
+        }
+
             // --- Validation ---
             if (vm.RecurringWeek == null || !vm.RecurringWeek.Any())
             {
@@ -96,6 +103,7 @@ namespace PicklePlay.Controllers
                 GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
+                CreatedByUserId = currentUserId.Value,
                 Status = ScheduleStatus.Active
             };
 
@@ -143,7 +151,7 @@ namespace PicklePlay.Controllers
 
                     _scheduleRepository.Add(instanceSchedule);
                     // --- ADD THIS NEW CODE ---
-                    var currentUserId = GetCurrentUserId(); // <-- Uses your new method
+                    
 
                     if (currentUserId.HasValue) // <-- Check if the nullable int has a value
                     {
@@ -191,6 +199,13 @@ namespace PicklePlay.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateOneOff(ScheduleCreateViewModel vm)
         {
+
+            var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Json(new { success = false, message = "Please log in." });
+        }
+
             if (vm.StartTime <= DateTime.Now)
             {
                 ModelState.AddModelError("StartTime", "Please select a future date and time.");
@@ -221,6 +236,7 @@ namespace PicklePlay.Controllers
                 GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
+                CreatedByUserId = currentUserId.Value,
                 Status = ScheduleStatus.Active // Set status
             };
 
@@ -232,8 +248,7 @@ namespace PicklePlay.Controllers
 
             _scheduleRepository.Add(newSchedule);
             // --- ADD THIS NEW CODE ---
-            var currentUserId = GetCurrentUserId(); // <-- Uses your new method
-
+           
             if (currentUserId.HasValue) // <-- Check if the nullable int has a value
             {
                 // Add as Organizer
@@ -434,6 +449,12 @@ namespace PicklePlay.Controllers
             // --- 1. Handle File Upload FIRST ---
             string? uniqueImagePath = await ProcessUploadedImage(vm.PosterImage);
 
+            var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Json(new { success = false, message = "Please log in." });
+        }
+
             // 2. Map ViewModel to Schedule Model
             var newSchedule = new Schedule
             {
@@ -461,6 +482,7 @@ namespace PicklePlay.Controllers
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = HostRole.HostOnly,
                 Status = ScheduleStatus.PendingSetup,
+                CreatedByUserId = currentUserId.Value,
                 CompetitionImageUrl = uniqueImagePath
             };
 
@@ -483,8 +505,7 @@ namespace PicklePlay.Controllers
     _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
 
     // *** THIS IS THE FIX ***
-    // Add the creator as the "Organizer" participant
-    var currentUserId = GetCurrentUserId();
+    // Add the creator as the "Organizer" participant   
     if (currentUserId.HasValue)
     {
         var organizer = new ScheduleParticipant

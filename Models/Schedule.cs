@@ -128,5 +128,10 @@ namespace PicklePlay.Models
         // --- *** THIS IS THE NEW LINE YOU MUST ADD *** ---
         public virtual ICollection<Pool> Pools { get; set; } = new List<Pool>();
 
+        public int? CreatedByUserId { get; set; }
+    
+    [ForeignKey("CreatedByUserId")]
+    public User? CreatedByUser { get; set; }
+
     }
 }
