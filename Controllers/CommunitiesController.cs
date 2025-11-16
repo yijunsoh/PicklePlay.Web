@@ -1885,5 +1885,156 @@ namespace PicklePlay.Controllers
                 return StatusCode(500, new { success = false, message = "Error checking deletion rules." });
             }
         }
+
+        // GET: /Communities/GetCommunityChatHistory
+[HttpGet]
+public async Task<IActionResult> GetCommunityChatHistory(int communityId, int skip = 0, int take = 50)
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int userId = currentUserIdInt.Value;
+
+    try
+    {
+        // Verify user is a member of this community
+        var membership = await _context.CommunityMembers
+            .FirstOrDefaultAsync(cm => cm.CommunityId == communityId && 
+                                     cm.UserId == userId && 
+                                     cm.Status == "Active");
+
+        if (membership == null)
+        {
+            return Forbid("You must be a member to view community chat.");
+        }
+
+        // Get chat history (latest messages first, then reverse for display)
+        var messages = await _context.CommunityChatMessages
+            .Include(m => m.Sender)
+            .Where(m => m.CommunityId == communityId && !m.IsDeleted)
+            .OrderByDescending(m => m.SentAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(m => new
+            {
+                messageId = m.MessageId,
+                communityId = m.CommunityId,
+                senderId = m.SenderId,
+                senderName = m.Sender!.Username ?? "Unknown",
+                senderProfilePicture = m.Sender.ProfilePicture,
+                content = m.Content,
+                sentAt = m.SentAt,
+                isAdmin = _context.CommunityMembers
+                    .Any(cm => cm.CommunityId == communityId && 
+                              cm.UserId == m.SenderId && 
+                              cm.CommunityRole == "Admin"),
+                isModerator = _context.CommunityMembers
+                    .Any(cm => cm.CommunityId == communityId && 
+                              cm.UserId == m.SenderId && 
+                              cm.CommunityRole == "Moderator"),
+                isMine = m.SenderId == userId
+            })
+            .ToListAsync();
+
+        // Reverse to show oldest to newest
+        messages.Reverse();
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                messages = messages,
+                hasMore = messages.Count == take
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading chat history: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An error occurred while loading chat history."
+        });
+    }
+}
+
+// POST: /Communities/DeleteCommunityMessage (Admin/Moderator can delete ANY message)
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> DeleteCommunityMessage(int messageId, int communityId)
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int userId = currentUserIdInt.Value;
+
+    try
+    {
+        var message = await _context.CommunityChatMessages
+            .FirstOrDefaultAsync(m => m.MessageId == messageId && m.CommunityId == communityId);
+
+        if (message == null)
+        {
+            return NotFound(new { success = false, message = "Message not found." });
+        }
+
+        // Check if user is admin/moderator or message owner
+        var membership = await _context.CommunityMembers
+            .FirstOrDefaultAsync(cm => cm.CommunityId == communityId && 
+                                     cm.UserId == userId && 
+                                     cm.Status == "Active");
+
+        if (membership == null)
+        {
+            return Forbid("You are not a member of this community.");
+        }
+
+        // ⬇️ UPDATED: Admin and Moderator can delete ANY message, users can only delete their own
+        bool isAdmin = membership.CommunityRole == "Admin";
+        bool isModerator = membership.CommunityRole == "Moderator";
+        bool isOwner = message.SenderId == userId;
+
+        bool canDelete = isAdmin || isModerator || isOwner;
+
+        if (!canDelete)
+        {
+            return Forbid("You don't have permission to delete this message.");
+        }
+
+        // Soft delete
+        message.IsDeleted = true;
+        message.DeletedAt = DateTime.UtcNow;
+        message.DeletedByUserId = userId;
+
+        _context.CommunityChatMessages.Update(message);
+        await _context.SaveChangesAsync();
+
+        Console.WriteLine($"Message {messageId} deleted by user {userId} (Role: {membership.CommunityRole})");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Message deleted successfully.",
+            messageId = messageId
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error deleting message: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An error occurred while deleting the message."
+        });
+    }
+}
     }
 }

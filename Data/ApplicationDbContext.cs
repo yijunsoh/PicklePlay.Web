@@ -18,13 +18,13 @@ namespace PicklePlay.Data
         public DbSet<CommunityMember> CommunityMembers { get; set; }
         public DbSet<CommunityBlockList> CommunityBlockLists { get; set; }
         public DbSet<CommunityAnnouncement> CommunityAnnouncements { get; set; } = null!;
-        public DbSet<CommunityInvitation> CommunityInvitations{ get; set; }
+        public DbSet<CommunityInvitation> CommunityInvitations { get; set; }
 
 
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Competition> Competitions { get; set; }
-       
-        
+
+
 
         public DbSet<ScheduleParticipant> ScheduleParticipants { get; set; }
         public virtual DbSet<Bookmark> Bookmarks { get; set; }
@@ -40,7 +40,8 @@ namespace PicklePlay.Data
         public DbSet<Endorsement> Endorsements { get; set; }
         public DbSet<Award> Awards { get; set; }
 
-public DbSet<Message> Messages { get; set; }
+        public DbSet<Message> Messages { get; set; }
+        public DbSet<CommunityChatMessage> CommunityChatMessages { get; set; }
 
 
 
@@ -146,40 +147,40 @@ public DbSet<Message> Messages { get; set; }
         .HasForeignKey(e => e.GiverUserId)
         .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<Endorsement>()
-        .HasOne(e => e.ReceiverUser)
-        .WithMany() // No navigation property on User
-        .HasForeignKey(e => e.ReceiverUserId)
-        .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Endorsement>()
+                .HasOne(e => e.ReceiverUser)
+                .WithMany() // No navigation property on User
+                .HasForeignKey(e => e.ReceiverUserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-         // Message configuration
-    modelBuilder.Entity<Message>()
-        .HasOne(m => m.Sender)
-        .WithMany()
-        .HasForeignKey(m => m.SenderId)
-        .OnDelete(DeleteBehavior.Restrict);
+            // Message configuration
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<Message>()
-        .HasOne(m => m.Receiver)
-        .WithMany()
-        .HasForeignKey(m => m.ReceiverId)
-        .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Receiver)
+                .WithMany()
+                .HasForeignKey(m => m.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-    // Notification configuration
-    modelBuilder.Entity<Notification>()
-        .HasOne(n => n.User)
-        .WithMany()
-        .HasForeignKey(n => n.UserId)
-        .OnDelete(DeleteBehavior.Cascade);
+            // Notification configuration
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-    modelBuilder.Entity<Notification>()
-        .HasOne(n => n.RelatedUser)
-        .WithMany()
-        .HasForeignKey(n => n.RelatedUserId)
-        .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.RelatedUser)
+                .WithMany()
+                .HasForeignKey(n => n.RelatedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
-        
-        
+
+
     }
 
 }
