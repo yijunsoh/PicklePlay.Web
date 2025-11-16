@@ -55,13 +55,19 @@
                             </span>
                         </div>
                         <div class="action-buttons">
-                            @if (community.Memberships.Any(m => m.UserId == currentUserId && m.Status == "Active"))
+                            @{
+                                var activeMembership = community.Memberships.FirstOrDefault(m => m.UserId == currentUserId && m.Status == "Active");
+                                var pendingMembership = community.Memberships.FirstOrDefault(m => m.UserId == currentUserId && m.Status == "Pending");
+                                var inactiveMembership = community.Memberships.FirstOrDefault(m => m.UserId == currentUserId && m.Status == "Inactive");
+                            }
+                            
+                            @if (activeMembership != null)
                             {
                                 <button class="btn btn-success" disabled>
                                     <i class="fas fa-check me-1"></i>Joined
                                 </button>
                             }
-                            else if (community.Memberships.Any(m => m.UserId == currentUserId && m.Status == "Pending"))
+                            else if (pendingMembership != null)
                             {
                                 <button class="btn btn-warning" disabled>
                                     <i class="fas fa-clock me-1"></i>Pending

@@ -165,7 +165,7 @@ namespace PicklePlay.Controllers
 
             // 3. Check if user is blocked from this community
             var isBlocked = await _context.CommunityBlockLists
-                .AnyAsync(b => b.CommunityId == communityId && b.UserId == userId);
+                .AnyAsync(b => b.CommunityId == communityId && b.UserId == userId && b.Status == "Active");
 
             if (isBlocked)
             {

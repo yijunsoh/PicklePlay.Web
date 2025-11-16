@@ -265,7 +265,8 @@ namespace PicklePlay.Controllers
             {
                 query = query.Where(c =>
                     c.CommunityName.Contains(searchTerm) ||
-                    (c.Description != null && c.Description.Contains(searchTerm))
+                    (c.Description != null && c.Description.Contains(searchTerm)) ||
+                    (c.CommunityLocation != null && c.CommunityLocation.Contains(searchTerm))
                 );
             }
 
@@ -301,7 +302,8 @@ namespace PicklePlay.Controllers
             {
                 query = query.Where(c =>
                     c.CommunityName.Contains(searchTerm) ||
-                    (c.Description != null && c.Description.Contains(searchTerm))
+                    (c.Description != null && c.Description.Contains(searchTerm)) ||
+            (c.CommunityLocation != null && c.CommunityLocation.Contains(searchTerm))
                 );
             }
 
@@ -546,55 +548,46 @@ namespace PicklePlay.Controllers
         }
 
         // GET: /Search/GetCommunityDetails
-[HttpGet]
-public async Task<IActionResult> GetCommunityDetails(int communityId)
-{
-    try
-    {
-        var currentUserId = HttpContext.Session.GetInt32("UserId");
-        
-        var community = await _context.Communities
-            .Include(c => c.Creator)
-            .Include(c => c.Memberships)
-            .FirstOrDefaultAsync(c => c.CommunityId == communityId && c.Status == "Active");
-
-        if (community == null)
+        // In SearchController - GetCommunityDetails method
+        [HttpGet]
+        public async Task<IActionResult> GetCommunityDetails(int communityId)
         {
-            return Json(new { success = false, message = "Community not found" });
+            var currentUserId = HttpContext.Session.GetInt32("UserId");
+
+            var community = await _context.Communities
+                .Include(c => c.Memberships)
+                .Include(c => c.Creator)
+                .FirstOrDefaultAsync(c => c.CommunityId == communityId);
+
+            if (community == null)
+                return NotFound(new { success = false, message = "Community not found." });
+
+            // Get user's membership status
+            var userMembership = community.Memberships.FirstOrDefault(m => m.UserId == currentUserId);
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    communityId = community.CommunityId,
+                    communityName = community.CommunityName,
+                    description = community.Description,
+                    communityLocation = community.CommunityLocation,
+                    communityType = community.CommunityType,
+                    communityPic = community.CommunityPic,
+                    creatorName = community.Creator?.Username,
+                    createdDate = community.CreatedDate,
+                    memberCount = community.Memberships.Count(m => m.Status == "Active"),
+                    lastActivityDate = community.LastActivityDate,
+
+                    // FIX: Return specific membership status
+                    isMember = userMembership != null && userMembership.Status == "Active",
+                    isPending = userMembership != null && userMembership.Status == "Pending",
+                    memberStatus = userMembership?.Status // Return the actual status
+                }
+            });
         }
-
-        var isMember = currentUserId.HasValue && 
-                      community.Memberships.Any(m => m.UserId == currentUserId.Value && m.Status == "Active");
-                      
-        var isPending = currentUserId.HasValue && 
-                       community.Memberships.Any(m => m.UserId == currentUserId.Value && m.Status == "Pending");
-
-        var result = new
-        {
-            communityId = community.CommunityId,
-            communityName = community.CommunityName,
-            description = community.Description ?? "No description provided",
-            // FIX: Correct property name - CommunityLocation
-            communityLocation = community.CommunityLocation ?? "Location not specified",
-            communityType = community.CommunityType,
-            communityPic = community.CommunityPic,
-            creatorName = community.Creator?.Username ?? "Unknown",
-            createdDate = community.CreatedDate,
-            memberCount = community.Memberships.Count(m => m.Status == "Active"),
-            lastActivityDate = community.LastActivityDate,
-            isMember = isMember,
-            isPending = isPending
-        };
-
-        return Json(new { success = true, data = result });
-    }
-    catch (Exception ex)
-    {
-        // Log the actual exception for debugging
-        Console.WriteLine($"Error loading community details: {ex.Message}");
-        return Json(new { success = false, message = "Error loading community details" });
-    }
-}
     }
 
     // ViewModel to pass data to the view

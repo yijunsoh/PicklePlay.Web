@@ -747,11 +747,11 @@
     </div>
 </div>
 
-@await Html.PartialAsync("_CommunityDetailModal", 
-    viewData: new ViewDataDictionary(ViewData)
-    {
-        ["ModalContext"] = "search"
-    })
+@await Html.PartialAsync("_CommunityDetailModal",
+viewData: new ViewDataDictionary(ViewData)
+{
+    ["ModalContext"] = "search"
+})
 @section Scripts {
     <script>
         // Player Search Variables
@@ -775,9 +775,13 @@
         let currentCompetitionSearchTerm = '';
         let currentCompetitionFilter = '';
 
+        // Community button handler reference
+        let communityClickHandler = null;
+
         // Initialize tabs
         document.addEventListener('DOMContentLoaded', function () {
             loadInitialPlayers(1);
+            initializeCommunityButtons(); // Initialize event delegation for join buttons
 
             // Set up tab change events
             document.getElementById('players-tab').addEventListener('click', function () {
@@ -796,6 +800,108 @@
                 loadInitialCompetitions(1);
             });
         });
+
+        // ========== HELPER FUNCTIONS ==========
+        function getCsrfToken() {
+            const el = document.querySelector('input[name="__RequestVerificationToken"]');
+            return el ? el.value : null;
+        }
+
+        function showAlert(type, message) {
+            // You can replace this with a better notification system
+            alert(type === 'success' ? message : '❌ ' + message);
+        }
+
+        function showError(containerId, message) {
+            document.getElementById(containerId).innerHTML = `
+                                    <div class="col-12">
+                                        <div class="empty-state">
+                                            <i class="fas fa-exclamation-triangle text-muted"></i>
+                                            <h4>Error</h4>
+                                            <p class="text-muted">${message}</p>
+                                        </div>
+                                    </div>
+                                `;
+        }
+
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'block';
+        }
+
+        function hideLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        }
+
+        // ========== COMMUNITY JOIN FUNCTION ==========
+        function joinCommunity(communityId, communityType, button) {
+            const originalHTML = button.innerHTML;
+
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+
+            fetch('/Communities/JoinCommunity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getCsrfToken()
+                },
+                body: `communityId=${communityId}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.requiresApproval) {
+                            button.innerHTML = '<i class="fas fa-clock me-1"></i>Pending';
+                            button.classList.remove('btn-custom');
+                            button.classList.add('btn-warning');
+                            button.disabled = true;
+                            showAlert('success', data.message);
+                        } else {
+                            button.innerHTML = '<i class="fas fa-check me-1"></i>Joined';
+                            button.classList.remove('btn-custom');
+                            button.classList.add('btn-success');
+                            button.disabled = true;
+                            showAlert('success', data.message);
+                        }
+                    } else {
+                        button.innerHTML = originalHTML;
+                        button.disabled = false;
+                        showAlert('error', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error joining community:', error);
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                    showAlert('error', 'Error joining community. Please try again.');
+                });
+        }
+
+        function initializeCommunityButtons() {
+            // Remove existing handler if it exists
+            if (communityClickHandler) {
+                document.removeEventListener('click', communityClickHandler);
+            }
+
+            // Create new handler
+            communityClickHandler = function (e) {
+                if (e.target.closest('.join-community-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const button = e.target.closest('.join-community-btn');
+                    const communityId = button.getAttribute('data-community-id');
+                    const communityType = button.getAttribute('data-community-type');
+
+                    joinCommunity(communityId, communityType, button);
+                }
+            };
+
+            // Add event listener
+            document.addEventListener('click', communityClickHandler);
+        }
 
         // ========== PLAYER FUNCTIONS ==========
         function loadInitialPlayers(page = 1) {
@@ -901,20 +1007,20 @@
             }
 
             let paginationHTML = `
-                    <div class="pagination-container">
-                        <div class="pagination-info">
-                            Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
-                        </div>
-                        <div class="pagination-buttons">
-                `;
+                                    <div class="pagination-container">
+                                        <div class="pagination-info">
+                                            Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
+                                        </div>
+                                        <div class="pagination-buttons">
+                                `;
 
             // Previous button
             paginationHTML += `
-                    <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
-                            onclick="changePlayerPage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                `;
+                                    <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
+                                            onclick="changePlayerPage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                `;
 
             // Page numbers
             const startPage = Math.max(1, currentPlayerPage - 2);
@@ -944,16 +1050,16 @@
 
             // Next button
             paginationHTML += `
-                    <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
-                            onclick="changePlayerPage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
-                        Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
+                                    <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
+                                            onclick="changePlayerPage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                `;
 
             paginationHTML += `
-                        </div>
-                    </div>
-                `;
+                                        </div>
+                                    </div>
+                                `;
 
             container.innerHTML = paginationHTML;
         }
@@ -993,7 +1099,6 @@
                     updateCommunityDisplayInfo();
                     updateCommunityPaginationInfo();
                     hideLoading('communityLoading');
-                    initializeCommunityButtons();
                 })
                 .catch(error => {
                     console.error('Error loading communities:', error);
@@ -1012,8 +1117,6 @@
 
             showLoading('communityLoading');
 
-            // The search now includes location search automatically since the backend
-            // searches both CommunityName and Description (which includes location)
             fetch(`/Search/GetCommunities?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&page=${page}`)
                 .then(response => {
                     if (!response.ok) {
@@ -1026,7 +1129,6 @@
                     updateCommunityDisplayInfo();
                     updateCommunityPaginationInfo(searchTerm, filter);
                     hideLoading('communityLoading');
-                    initializeCommunityButtons();
                 })
                 .catch(error => {
                     console.error('Error searching communities:', error);
@@ -1072,20 +1174,20 @@
             }
 
             let paginationHTML = `
-                    <div class="pagination-container">
-                        <div class="pagination-info">
-                            Page ${currentCommunityPage} of ${totalPages} • Total ${totalCount} communities
-                        </div>
-                        <div class="pagination-buttons">
-                `;
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Page ${currentCommunityPage} of ${totalPages} • Total ${totalCount} communities
+                </div>
+                <div class="pagination-buttons">
+        `;
 
             // Previous button
             paginationHTML += `
-                    <button class="page-nav ${currentCommunityPage === 1 ? 'disabled' : ''}" 
-                            onclick="changeCommunityPage(${currentCommunityPage - 1})" ${currentCommunityPage === 1 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                `;
+            <button class="page-nav ${currentCommunityPage === 1 ? 'disabled' : ''}" 
+                    onclick="changeCommunityPage(${currentCommunityPage - 1})" ${currentCommunityPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+        `;
 
             // Page numbers
             const startPage = Math.max(1, currentCommunityPage - 2);
@@ -1115,16 +1217,16 @@
 
             // Next button
             paginationHTML += `
-                    <button class="page-nav ${currentCommunityPage === totalPages ? 'disabled' : ''}" 
-                            onclick="changeCommunityPage(${currentCommunityPage + 1})" ${currentCommunityPage === totalPages ? 'disabled' : ''}>
-                        Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
+            <button class="page-nav ${currentCommunityPage === totalPages ? 'disabled' : ''}" 
+                    onclick="changeCommunityPage(${currentCommunityPage + 1})" ${currentCommunityPage === totalPages ? 'disabled' : ''}>
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        `;
 
             paginationHTML += `
-                        </div>
-                    </div>
-                `;
+                </div>
+            </div>
+        `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1140,6 +1242,13 @@
         function resetCommunitySearch() {
             loadInitialCommunities(1);
         }
+
+        // Enter key support for search
+        document.getElementById('communitySearch')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchCommunities(1);
+            }
+        });
 
         // ========== GAME FUNCTIONS ==========
         function loadInitialGames(page = 1) {
@@ -1241,20 +1350,20 @@
             }
 
             let paginationHTML = `
-                    <div class="pagination-container">
-                        <div class="pagination-info">
-                            Page ${currentGamePage} of ${totalPages} • Total ${totalCount} games
-                        </div>
-                        <div class="pagination-buttons">
-                `;
+                                    <div class="pagination-container">
+                                        <div class="pagination-info">
+                                            Page ${currentGamePage} of ${totalPages} • Total ${totalCount} games
+                                        </div>
+                                        <div class="pagination-buttons">
+                                `;
 
             // Previous button
             paginationHTML += `
-                    <button class="page-nav ${currentGamePage === 1 ? 'disabled' : ''}" 
-                            onclick="changeGamePage(${currentGamePage - 1})" ${currentGamePage === 1 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                `;
+                                    <button class="page-nav ${currentGamePage === 1 ? 'disabled' : ''}" 
+                                            onclick="changeGamePage(${currentGamePage - 1})" ${currentGamePage === 1 ? 'disabled' : ''}>
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                `;
 
             // Page numbers
             const startPage = Math.max(1, currentGamePage - 2);
@@ -1284,16 +1393,16 @@
 
             // Next button
             paginationHTML += `
-                    <button class="page-nav ${currentGamePage === totalPages ? 'disabled' : ''}" 
-                            onclick="changeGamePage(${currentGamePage + 1})" ${currentGamePage === totalPages ? 'disabled' : ''}>
-                        Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
+                                    <button class="page-nav ${currentGamePage === totalPages ? 'disabled' : ''}" 
+                                            onclick="changeGamePage(${currentGamePage + 1})" ${currentGamePage === totalPages ? 'disabled' : ''}>
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                `;
 
             paginationHTML += `
-                        </div>
-                    </div>
-                `;
+                                        </div>
+                                    </div>
+                                `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1408,20 +1517,20 @@
             }
 
             let paginationHTML = `
-                    <div class="pagination-container">
-                        <div class="pagination-info">
-                            Page ${currentCompetitionPage} of ${totalPages} • Total ${totalCount} competitions
-                        </div>
-                        <div class="pagination-buttons">
-                `;
+                                    <div class="pagination-container">
+                                        <div class="pagination-info">
+                                            Page ${currentCompetitionPage} of ${totalPages} • Total ${totalCount} competitions
+                                        </div>
+                                        <div class="pagination-buttons">
+                                `;
 
             // Previous button
             paginationHTML += `
-                    <button class="page-nav ${currentCompetitionPage === 1 ? 'disabled' : ''}" 
-                            onclick="changeCompetitionPage(${currentCompetitionPage - 1})" ${currentCompetitionPage === 1 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                `;
+                                    <button class="page-nav ${currentCompetitionPage === 1 ? 'disabled' : ''}" 
+                                            onclick="changeCompetitionPage(${currentCompetitionPage - 1})" ${currentCompetitionPage === 1 ? 'disabled' : ''}>
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                `;
 
             // Page numbers
             const startPage = Math.max(1, currentCompetitionPage - 2);
@@ -1451,16 +1560,16 @@
 
             // Next button
             paginationHTML += `
-                    <button class="page-nav ${currentCompetitionPage === totalPages ? 'disabled' : ''}" 
-                            onclick="changeCompetitionPage(${currentCompetitionPage + 1})" ${currentCompetitionPage === totalPages ? 'disabled' : ''}>
-                        Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
+                                    <button class="page-nav ${currentCompetitionPage === totalPages ? 'disabled' : ''}" 
+                                            onclick="changeCompetitionPage(${currentCompetitionPage + 1})" ${currentCompetitionPage === totalPages ? 'disabled' : ''}>
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                `;
 
             paginationHTML += `
-                        </div>
-                    </div>
-                `;
+                                        </div>
+                                    </div>
+                                `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1477,7 +1586,7 @@
             loadInitialCompetitions(1);
         }
 
-        // ========== HELPER FUNCTIONS ==========
+        // ========== BUTTON INITIALIZATION FUNCTIONS ==========
         function initializeFavoriteButtons() {
             document.querySelectorAll('.favorite-btn').forEach(button => {
                 button.addEventListener('click', function () {
@@ -1489,16 +1598,6 @@
                     } else {
                         this.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
                     }
-                });
-            });
-        }
-
-        function initializeCommunityButtons() {
-            document.querySelectorAll('.join-community-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    const communityId = this.getAttribute('data-community-id');
-                    const communityType = this.getAttribute('data-community-type');
-                    joinCommunity(communityId, communityType, this);
                 });
             });
         }
@@ -1516,71 +1615,6 @@
                     }
                 });
             });
-        }
-
-        function joinCommunity(communityId, communityType, button) {
-            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-
-            fetch('/Search/JoinCommunity', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: `communityId=${communityId}`
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        if (data.requiresApproval) {
-                            button.innerHTML = '<i class="fas fa-clock me-1"></i>Pending';
-                            button.classList.remove('btn-custom');
-                            button.classList.add('btn-warning');
-                            alert(data.message);
-                        } else {
-                            button.innerHTML = '<i class="fas fa-check me-1"></i>Joined';
-                            button.classList.remove('btn-custom');
-                            button.classList.add('btn-success');
-                            button.disabled = true;
-                            alert(data.message);
-                        }
-                    } else {
-                        button.innerHTML = '<i class="fas fa-plus me-1"></i>Join Community';
-                        button.disabled = false;
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error joining community:', error);
-                    button.innerHTML = '<i class="fas fa-plus me-1"></i>Join Community';
-                    button.disabled = false;
-                    alert('Error joining community. Please try again.');
-                });
-        }
-
-        function showError(containerId, message) {
-            document.getElementById(containerId).innerHTML = `
-                    <div class="col-12">
-                        <div class="empty-state">
-                            <i class="fas fa-exclamation-triangle text-muted"></i>
-                            <h4>Error</h4>
-                            <p class="text-muted">${message}</p>
-                        </div>
-                    </div>
-                `;
-        }
-
-        function showLoading(elementId) {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'block';
-        }
-
-        function hideLoading(elementId) {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'none';
         }
 
         // Enter key support for search

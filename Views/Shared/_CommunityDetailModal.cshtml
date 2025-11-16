@@ -12,29 +12,31 @@
                     <i class="fas fa-users me-2"></i>
                     <span id="modalCommunityName">Community Details</span>
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
                     <!-- Community Image -->
                     <div class="col-md-4 text-center mb-4">
-                        <div id="modalCommunityImage" class="community-icon mx-auto" style="width: 120px; height: 120px;">
+                        <div id="modalCommunityImage" class="community-icon mx-auto"
+                            style="width: 120px; height: 120px;">
                             <i class="fas fa-users" style="font-size: 3rem;"></i>
                         </div>
                     </div>
-                    
+
                     <!-- Community Details -->
                     <div class="col-md-8">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Community Type:</label>
                             <span id="modalCommunityType" class="badge bg-success ms-2"></span>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Description:</label>
                             <p id="modalCommunityDescription" class="text-muted"></p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Location:</label>
                             <p id="modalCommunityLocation" class="text-muted">
@@ -42,7 +44,7 @@
                                 <span>Loading...</span>
                             </p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Created By:</label>
                             <p id="modalCommunityCreator" class="text-muted">
@@ -50,7 +52,7 @@
                                 <span>Loading...</span>
                             </p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Created Date:</label>
                             <p id="modalCommunityCreatedDate" class="text-muted">
@@ -58,7 +60,7 @@
                                 <span>Loading...</span>
                             </p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Members:</label>
                             <p id="modalCommunityMembers" class="text-muted">
@@ -66,7 +68,7 @@
                                 <span>Loading...</span>
                             </p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Last Activity:</label>
                             <p id="modalCommunityLastActivity" class="text-muted">
@@ -94,57 +96,150 @@
         currentCommunityId: null,
         currentCommunityType: null,
         modal: null,
-        
+        isInitialized: false,
+        hideHandler: null, // Store reference to handler for cleanup
+        originalKeyboard: true,
+        originalBackdrop: true,
+
         init() {
+            // Prevent multiple initializations
+            if (this.isInitialized) {
+                console.log('Modal manager already initialized');
+                return;
+            }
+
             // Initialize Bootstrap modal
             const modalElement = document.getElementById('@modalId');
-            this.modal = new bootstrap.Modal(modalElement);
+            if (!modalElement) {
+                console.error('Modal element not found');
+                return;
+            }
             
-            // Handle join community button in modal
-            document.getElementById('modalJoinCommunityBtn').addEventListener('click', () => {
-                if (this.currentCommunityId) {
-                    this.joinCommunityFromModal(this.currentCommunityId, this.currentCommunityType);
-                }
-            });
+            this.modal = new bootstrap.Modal(modalElement);
 
-            // Clean up when modal is hidden
-            modalElement.addEventListener('hidden.bs.modal', () => {
+            // Store original config
+            this.originalKeyboard = this.modal._config.keyboard;
+            this.originalBackdrop = this.modal._config.backdrop;
+
+            // Handle join community button in modal - use once
+            const joinButton = document.getElementById('modalJoinCommunityBtn');
+            if (joinButton) {
+                // Remove any existing listeners first
+                joinButton.replaceWith(joinButton.cloneNode(true));
+                // Re-attach listener to the new button
+                document.getElementById('modalJoinCommunityBtn').addEventListener('click', () => {
+                    if (this.currentCommunityId) {
+                        this.joinCommunityFromModal(this.currentCommunityId, this.currentCommunityType);
+                    }
+                });
+            }
+
+            // Create hide handler and store reference
+            this.hideHandler = () => {
+                console.log('Modal hidden, cleaning up...');
                 this.currentCommunityId = null;
                 this.currentCommunityType = null;
                 this.resetModalContent();
+                // Ensure close functionality is restored when modal is closed
+                this.toggleCloseButtons(true);
+                if (this.modal) {
+                    this.modal._config.keyboard = this.originalKeyboard;
+                    this.modal._config.backdrop = this.originalBackdrop;
+                }
+            };
+            
+            // Add event listener for modal hide
+            modalElement.addEventListener('hidden.bs.modal', this.hideHandler);
+
+            // Prevent modal from reopening when clicking backdrop
+            modalElement.addEventListener('click', (e) => {
+                if (e.target === modalElement) {
+                    this.modal.hide();
+                }
             });
+
+            // Prevent multiple initializations
+            this.isInitialized = true;
+            console.log('Modal manager initialized successfully');
         },
-        
-        resetModalContent() {
-            document.getElementById('modalCommunityName').textContent = 'Community Details';
-            document.getElementById('modalCommunityDescription').textContent = 'Loading...';
-            document.getElementById('modalCommunityLocation').innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Loading...';
-            document.getElementById('modalCommunityCreator').innerHTML = '<i class="fas fa-user me-1"></i>Loading...';
-            document.getElementById('modalCommunityCreatedDate').innerHTML = '<i class="fas fa-calendar me-1"></i>Loading...';
-            document.getElementById('modalCommunityMembers').innerHTML = '<i class="fas fa-users me-1"></i>Loading...';
-            document.getElementById('modalCommunityLastActivity').innerHTML = '<i class="fas fa-clock me-1"></i>Loading...';
+
+        // Clean up method to remove event listeners
+        destroy() {
+            if (!this.isInitialized) return;
+            
+            const modalElement = document.getElementById('@modalId');
+            if (modalElement && this.hideHandler) {
+                modalElement.removeEventListener('hidden.bs.modal', this.hideHandler);
+            }
             
             const joinButton = document.getElementById('modalJoinCommunityBtn');
-            joinButton.disabled = false;
-            joinButton.classList.remove('btn-success', 'btn-warning');
-            joinButton.classList.add('btn-primary');
-            joinButton.innerHTML = '<i class="fas fa-plus me-1"></i><span>Join Community</span>';
-            joinButton.style.display = 'block';
+            if (joinButton) {
+                joinButton.replaceWith(joinButton.cloneNode(true));
+            }
+            
+            this.isInitialized = false;
+            this.modal = null;
+            this.hideHandler = null;
+            console.log('Modal manager destroyed');
         },
-        
+
+        resetModalContent() {
+            const elements = {
+                name: document.getElementById('modalCommunityName'),
+                description: document.getElementById('modalCommunityDescription'),
+                location: document.getElementById('modalCommunityLocation'),
+                creator: document.getElementById('modalCommunityCreator'),
+                createdDate: document.getElementById('modalCommunityCreatedDate'),
+                members: document.getElementById('modalCommunityMembers'),
+                lastActivity: document.getElementById('modalCommunityLastActivity')
+            };
+
+            // Safely reset all elements
+            if (elements.name) elements.name.textContent = 'Community Details';
+            if (elements.description) elements.description.textContent = 'Loading...';
+            if (elements.location) elements.location.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Loading...';
+            if (elements.creator) elements.creator.innerHTML = '<i class="fas fa-user me-1"></i>Loading...';
+            if (elements.createdDate) elements.createdDate.innerHTML = '<i class="fas fa-calendar me-1"></i>Loading...';
+            if (elements.members) elements.members.innerHTML = '<i class="fas fa-users me-1"></i>Loading...';
+            if (elements.lastActivity) elements.lastActivity.innerHTML = '<i class="fas fa-clock me-1"></i>Loading...';
+
+            const joinButton = document.getElementById('modalJoinCommunityBtn');
+            if (joinButton) {
+                joinButton.disabled = false;
+                joinButton.classList.remove('btn-success', 'btn-warning');
+                joinButton.classList.add('btn-primary');
+                joinButton.innerHTML = '<i class="fas fa-plus me-1"></i><span>Join Community</span>';
+                joinButton.style.display = 'block';
+            }
+        },
+
         async showCommunityDetails(communityId) {
             try {
+                // Ensure modal is initialized
+                if (!this.isInitialized) {
+                    this.init();
+                }
+
                 this.currentCommunityId = communityId;
                 this.resetModalContent();
-                
+
                 // Show modal first
-                this.modal.show();
-                
+                if (this.modal) {
+                    this.modal.show();
+                } else {
+                    console.error('Modal not initialized');
+                    return;
+                }
+
                 const response = await fetch(`/Search/GetCommunityDetails?communityId=${communityId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
-                
-                console.log('Community API Response:', result); // Debug log
-                
+
+                console.log('Community API Response:', result);
+
                 if (result.success && result.data) {
                     const community = result.data;
                     this.currentCommunityType = community.communityType;
@@ -158,62 +253,74 @@
                 this.showError('Failed to load community details. Please try again.');
             }
         },
-        
+
         updateModalContent(community) {
+            // Safe element updates with null checks
+            const updateElement = (id, content) => {
+                const element = document.getElementById(id);
+                if (element) element.innerHTML = content;
+            };
+
+            const setTextContent = (id, text) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = text;
+            };
+
             // Update modal content with community data
-            document.getElementById('modalCommunityName').textContent = community.communityName;
-            
+            setTextContent('modalCommunityName', community.communityName);
+
             // Update community type badge
             const typeBadge = document.getElementById('modalCommunityType');
-            typeBadge.textContent = community.communityType;
-            typeBadge.className = `badge ${community.communityType === 'Public' ? 'bg-success' : 'bg-warning'} ms-2`;
-            
+            if (typeBadge) {
+                typeBadge.textContent = community.communityType;
+                typeBadge.className = `badge ${community.communityType === 'Public' ? 'bg-success' : 'bg-warning'} ms-2`;
+            }
+
             // Update description
-            document.getElementById('modalCommunityDescription').textContent = 
-                community.description || 'No description provided.';
-            
-            // Update location - FIX: Use communityLocation (correct property name)
+            setTextContent('modalCommunityDescription', community.description || 'No description provided.');
+
+            // Update location
             const locationText = community.communityLocation || 'Location not specified';
-            document.getElementById('modalCommunityLocation').innerHTML = 
-                `<i class="fas fa-map-marker-alt me-1"></i>${locationText}`;
-            
+            updateElement('modalCommunityLocation', `<i class="fas fa-map-marker-alt me-1"></i>${locationText}`);
+
             // Update creator
-            document.getElementById('modalCommunityCreator').innerHTML = 
-                `<i class="fas fa-user me-1"></i>${community.creatorName || 'Unknown'}`;
-            
+            updateElement('modalCommunityCreator', `<i class="fas fa-user me-1"></i>${community.creatorName || 'Unknown'}`);
+
             // Update created date
-            const createdDate = community.createdDate ? 
+            const createdDate = community.createdDate ?
                 new Date(community.createdDate).toLocaleDateString() : 'Unknown';
-            document.getElementById('modalCommunityCreatedDate').innerHTML = 
-                `<i class="fas fa-calendar me-1"></i>${createdDate}`;
-            
+            updateElement('modalCommunityCreatedDate', `<i class="fas fa-calendar me-1"></i>${createdDate}`);
+
             // Update members
-            document.getElementById('modalCommunityMembers').innerHTML = 
-                `<i class="fas fa-users me-1"></i>${community.memberCount || 0} members`;
-            
+            updateElement('modalCommunityMembers', `<i class="fas fa-users me-1"></i>${community.memberCount || 0} members`);
+
             // Update last activity
-            const lastActivity = community.lastActivityDate ? 
+            const lastActivity = community.lastActivityDate ?
                 new Date(community.lastActivityDate).toLocaleDateString() : 'Recently';
-            document.getElementById('modalCommunityLastActivity').innerHTML = 
-                `<i class="fas fa-clock me-1"></i>${lastActivity}`;
-            
+            updateElement('modalCommunityLastActivity', `<i class="fas fa-clock me-1"></i>${lastActivity}`);
+
             // Update community image
             const communityImage = document.getElementById('modalCommunityImage');
-            if (community.communityPic) {
-                communityImage.innerHTML = `<img src="${community.communityPic}" alt="${community.communityName}" 
-                    style="width: 100%; height: 100%; border-radius: 16px; object-fit: cover;">`;
-            } else {
-                communityImage.innerHTML = '<i class="fas fa-users" style="font-size: 3rem;"></i>';
+            if (communityImage) {
+                if (community.communityPic) {
+                    communityImage.innerHTML = `<img src="${community.communityPic}" alt="${community.communityName}" 
+                        style="width: 100%; height: 100%; border-radius: 16px; object-fit: cover;">`;
+                } else {
+                    communityImage.innerHTML = '<i class="fas fa-users" style="font-size: 3rem;"></i>';
+                }
             }
-            
+
             // Update join button
             this.updateJoinButton(community);
         },
-        
+
         updateJoinButton(community) {
             const joinButton = document.getElementById('modalJoinCommunityBtn');
-            
-            if (community.isMember) {
+            if (!joinButton) return;
+
+            // FIX: Only show "Already Joined" for ACTIVE memberships
+            // Allow rejoining for INACTIVE memberships
+            if (community.isMember && community.memberStatus === "Active") {
                 joinButton.disabled = true;
                 joinButton.innerHTML = '<i class="fas fa-check me-1"></i>Already Joined';
                 joinButton.classList.remove('btn-primary');
@@ -230,24 +337,37 @@
                 joinButton.innerHTML = `<i class="fas fa-plus me-1"></i><span>${community.communityType === 'Private' ? 'Request to Join' : 'Join Community'}</span>`;
             }
         },
-        
+
         showError(message) {
-            document.getElementById('modalCommunityName').textContent = 'Error';
-            document.getElementById('modalCommunityDescription').textContent = message;
-            document.getElementById('modalJoinCommunityBtn').style.display = 'none';
+            const nameElement = document.getElementById('modalCommunityName');
+            const descElement = document.getElementById('modalCommunityDescription');
+            const joinButton = document.getElementById('modalJoinCommunityBtn');
+            
+            if (nameElement) nameElement.textContent = 'Error';
+            if (descElement) descElement.textContent = message;
+            if (joinButton) joinButton.style.display = 'none';
         },
-        
+
         async joinCommunityFromModal(communityId, communityType) {
             const button = document.getElementById('modalJoinCommunityBtn');
+            if (!button) return;
+
             const originalHTML = button.innerHTML;
-            
+
+            // Disable close functionality
+            this.toggleCloseButtons(false);
+            if (this.modal) {
+                this.modal._config.keyboard = false; // Disable ESC key
+                this.modal._config.backdrop = 'static'; // Disable backdrop click
+            }
+
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-            
+
             try {
                 const token = this.getCsrfToken();
-                
-                const response = await fetch('/Search/JoinCommunity', {
+
+                const response = await fetch('/Communities/JoinCommunity', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -255,37 +375,80 @@
                     },
                     body: `communityId=${communityId}`
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     if (data.requiresApproval) {
                         button.innerHTML = '<i class="fas fa-clock me-1"></i>Request Sent';
                         button.classList.remove('btn-primary');
                         button.classList.add('btn-warning');
+                        button.disabled = true;
                         this.showAlert('success', data.message);
                     } else {
                         button.innerHTML = '<i class="fas fa-check me-1"></i>Joined';
                         button.classList.remove('btn-primary');
                         button.classList.add('btn-success');
+                        button.disabled = true;
                         this.showAlert('success', data.message);
                     }
-                    
+
                     // Update the button in the main list if it exists
                     this.updateListButton(communityId, data.requiresApproval);
+
+                    // Keep modal locked for 1.5 seconds after success
+                    setTimeout(() => {
+                        this.toggleCloseButtons(true);
+                        if (this.modal) {
+                            this.modal._config.keyboard = this.originalKeyboard;
+                            this.modal._config.backdrop = this.originalBackdrop;
+                        }
+                        
+                        // Refresh modal content
+                        this.showCommunityDetails(communityId);
+                    }, 1500);
+
                 } else {
                     button.innerHTML = originalHTML;
                     button.disabled = false;
+                    this.toggleCloseButtons(true);
+                    if (this.modal) {
+                        this.modal._config.keyboard = this.originalKeyboard;
+                        this.modal._config.backdrop = this.originalBackdrop;
+                    }
                     this.showAlert('error', data.message);
                 }
             } catch (error) {
                 console.error('Error joining community:', error);
                 button.innerHTML = originalHTML;
                 button.disabled = false;
+                this.toggleCloseButtons(true);
+                if (this.modal) {
+                    this.modal._config.keyboard = this.originalKeyboard;
+                    this.modal._config.backdrop = this.originalBackdrop;
+                }
                 this.showAlert('error', 'Error joining community. Please try again.');
             }
         },
-        
+
+        // Helper method to toggle close buttons
+        toggleCloseButtons(enable) {
+            const closeButton = document.querySelector('#@modalId .btn-close');
+            const footerCloseButton = document.querySelector('#@modalId .btn-secondary[data-bs-dismiss="modal"]');
+            
+            if (closeButton) {
+                closeButton.disabled = !enable;
+                closeButton.style.pointerEvents = enable ? '' : 'none';
+                closeButton.style.opacity = enable ? '' : '0.5';
+            }
+            
+            if (footerCloseButton) {
+                footerCloseButton.disabled = !enable;
+                footerCloseButton.style.pointerEvents = enable ? '' : 'none';
+                footerCloseButton.style.opacity = enable ? '' : '0.5';
+            }
+        },
+
         updateListButton(communityId, requiresApproval) {
             const listButton = document.querySelector(`.join-community-btn[data-community-id="${communityId}"]`);
             if (listButton) {
@@ -302,25 +465,34 @@
                 }
             }
         },
-        
+
         getCsrfToken() {
             const el = document.querySelector('input[name="__RequestVerificationToken"]');
             return el ? el.value : null;
         },
-        
+
         showAlert(type, message) {
             // You can replace this with a better notification system
             alert(type === 'success' ? message : '❌ ' + message);
         }
     };
 
-    // Initialize when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        CommunityModalManager.init();
+    // Initialize when DOM is loaded - only once
+    let initialized = false;
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!initialized) {
+            CommunityModalManager.init();
+            initialized = true;
+        }
     });
 
     // Global function to open modal
-    window.openCommunityDetailModal = function(communityId) {
+    window.openCommunityDetailModal = function (communityId) {
         CommunityModalManager.showCommunityDetails(communityId);
     };
+
+    // Clean up when page unloads
+    window.addEventListener('beforeunload', function() {
+        CommunityModalManager.destroy();
+    });
 </script>
