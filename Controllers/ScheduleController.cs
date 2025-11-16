@@ -389,5 +389,171 @@ public IActionResult Edit(int id, ScheduleEditViewModel vm)
             TempData["SuccessMessage"] = "Game has been ended! Participants can now leave endorsements.";
             return RedirectToAction("Details", new { id = scheduleId });
         }
+
+        // Add these methods to your ScheduleController:
+
+// GET: /Schedule/GetScheduleChatHistory
+[HttpGet]
+public async Task<IActionResult> GetScheduleChatHistory(int scheduleId, int skip = 0, int take = 50)
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int userId = currentUserIdInt.Value;
+
+    try
+    {
+        var schedule = await _context.Schedules
+            .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+        if (schedule == null)
+        {
+            return NotFound(new { success = false, message = "Schedule not found." });
+        }
+
+        // ⬇️ FIXED: Check if user is SCHEDULE ORGANIZER
+        var isScheduleOrganizer = await _context.ScheduleParticipants
+            .AnyAsync(sp => sp.ScheduleId == scheduleId && 
+                           sp.UserId == userId && 
+                           sp.Role == ParticipantRole.Organizer);
+
+        // Check if user is in a confirmed team
+        var isInConfirmedTeam = await _context.Teams
+            .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed)
+            .AnyAsync(team => team.TeamMembers.Any(tm => 
+                tm.UserId == userId && 
+                tm.Status == TeamMemberStatus.Joined
+            ));
+
+        // User must be organizer OR in confirmed team
+        if (!isScheduleOrganizer && !isInConfirmedTeam)
+        {
+            return Forbid("Only organizers and confirmed team members can view schedule chat.");
+        }
+
+        // Get chat history
+        var messages = await _context.ScheduleChatMessages
+            .Include(m => m.Sender)
+            .Where(m => m.ScheduleId == scheduleId && !m.IsDeleted)
+            .OrderByDescending(m => m.SentAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        // Map messages and check organizer status for each sender
+        var mappedMessages = new List<object>();
+        foreach (var m in messages)
+        {
+            // ⬇️ FIXED: Check if sender is SCHEDULE ORGANIZER (not team captain)
+            var senderIsOrganizer = await _context.ScheduleParticipants
+                .AnyAsync(sp => sp.ScheduleId == scheduleId && 
+                               sp.UserId == m.SenderId && 
+                               sp.Role == ParticipantRole.Organizer);
+
+            mappedMessages.Add(new
+            {
+                messageId = m.MessageId,
+                scheduleId = m.ScheduleId,
+                senderId = m.SenderId,
+                senderName = m.Sender?.Username ?? "Unknown",
+                senderProfilePicture = m.Sender?.ProfilePicture,
+                content = m.Content,
+                sentAt = m.SentAt,
+                isOrganizer = senderIsOrganizer, // ⬅️ FIXED
+                isMine = m.SenderId == userId
+            });
+        }
+
+        // Reverse to show oldest to newest
+        mappedMessages.Reverse();
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                messages = mappedMessages,
+                hasMore = messages.Count == take
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading schedule chat history: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An error occurred while loading chat history."
+        });
+    }
+}
+
+// Update DeleteScheduleMessage:
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> DeleteScheduleMessage(int messageId, int scheduleId)
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+    {
+        return Unauthorized(new { success = false, message = "User not authenticated." });
+    }
+
+    int userId = currentUserIdInt.Value;
+
+    try
+    {
+        var message = await _context.ScheduleChatMessages
+            .FirstOrDefaultAsync(m => m.MessageId == messageId && m.ScheduleId == scheduleId);
+
+        if (message == null)
+        {
+            return NotFound(new { success = false, message = "Message not found." });
+        }
+
+        // ⬇️ FIXED: Check if user is SCHEDULE ORGANIZER (not team captain)
+        var isScheduleOrganizer = await _context.ScheduleParticipants
+            .AnyAsync(sp => sp.ScheduleId == scheduleId && 
+                           sp.UserId == userId && 
+                           sp.Role == ParticipantRole.Organizer);
+
+        bool isOwner = message.SenderId == userId;
+        bool canDelete = isScheduleOrganizer || isOwner;
+
+        if (!canDelete)
+        {
+            return Forbid("You don't have permission to delete this message.");
+        }
+
+        // Soft delete
+        message.IsDeleted = true;
+        message.DeletedAt = DateTime.UtcNow;
+        message.DeletedByUserId = userId;
+
+        _context.ScheduleChatMessages.Update(message);
+        await _context.SaveChangesAsync();
+
+        Console.WriteLine($"Schedule message {messageId} deleted by user {userId} (Schedule Organizer: {isScheduleOrganizer})");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Message deleted successfully.",
+            messageId = messageId
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error deleting schedule message: {ex.Message}");
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "An error occurred while deleting the message."
+        });
+    }
+}
     }
 }

@@ -42,6 +42,7 @@ namespace PicklePlay.Data
 
         public DbSet<Message> Messages { get; set; }
         public DbSet<CommunityChatMessage> CommunityChatMessages { get; set; }
+        public DbSet<ScheduleChatMessage> ScheduleChatMessages { get; set; }
 
 
 

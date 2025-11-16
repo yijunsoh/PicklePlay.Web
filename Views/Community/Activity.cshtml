@@ -764,62 +764,70 @@ else
 
                 @* --- UPDATED MEMBERS TAB PANE (Moved from right column) --- *@
                 <div class="tab-pane fade" id="members-tab-pane" role="tabpanel" aria-labelledby="members-tab"
-                    tabindex="0">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h4 class="mb-0">Community Members</h4>
-                                <span class="badge bg-success fs-6">@communityMembers.Count members</span>
-                            </div>
+    tabindex="0">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">Community Members</h4>
+                <span class="badge bg-success fs-6">@communityMembers.Count members</span>
+            </div>
 
-                            @if (communityMembers.Any())
-                            {
-                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                                    @foreach (var member in communityMembers)
-                                    {
-                                        <div class="col">
-                                            <div class="card h-100 shadow-sm">
-                                                <div class="card-body text-center">
-                                                    <div class="member-avatar mb-3">
-                                                        @if (!string.IsNullOrEmpty(member.User?.ProfilePicture))
-                                                        {
-                                                            <img src="@member.User.ProfilePicture" alt="@member.User.Username"
-                                                                class="img-fluid rounded-circle"
-                                                                style="width: 80px; height: 80px; object-fit: cover;">
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center"
-                                                                style="width: 80px; height: 80px;">
-                                                                <i class="fas fa-user fa-2x"></i>
-                                                            </div>
-                                                        }
-                                                    </div>
-                                                    <h5 class="card-title mb-1">@member.User?.Username</h5>
-                                                    <p class="card-text">
-                                                        <span
-                                                            class="badge @(member.CommunityRole == "Admin" ? "bg-warning text-dark" : "bg-secondary")">
-                                                            @member.CommunityRole
-                                                        </span>
-                                                    </p>
-                                                    <small class="text-muted">Member since @member.JoinDate.ToString("MMM yyyy")</small>
-                                                </div>
+            @if (communityMembers.Any())
+            {
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    @foreach (var member in communityMembers)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm member-card">
+                                <div class="card-body text-center">
+                                    <div class="member-avatar mb-3" 
+                                         onclick="showUserProfilePreview(@member.UserId)" 
+                                         style="cursor: pointer;"
+                                         title="View @member.User?.Username's profile">
+                                        @if (!string.IsNullOrEmpty(member.User?.ProfilePicture))
+                                        {
+                                            <img src="@member.User.ProfilePicture" 
+                                                 alt="@member.User.Username"
+                                                 class="img-fluid rounded-circle member-profile-pic"
+                                                 style="width: 80px; height: 80px; object-fit: cover;">
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center member-placeholder"
+                                                style="width: 80px; height: 80px;">
+                                                <i class="fas fa-user fa-2x"></i>
                                             </div>
-                                        </div>
-                                    }
+                                        }
+                                    </div>
+                                    <h5 class="card-title mb-1 member-username" 
+                                        onclick="showUserProfilePreview(@member.UserId)" 
+                                        style="cursor: pointer;"
+                                        title="View profile">
+                                        @member.User?.Username
+                                    </h5>
+                                    <p class="card-text">
+                                        <span class="badge @(member.CommunityRole == "Admin" ? "bg-warning text-dark" : member.CommunityRole == "Moderator" ? "bg-primary" : "bg-secondary")">
+                                            @member.CommunityRole
+                                        </span>
+                                    </p>
+                                    <small class="text-muted">Member since @member.JoinDate.ToString("MMM yyyy")</small>
                                 </div>
-                            }
-                            else
-                            {
-                                <div class="text-center py-5">
-                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                    <h5 class="text-muted">No members yet</h5>
-                                    <p class="text-muted">Be the first to join this community!</p>
-                                </div>
-                            }
+                            </div>
                         </div>
-                    </div>
+                    }
                 </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No members yet</h5>
+                    <p class="text-muted">Be the first to join this community!</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
 
             </div> @* End Main Tab Content *@
         </div> @* End Center Column *@
@@ -1162,14 +1170,50 @@ else
     }
 
     /* Members Styling */
-    .member-avatar {
-        transition: transform 0.3s ease;
-    }
+ .member-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
 
-    .member-avatar:hover {
-        transform: scale(1.05);
-    }
+.member-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+}
 
+.member-avatar {
+    transition: transform 0.3s ease;
+}
+
+.member-avatar:hover {
+    transform: scale(1.1);
+}
+
+.member-profile-pic {
+    border: 3px solid #2E8B57;
+    transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.member-profile-pic:hover {
+    border-color: #1E5B32;
+    transform: scale(1.05);
+}
+
+.member-placeholder {
+    transition: all 0.3s ease;
+}
+
+.member-placeholder:hover {
+    background: linear-gradient(135deg, #2E8B57 0%, #1E5B32 100%);
+    transform: scale(1.05);
+}
+
+.member-username {
+    transition: color 0.2s ease;
+}
+
+.member-username:hover {
+    color: #2E8B57;
+}
+/* Chat Component Styling */
     .chat-message {
     margin-bottom: 15px;
     display: flex;
@@ -1190,6 +1234,27 @@ else
     border: 2px solid #dee2e6;
 }
 
+/* ⬇️ ADD THIS: Hover effect for avatar */
+.chat-message-avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-color: #2E8B57;
+}
+
+.chat-message-sender {
+    font-weight: 600;
+    font-size: 14px;
+    color: #2E8B57;
+    cursor: pointer; /* ⬅️ ADD THIS */
+    transition: color 0.2s ease; /* ⬅️ ADD THIS */
+}
+
+/* ⬇️ ADD THIS: Hover effect for sender name */
+.chat-message-sender:hover {
+    color: #1E5B32;
+    text-decoration: underline;
+}
+
 .chat-message-content {
     max-width: 70%;
 }
@@ -1201,11 +1266,7 @@ else
     gap: 8px;
 }
 
-.chat-message-sender {
-    font-weight: 600;
-    font-size: 14px;
-    color: #2E8B57;
-}
+
 
 .chat-message-role {
     font-size: 11px;
@@ -1336,6 +1397,7 @@ else
     pointer-events: auto !important;
     opacity: 1 !important;
 }
+
 </style>
 
 @section Scripts {
@@ -1537,62 +1599,67 @@ else
     };
 
     // Append chat message to UI
-    function appendChatMessage(data, shouldScroll = true) {
-        const messagesContainer = document.getElementById('chatMessages');
-        if (!messagesContainer) return;
+ function appendChatMessage(data, shouldScroll = true) {
+    const messagesContainer = document.getElementById('chatMessages');
+    if (!messagesContainer) return;
 
-        // Remove "no messages" placeholder if exists
-        const placeholder = messagesContainer.querySelector('.text-center.py-5');
-        if (placeholder) {
-            placeholder.remove();
-        }
+    const placeholder = messagesContainer.querySelector('.text-center.py-5');
+    if (placeholder) {
+        placeholder.remove();
+    }
 
-        const isMine = data.senderId === currentUserId;
+    const isMine = data.senderId === currentUserId;
     
-    // Role badge
     const roleBadge = data.isAdmin 
         ? '<span class="chat-message-role admin">ADMIN</span>' 
         : data.isModerator 
             ? '<span class="chat-message-role moderator">MOD</span>' 
             : '';
 
-    // ⬇️ UPDATED: Delete button logic - Admin/Moderator can delete ANY message
     const canDelete = isMine || userRole === 'Admin' || userRole === 'Moderator';
     const deleteButton = canDelete
         ? `<button class="chat-message-delete" onclick="deleteCommunityMessage(${data.messageId})" title="Delete message">×</button>`
         : '';
 
-        const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
+    const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
 
-        const messageHtml = `
-            <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
-                <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
-                     class="chat-message-avatar" 
-                     alt="${data.senderName}"
-                     onerror="this.src='/images/profile_image.jpg'">
-                <div class="chat-message-content">
-                    <div class="chat-message-header">
-                        <span class="chat-message-sender">${escapeHtml(data.senderName)}</span>
-                        ${roleBadge}
-                        <span class="chat-message-time">${messageTime}</span>
-                    </div>
-                    <div class="chat-message-bubble">
-                        ${escapeHtml(data.content)}
-                        ${deleteButton}
-                    </div>
+    const messageHtml = `
+        <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
+            <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
+                 class="chat-message-avatar" 
+                 alt="${data.senderName}"
+                 onclick="showUserProfilePreview(${data.senderId})"
+                 style="cursor: pointer;"
+                 title="View ${data.senderName}'s profile"
+                 onerror="this.src='/images/profile_image.jpg'">
+            <div class="chat-message-content">
+                <div class="chat-message-header">
+                    <span class="chat-message-sender" 
+                          onclick="showUserProfilePreview(${data.senderId})" 
+                          style="cursor: pointer;"
+                          title="View profile">
+                        ${escapeHtml(data.senderName)}
+                    </span>
+                    ${roleBadge}
+                    <span class="chat-message-time">${messageTime}</span>
+                </div>
+                <div class="chat-message-bubble">
+                    ${escapeHtml(data.content)}
+                    ${deleteButton}
                 </div>
             </div>
-        `;
+        </div>
+    `;
 
-        messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+    messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
 
-        if (shouldScroll) {
-            scrollToBottom();
-        }
+    if (shouldScroll) {
+        scrollToBottom();
     }
+}
 
     // Append system message
     function appendSystemMessage(message) {

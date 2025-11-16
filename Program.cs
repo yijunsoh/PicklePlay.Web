@@ -80,6 +80,7 @@ app.UseAuthorization();
 // ⬇️ MAP SIGNALR HUB
 app.MapHub<ChatHub>("/chatHub");
 app.MapHub<CommunityChatHub>("/communityChatHub");
+app.MapHub<ScheduleChatHub>("/scheduleChatHub");
 
 // Default route
 app.MapControllerRoute(
