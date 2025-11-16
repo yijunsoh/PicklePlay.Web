@@ -34,74 +34,100 @@ namespace PicklePlay.Controllers
 
         // Community Home Page
         // --- UPDATED: Community Home Page with community filtering ---
-        public IActionResult Activity(int? communityId)
+public IActionResult Activity(int? communityId)
+{
+    // ⬇️ ADD THIS: Get current user ID
+    var currentUserId = GetCurrentUserId();
+    if (!currentUserId.HasValue)
+    {
+        return RedirectToAction("Login", "Account");
+    }
+
+    // Store the current community in session or view data
+    if (communityId.HasValue)
+    {
+        HttpContext.Session.SetInt32("CurrentCommunityId", communityId.Value);
+    }
+    else
+    {
+        // If no community specified, try to get from session
+        communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
+    }
+
+    // Get the current community object
+    var currentCommunity = communityId.HasValue ?
+        _context.Communities.Find(communityId.Value) : null;
+
+    ViewData["CurrentCommunityId"] = communityId;
+    ViewData["CurrentCommunity"] = currentCommunity;
+
+    // --- NEW: Get additional community data ---
+    if (communityId.HasValue && currentCommunity != null)
+    {
+        // ⬇️ ADD THIS: Get user's role in the community
+        var membership = _context.CommunityMembers
+            .FirstOrDefault(cm => cm.CommunityId == communityId.Value && 
+                                 cm.UserId == currentUserId.Value && 
+                                 cm.Status == "Active");
+
+        if (membership != null)
         {
-            // Store the current community in session or view data
-            if (communityId.HasValue)
-            {
-                HttpContext.Session.SetInt32("CurrentCommunityId", communityId.Value);
-            }
-            else
-            {
-                // If no community specified, try to get from session
-                communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
-            }
-
-            // Get the current community object
-            var currentCommunity = communityId.HasValue ?
-                _context.Communities.Find(communityId.Value) : null;
-
-            ViewData["CurrentCommunityId"] = communityId;
-            ViewData["CurrentCommunity"] = currentCommunity;
-
-            // --- NEW: Get additional community data ---
-            if (communityId.HasValue && currentCommunity != null)
-            {
-                // Get member count
-                var memberCount = _context.CommunityMembers
-                    .Count(cm => cm.CommunityId == communityId.Value && cm.Status == "Active");
-                ViewData["MemberCount"] = memberCount;
-
-                // Get announcements (latest 5, not expired)
-                var announcements = _context.CommunityAnnouncements
-                    .Include(a => a.Poster)
-                    .Where(a => a.CommunityId == communityId.Value &&
-                               (!a.ExpiryDate.HasValue || a.ExpiryDate.Value > DateTime.UtcNow))
-                    .OrderByDescending(a => a.PostDate)
-                    .Take(5)
-                    .ToList();
-                ViewData["Announcements"] = announcements;
-
-                // Get community members (first 15, admins first)
-                var communityMembers = _context.CommunityMembers
-                    .Include(cm => cm.User)
-                    .Where(cm => cm.CommunityId == communityId.Value && cm.Status == "Active")
-                    .OrderBy(cm => cm.CommunityRole) // Admins first
-                    .ThenBy(cm => cm.User.Username)
-                    .Take(15)
-                    .ToList();
-                ViewData["CommunityMembers"] = communityMembers;
-            }
-            else
-            {
-                // Set default values when no community is selected
-                ViewData["MemberCount"] = 0;
-                ViewData["Announcements"] = new List<CommunityAnnouncement>();
-                ViewData["CommunityMembers"] = new List<CommunityMember>();
-            }
-
-            // Filter schedules by community
-            IQueryable<Schedule> query = _context.Schedules;
-
-            if (communityId.HasValue)
-            {
-                query = query.Where(s => s.CommunityId == communityId.Value);
-            }
-
-            var games = query.ToList();
-
-            return View(games);
+            ViewBag.UserRole = membership.CommunityRole; // Should be "Admin", "Moderator", or "Member"
+            Console.WriteLine($"User {currentUserId.Value} role in community {communityId.Value}: {membership.CommunityRole}");
         }
+        else
+        {
+            ViewBag.UserRole = "Guest"; // Not a member
+            Console.WriteLine($"User {currentUserId.Value} is NOT a member of community {communityId.Value}");
+        }
+        // ⬆️ END OF NEW CODE
+
+        // Get member count
+        var memberCount = _context.CommunityMembers
+            .Count(cm => cm.CommunityId == communityId.Value && cm.Status == "Active");
+        ViewData["MemberCount"] = memberCount;
+
+        // Get announcements (latest 5, not expired)
+        var announcements = _context.CommunityAnnouncements
+            .Include(a => a.Poster)
+            .Where(a => a.CommunityId == communityId.Value &&
+                       (!a.ExpiryDate.HasValue || a.ExpiryDate.Value > DateTime.UtcNow))
+            .OrderByDescending(a => a.PostDate)
+            .Take(5)
+            .ToList();
+        ViewData["Announcements"] = announcements;
+
+        // Get community members (first 15, admins first)
+        var communityMembers = _context.CommunityMembers
+            .Include(cm => cm.User)
+            .Where(cm => cm.CommunityId == communityId.Value && cm.Status == "Active")
+            .OrderBy(cm => cm.CommunityRole) // Admins first
+            .ThenBy(cm => cm.User.Username)
+            .Take(15)
+            .ToList();
+        ViewData["CommunityMembers"] = communityMembers;
+    }
+    else
+    {
+        // Set default values when no community is selected
+        ViewBag.UserRole = "Guest"; // ⬅️ ADD THIS
+        ViewData["MemberCount"] = 0;
+        ViewData["Announcements"] = new List<CommunityAnnouncement>();
+        ViewData["CommunityMembers"] = new List<CommunityMember>();
+    }
+
+    // Filter schedules by community
+    IQueryable<Schedule> query = _context.Schedules;
+
+    if (communityId.HasValue)
+    {
+        query = query.Where(s => s.CommunityId == communityId.Value);
+    }
+
+    var games = query.ToList();
+
+    return View(games);
+}
 
         // --- CREATE RECURRING ---
         [HttpGet]
