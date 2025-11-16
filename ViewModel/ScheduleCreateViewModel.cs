@@ -67,5 +67,7 @@ namespace PicklePlay.Models
         [Display(Name = "Game Description")]
         [StringLength(1000)]
         public string? Description { get; set; }
+
+        public int? CommunityId { get; set; }
     }
 }

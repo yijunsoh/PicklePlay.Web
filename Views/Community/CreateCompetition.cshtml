@@ -29,6 +29,12 @@
         @* Hidden fields to track ID and existing image path during edits *@
         <input type="hidden" asp-for="ScheduleId" />
         <input type="hidden" asp-for="ExistingImageUrl" />
+        
+        @* --- ADD COMMUNITY ID HIDDEN FIELD --- *@
+        @if (ViewData["CurrentCommunityId"] != null)
+        {
+            <input type="hidden" name="CommunityId" value="@ViewData["CurrentCommunityId"]" />
+        }
 
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 

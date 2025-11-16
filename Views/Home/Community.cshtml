@@ -778,7 +778,7 @@ border: none; border-radius: 12px;">
             const actionButtons = community.userRole === 'Admin'
                 ? `
                     <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                        <i class="fas fa-door-open me-2"></i>Enter
+                        <i class="fas fa-door-open me-2"></i>Enter Community
                     </button>
                     <button class="btn-secondary-custom" onclick="manageCommunity(${community.id})">
                         <i class="fas fa-cog me-2"></i>Manage
@@ -787,7 +787,7 @@ border: none; border-radius: 12px;">
                 : community.userRole === 'Member'
                 ? `
                     <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                        <i class="fas fa-door-open me-2"></i>Enter
+                        <i class="fas fa-door-open me-2"></i>Enter Community
                     </button>
                     <button class="btn-danger-custom" onclick="leaveCommunity(${community.id})">
                         <i class="fas fa-sign-out-alt me-2"></i>Leave
@@ -1009,9 +1009,10 @@ border: none; border-radius: 12px;">
     }
 }
 
-        // Community action functions
+        // --- UPDATED: Community action functions ---
         function enterCommunity(communityId) {
-            alert(`Entering community ${communityId} - In real app, this would navigate to community page`);
+            // Navigate to community activity page
+            window.location.href = `/Community/EnterCommunity?communityId=${communityId}`;
         }
 
         function manageCommunity(communityId) {

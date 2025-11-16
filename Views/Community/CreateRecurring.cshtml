@@ -12,6 +12,13 @@
 
     <form asp-action="CreateRecurring" method="post">
         @Html.AntiForgeryToken()
+        
+        @* --- ADD COMMUNITY ID HIDDEN FIELD --- *@
+        @if (ViewData["CurrentCommunityId"] != null)
+        {
+            <input type="hidden" name="CommunityId" value="@ViewData["CurrentCommunityId"]" />
+        }
+        
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         <div class="mb-3">

@@ -33,9 +33,73 @@ namespace PicklePlay.Controllers
         }
 
         // Community Home Page
-        public IActionResult Activity()
+        // --- UPDATED: Community Home Page with community filtering ---
+        public IActionResult Activity(int? communityId)
         {
-            var games = _scheduleRepository.All();
+            // Store the current community in session or view data
+            if (communityId.HasValue)
+            {
+                HttpContext.Session.SetInt32("CurrentCommunityId", communityId.Value);
+            }
+            else
+            {
+                // If no community specified, try to get from session
+                communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
+            }
+
+            // Get the current community object
+            var currentCommunity = communityId.HasValue ?
+                _context.Communities.Find(communityId.Value) : null;
+
+            ViewData["CurrentCommunityId"] = communityId;
+            ViewData["CurrentCommunity"] = currentCommunity;
+
+            // --- NEW: Get additional community data ---
+            if (communityId.HasValue && currentCommunity != null)
+            {
+                // Get member count
+                var memberCount = _context.CommunityMembers
+                    .Count(cm => cm.CommunityId == communityId.Value && cm.Status == "Active");
+                ViewData["MemberCount"] = memberCount;
+
+                // Get announcements (latest 5, not expired)
+                var announcements = _context.CommunityAnnouncements
+                    .Include(a => a.Poster)
+                    .Where(a => a.CommunityId == communityId.Value &&
+                               (!a.ExpiryDate.HasValue || a.ExpiryDate.Value > DateTime.UtcNow))
+                    .OrderByDescending(a => a.PostDate)
+                    .Take(5)
+                    .ToList();
+                ViewData["Announcements"] = announcements;
+
+                // Get community members (first 15, admins first)
+                var communityMembers = _context.CommunityMembers
+                    .Include(cm => cm.User)
+                    .Where(cm => cm.CommunityId == communityId.Value && cm.Status == "Active")
+                    .OrderBy(cm => cm.CommunityRole) // Admins first
+                    .ThenBy(cm => cm.User.Username)
+                    .Take(15)
+                    .ToList();
+                ViewData["CommunityMembers"] = communityMembers;
+            }
+            else
+            {
+                // Set default values when no community is selected
+                ViewData["MemberCount"] = 0;
+                ViewData["Announcements"] = new List<CommunityAnnouncement>();
+                ViewData["CommunityMembers"] = new List<CommunityMember>();
+            }
+
+            // Filter schedules by community
+            IQueryable<Schedule> query = _context.Schedules;
+
+            if (communityId.HasValue)
+            {
+                query = query.Where(s => s.CommunityId == communityId.Value);
+            }
+
+            var games = query.ToList();
+
             return View(games);
         }
 
@@ -52,10 +116,12 @@ namespace PicklePlay.Controllers
         {
 
             var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return Json(new { success = false, message = "Please log in." });
-        }
+            if (!currentUserId.HasValue)
+            {
+                return Json(new { success = false, message = "Please log in." });
+            }
+
+            var currentCommunityId = HttpContext.Session.GetInt32("CurrentCommunityId");
 
             // --- Validation ---
             if (vm.RecurringWeek == null || !vm.RecurringWeek.Any())
@@ -103,6 +169,7 @@ namespace PicklePlay.Controllers
                 GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
+                CommunityId = currentCommunityId,
                 CreatedByUserId = currentUserId.Value,
                 Status = ScheduleStatus.Active
             };
@@ -143,6 +210,8 @@ namespace PicklePlay.Controllers
                         GameFeature = parentSchedule.GameFeature,
                         CancellationFreeze = parentSchedule.CancellationFreeze,
                         HostRole = parentSchedule.HostRole,
+                        CommunityId = currentCommunityId,
+                        CreatedByUserId = currentUserId.Value,
                         Status = ScheduleStatus.Active,
                         RecurringWeek = null,
                         RecurringEndDate = null,
@@ -151,7 +220,7 @@ namespace PicklePlay.Controllers
 
                     _scheduleRepository.Add(instanceSchedule);
                     // --- ADD THIS NEW CODE ---
-                    
+
 
                     if (currentUserId.HasValue) // <-- Check if the nullable int has a value
                     {
@@ -201,10 +270,12 @@ namespace PicklePlay.Controllers
         {
 
             var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return Json(new { success = false, message = "Please log in." });
-        }
+            if (!currentUserId.HasValue)
+            {
+                return Json(new { success = false, message = "Please log in." });
+            }
+
+            var currentCommunityId = HttpContext.Session.GetInt32("CurrentCommunityId");
 
             if (vm.StartTime <= DateTime.Now)
             {
@@ -236,6 +307,7 @@ namespace PicklePlay.Controllers
                 GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
+                CommunityId = currentCommunityId,
                 CreatedByUserId = currentUserId.Value,
                 Status = ScheduleStatus.Active // Set status
             };
@@ -248,7 +320,7 @@ namespace PicklePlay.Controllers
 
             _scheduleRepository.Add(newSchedule);
             // --- ADD THIS NEW CODE ---
-           
+
             if (currentUserId.HasValue) // <-- Check if the nullable int has a value
             {
                 // Add as Organizer
@@ -283,9 +355,9 @@ namespace PicklePlay.Controllers
 
         // REPLACE this entire action in CommunityController.cs
 
-// In CommunityController.cs
+        // In CommunityController.cs
 
-[HttpPost]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> JoinIndividually(int scheduleId)
         {
@@ -306,7 +378,7 @@ namespace PicklePlay.Controllers
             {
                 bool isOrganizer = schedule.Participants.Any(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Organizer);
                 bool isFree = schedule.FeeType == FeeType.Free || schedule.FeeType == FeeType.None;
-                
+
                 ParticipantStatus newStatus;
 
                 // *** THIS IS THE NEW LOGIC ***
@@ -362,7 +434,7 @@ namespace PicklePlay.Controllers
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
 
-       [HttpPost]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelJoin(int scheduleId)
         {
@@ -396,7 +468,7 @@ namespace PicklePlay.Controllers
                     // User was OnHold or Pending, so just delete the record.
                     // It will NOT appear in the "Hidden" tab.
                     _context.ScheduleParticipants.Remove(participant);
-                    
+
                     if (participant.Status == ParticipantStatus.OnHold)
                     {
                         TempData["SuccessMessage"] = "Your request to join has been cancelled.";
@@ -406,7 +478,7 @@ namespace PicklePlay.Controllers
                         TempData["SuccessMessage"] = "Your spot has been cancelled.";
                     }
                 }
-                
+
                 await _context.SaveChangesAsync();
             }
             else
@@ -450,10 +522,12 @@ namespace PicklePlay.Controllers
             string? uniqueImagePath = await ProcessUploadedImage(vm.PosterImage);
 
             var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return Json(new { success = false, message = "Please log in." });
-        }
+            if (!currentUserId.HasValue)
+            {
+                return Json(new { success = false, message = "Please log in." });
+            }
+
+            var currentCommunityId = HttpContext.Session.GetInt32("CurrentCommunityId");
 
             // 2. Map ViewModel to Schedule Model
             var newSchedule = new Schedule
@@ -481,6 +555,7 @@ namespace PicklePlay.Controllers
                 Privacy = vm.Privacy,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = HostRole.HostOnly,
+                CommunityId = currentCommunityId,
                 Status = ScheduleStatus.PendingSetup,
                 CreatedByUserId = currentUserId.Value,
                 CompetitionImageUrl = uniqueImagePath
@@ -500,29 +575,29 @@ namespace PicklePlay.Controllers
             newSchedule.Competition = newCompetition;
 
             // 5. Add the Schedule to the database
-           try
-{
-    _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
+            try
+            {
+                _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
 
-    // *** THIS IS THE FIX ***
-    // Add the creator as the "Organizer" participant   
-    if (currentUserId.HasValue)
-    {
-        var organizer = new ScheduleParticipant
-        {
-            ScheduleId = newSchedule.ScheduleId,
-            UserId = currentUserId.Value,
-            Role = ParticipantRole.Organizer,
-            Status = ParticipantStatus.Confirmed
-        };
-        _context.ScheduleParticipants.Add(organizer);
-        await _context.SaveChangesAsync(); // Save the new organizer
-    }
-    // *** END OF FIX ***
+                // *** THIS IS THE FIX ***
+                // Add the creator as the "Organizer" participant   
+                if (currentUserId.HasValue)
+                {
+                    var organizer = new ScheduleParticipant
+                    {
+                        ScheduleId = newSchedule.ScheduleId,
+                        UserId = currentUserId.Value,
+                        Role = ParticipantRole.Organizer,
+                        Status = ParticipantStatus.Confirmed
+                    };
+                    _context.ScheduleParticipants.Add(organizer);
+                    await _context.SaveChangesAsync(); // Save the new organizer
+                }
+                // *** END OF FIX ***
 
-    TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
-    return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
-}
+                TempData["SuccessMessage"] = "Competition draft created! Proceed to setup matches.";
+                return RedirectToAction("SetupMatch", new { id = newSchedule.ScheduleId });
+            }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", $"An error occurred creating the competition: {ex.Message}");
@@ -710,11 +785,11 @@ namespace PicklePlay.Controllers
 
             scheduleToUpdate.Competition.Format = vm.Format;
             scheduleToUpdate.Competition.MatchRule = vm.MatchRule;
-            
+
             // --- NEW LOGIC ---
             // Save settings based on the selected format
             // We save ALL values, and the UI can just hide/show what's relevant.
-            
+
             // Pool Play Settings
             scheduleToUpdate.Competition.NumPool = vm.NumPool;
             scheduleToUpdate.Competition.WinnersPerPool = vm.WinnersPerPool;
@@ -724,7 +799,7 @@ namespace PicklePlay.Controllers
             scheduleToUpdate.Competition.TieBreakWin = vm.TieBreakWin;
             scheduleToUpdate.Competition.TieBreakLoss = vm.TieBreakLoss;
             scheduleToUpdate.Competition.Draw = vm.Draw;
-            
+
             // Elimination Settings
             scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch; // <-- THIS IS THE FIX
 
@@ -899,8 +974,8 @@ namespace PicklePlay.Controllers
                 return Unauthorized();
 
             bool isOrganizer = await _context.ScheduleParticipants
-                .AnyAsync(p => p.ScheduleId == scheduleId && 
-                               p.UserId == currentUserId.Value && 
+                .AnyAsync(p => p.ScheduleId == scheduleId &&
+                               p.UserId == currentUserId.Value &&
                                p.Role == ParticipantRole.Organizer);
 
             if (!isOrganizer)
@@ -926,6 +1001,15 @@ namespace PicklePlay.Controllers
             await _context.SaveChangesAsync();
 
             return Json(new { message = "Organizer added successfully." });
+        }
+
+        public IActionResult EnterCommunity(int communityId)
+        {
+            // Store community in session
+            HttpContext.Session.SetInt32("CurrentCommunityId", communityId);
+
+            // Redirect to activity page with the community context
+            return RedirectToAction("Activity", new { communityId = communityId });
         }
     }
 }

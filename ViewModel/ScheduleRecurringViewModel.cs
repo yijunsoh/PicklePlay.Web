@@ -83,5 +83,7 @@ namespace PicklePlay.Models
         [Display(Name = "Host Role")]
         [Required]
         public HostRole HostRole { get; set; } = HostRole.HostAndPlay;
+
+        public int? CommunityId { get; set; }
     }
 }

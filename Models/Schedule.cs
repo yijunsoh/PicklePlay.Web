@@ -14,7 +14,7 @@ namespace PicklePlay.Models
         // --- NEW: Link to the parent "Template" schedule ---
         [Column("parentScheduleId")]
         public int? ParentScheduleId { get; set; }
-        
+
         // --- NEW: The date this recurrence series ends ---
         [Column("recurringEndDate")]
         public DateTime? RecurringEndDate { get; set; }
@@ -62,7 +62,7 @@ namespace PicklePlay.Models
 
         [Column("ageGroupRestriction")] // Removed TypeName
         public AgeGroupRestriction? AgeGroupRestriction { get; set; } = Models.AgeGroupRestriction.None;
-        
+
         [Column("feeType")] // Removed TypeName
         public FeeType? FeeType { get; set; } = Models.FeeType.PerPerson;
 
@@ -104,7 +104,7 @@ namespace PicklePlay.Models
 
         [Column("earlyBirdClose")]
         public DateTime? EarlyBirdClose { get; set; }
-        
+
         [Column("competitionImageUrl")]
         [StringLength(512)] // Max path length
         public string? CompetitionImageUrl { get; set; }
@@ -115,6 +115,13 @@ namespace PicklePlay.Models
 
         [Column("endorsementStatus")]
         public EndorsementStatus EndorsementStatus { get; set; } = EndorsementStatus.InProgress;
+
+        [Column("community_id")]
+        public int? CommunityId { get; set; }
+
+        // --- ADD THIS NAVIGATION PROPERTY ---
+        [ForeignKey("CommunityId")]
+        public virtual Community? Community { get; set; }
 
 
         // --- ADD NAVIGATION PROPERTY ---
@@ -129,9 +136,9 @@ namespace PicklePlay.Models
         public virtual ICollection<Pool> Pools { get; set; } = new List<Pool>();
 
         public int? CreatedByUserId { get; set; }
-    
-    [ForeignKey("CreatedByUserId")]
-    public User? CreatedByUser { get; set; }
+
+        [ForeignKey("CreatedByUserId")]
+        public User? CreatedByUser { get; set; }
 
     }
 }

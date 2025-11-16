@@ -85,6 +85,8 @@ namespace PicklePlay.Models
         [Display(Name = "Competition Poster/Banner")]
         public IFormFile? PosterImage { get; set; }
 
+        public int? CommunityId { get; set; }
+
 
     }
 }
