@@ -166,6 +166,30 @@
             display: inline-block;
         }
 
+        .stats-badge.bg-danger {
+            background: rgba(220, 53, 69, 0.1) !important;
+            color: #dc3545 !important;
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+
+        .stats-badge.bg-success {
+            background: rgba(25, 135, 84, 0.1) !important;
+            color: #198754 !important;
+            border: 1px solid rgba(25, 135, 84, 0.2);
+        }
+
+        .stats-badge.bg-warning {
+            background: rgba(255, 193, 7, 0.1) !important;
+            color: #ffc107 !important;
+            border: 1px solid rgba(255, 193, 7, 0.2);
+        }
+
+        .stats-badge.bg-info {
+            background: rgba(13, 110, 253, 0.1) !important;
+            color: #0d6efd !important;
+            border: 1px solid rgba(13, 110, 253, 0.2);
+        }
+
         .search-input {
             border-radius: 50px;
             border: 2px solid #e9ecef;
@@ -403,6 +427,25 @@
             text-align: center;
             margin-top: 10px;
         }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .community-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            object-fit: cover;
+        }
     </style>
 }
 
@@ -460,12 +503,12 @@
             <div class="tab-pane fade show active" id="players" role="tabpanel">
                 <div class="filter-section">
                     <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Players</h3>
-                    
+
                     <!-- Search Row -->
                     <div class="row g-3 align-items-center filter-row">
                         <div class="col-md-6">
-                            <input type="text" class="form-control search-input" id="playerSearch" 
-                                   placeholder="Search by name, email, or bio...">
+                            <input type="text" class="form-control search-input" id="playerSearch"
+                                placeholder="Search by name, email, or bio...">
                         </div>
                         <div class="col-md-3">
                             <select class="form-select filter-select" id="playerGender">
@@ -496,7 +539,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="reset-section">
-                                <button class="btn btn-reset" onclick="resetSearch()">
+                                <button class="btn btn-reset" onclick="resetPlayerSearch()">
                                     <i class="fas fa-refresh me-2"></i>Reset Filters
                                 </button>
                             </div>
@@ -522,55 +565,78 @@
                 </div>
 
                 <!-- Pagination Container -->
-                <div id="paginationContainer"></div>
+                <div id="playerPaginationContainer"></div>
             </div>
 
             <!-- Communities Tab -->
             <div class="tab-pane fade" id="communities" role="tabpanel">
                 <div class="filter-section">
                     <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Communities</h3>
-                    <div class="row g-3 align-items-center">
+
+                    <!-- Search Row -->
+                    <div class="row g-3 align-items-center filter-row">
                         <div class="col-md-6">
-                            <input type="text" class="form-control search-input" placeholder="Search community by name...">
+                            <input type="text" class="form-control search-input" id="communitySearch"
+                                placeholder="Search community by name or description...">
                         </div>
                         <div class="col-md-3">
-                            <select class="form-select filter-select">
-                                <option value="">All Communities</option>
+                            <select class="form-select filter-select" id="communityFilter">
+                                <option value="">Sort by: Newest First</option>
                                 <option value="newest">Newest Communities</option>
                                 <option value="largest">Largest Communities</option>
                                 <option value="active">Most Active</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <button class="btn btn-custom w-100">
+                            <button class="btn btn-custom w-100" onclick="searchCommunities(1)">
                                 <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
                     </div>
-                </div>
 
-                <div class="result-count">
-                    <i class="fas fa-users me-2"></i>Found 0 communities matching your criteria
-                </div>
-
-                <div class="row" id="communitiesResults">
-                    <div class="col-12">
-                        <div class="empty-state">
-                            <i class="fas fa-users text-muted"></i>
-                            <h4>Communities feature coming soon</h4>
-                            <p class="text-muted">We're working on bringing communities to you!</p>
+                    <!-- Reset Row -->
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <div class="reset-section">
+                                <button class="btn btn-reset" onclick="resetCommunitySearch()">
+                                    <i class="fas fa-refresh me-2"></i>Reset Filters
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Results Count -->
+                <div class="result-count">
+                    <i class="fas fa-users me-2"></i>
+                    <span id="communityCount">Page 1 - Showing communities</span>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="communityLoading">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading communities...</p>
+                </div>
+
+                <!-- Communities Results -->
+                <div class="row" id="communitiesResults">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+
+                <!-- Pagination Container -->
+                <div id="communityPaginationContainer"></div>
             </div>
 
             <!-- Games Tab -->
             <div class="tab-pane fade" id="games" role="tabpanel">
                 <div class="filter-section">
                     <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Games</h3>
-                    <div class="row g-3 align-items-center">
+
+                    <!-- Search Row -->
+                    <div class="row g-3 align-items-center filter-row">
                         <div class="col-md-6">
-                            <input type="text" class="form-control search-input" id="gameSearch" placeholder="Search games by location or name...">
+                            <input type="text" class="form-control search-input" id="gameSearch"
+                                placeholder="Search games by location or name...">
                         </div>
                         <div class="col-md-3">
                             <select class="form-select filter-select" id="gameFilter">
@@ -581,41 +647,55 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <button class="btn btn-custom w-100" onclick="searchGames()">
+                            <button class="btn btn-custom w-100" onclick="searchGames(1)">
                                 <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
                     </div>
+
+                    <!-- Reset Row -->
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <div class="reset-section">
+                                <button class="btn btn-reset" onclick="resetGameSearch()">
+                                    <i class="fas fa-refresh me-2"></i>Reset Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                <!-- Results Count -->
                 <div class="result-count">
-                    <i class="fas fa-table-tennis-paddle-ball me-2"></i><span id="gameCount">Found @Model.Games.Count games</span>
+                    <i class="fas fa-table-tennis-paddle-ball me-2"></i>
+                    <span id="gameCount">Page 1 - Showing games</span>
                 </div>
 
+                <!-- Loading Spinner -->
                 <div class="loading-spinner" id="gameLoading">
                     <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
                     <p class="mt-2">Loading games...</p>
                 </div>
 
+                <!-- Games Results -->
                 <div class="row" id="gamesResults">
-                    @* @await Html.PartialAsync("_GameResults", Model.Games) *@
-                    <div class="col-12">
-                        <div class="empty-state">
-                            <i class="fas fa-table-tennis-paddle-ball text-muted"></i>
-                            <h4>Games feature coming soon</h4>
-                            <p class="text-muted">We're working on bringing games to you!</p>
-                        </div>
-                    </div>
+                    <!-- Will be populated by JavaScript -->
                 </div>
+
+                <!-- Pagination Container -->
+                <div id="gamePaginationContainer"></div>
             </div>
 
             <!-- Competitions Tab -->
             <div class="tab-pane fade" id="competitions" role="tabpanel">
                 <div class="filter-section">
                     <h3 class="section-title"><i class="fas fa-filter me-2"></i>Filter Competitions</h3>
-                    <div class="row g-3 align-items-center">
+
+                    <!-- Search Row -->
+                    <div class="row g-3 align-items-center filter-row">
                         <div class="col-md-6">
-                            <input type="text" class="form-control search-input" id="competitionSearch" placeholder="Search competitions by name...">
+                            <input type="text" class="form-control search-input" id="competitionSearch"
+                                placeholder="Search competitions by name...">
                         </div>
                         <div class="col-md-3">
                             <select class="form-select filter-select" id="competitionFilter">
@@ -625,62 +705,111 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <button class="btn btn-custom w-100" onclick="searchCompetitions()">
+                            <button class="btn btn-custom w-100" onclick="searchCompetitions(1)">
                                 <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
                     </div>
+
+                    <!-- Reset Row -->
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-6">
+                            <div class="reset-section">
+                                <button class="btn btn-reset" onclick="resetCompetitionSearch()">
+                                    <i class="fas fa-refresh me-2"></i>Reset Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                <!-- Results Count -->
                 <div class="result-count">
-                    <i class="fas fa-trophy me-2"></i><span id="competitionCount">Found @Model.Competitions.Count competitions</span>
+                    <i class="fas fa-trophy me-2"></i>
+                    <span id="competitionCount">Page 1 - Showing competitions</span>
                 </div>
 
+                <!-- Loading Spinner -->
                 <div class="loading-spinner" id="competitionLoading">
                     <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
                     <p class="mt-2">Loading competitions...</p>
                 </div>
 
+                <!-- Competitions Results -->
                 <div class="row" id="competitionsResults">
                     @await Html.PartialAsync("_CompetitionResults", Model.Competitions)
                 </div>
+
+                <!-- Pagination Container -->
+                <div id="competitionPaginationContainer"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Include your existing modals here (FriendModal, JoinCommunityModal, RegisterModal, ViewProfileModal) -->
-
+@await Html.PartialAsync("_CommunityDetailModal", 
+    viewData: new ViewDataDictionary(ViewData)
+    {
+        ["ModalContext"] = "search"
+    })
 @section Scripts {
     <script>
+        // Player Search Variables
         let currentPlayerPage = 1;
-        let currentSearchTerm = '';
-        let currentFilter = '';
-        let currentGender = 'all';
+        let currentPlayerSearchTerm = '';
+        let currentPlayerFilter = '';
+        let currentPlayerGender = 'all';
 
-        // Load initial data when page loads
+        // Community Search Variables
+        let currentCommunityPage = 1;
+        let currentCommunitySearchTerm = '';
+        let currentCommunityFilter = '';
+
+        // Game Search Variables
+        let currentGamePage = 1;
+        let currentGameSearchTerm = '';
+        let currentGameFilter = '';
+
+        // Competition Search Variables
+        let currentCompetitionPage = 1;
+        let currentCompetitionSearchTerm = '';
+        let currentCompetitionFilter = '';
+
+        // Initialize tabs
         document.addEventListener('DOMContentLoaded', function () {
             loadInitialPlayers(1);
-            
+
             // Set up tab change events
-            document.getElementById('players-tab').addEventListener('click', function() {
+            document.getElementById('players-tab').addEventListener('click', function () {
                 loadInitialPlayers(1);
+            });
+
+            document.getElementById('communities-tab').addEventListener('click', function () {
+                loadInitialCommunities(1);
+            });
+
+            document.getElementById('games-tab').addEventListener('click', function () {
+                loadInitialGames(1);
+            });
+
+            document.getElementById('competitions-tab').addEventListener('click', function () {
+                loadInitialCompetitions(1);
             });
         });
 
-        // Function to load initial players
+        // ========== PLAYER FUNCTIONS ==========
         function loadInitialPlayers(page = 1) {
             showLoading('playerLoading');
             currentPlayerPage = page;
-            currentSearchTerm = '';
-            currentFilter = '';
-            currentGender = 'all';
-            
+            currentPlayerSearchTerm = '';
+            currentPlayerFilter = '';
+            currentPlayerGender = 'all';
+
             // Reset form fields
             document.getElementById('playerSearch').value = '';
             document.getElementById('playerFilter').value = '';
             document.getElementById('playerGender').value = 'all';
-            
+
             fetch(`/Search/GetInitialPlayers?page=${page}`)
                 .then(response => {
                     if (!response.ok) {
@@ -691,7 +820,7 @@
                 .then(html => {
                     document.getElementById('playersResults').innerHTML = html;
                     updatePlayerDisplayInfo();
-                    updatePaginationInfo();
+                    updatePlayerPaginationInfo();
                     hideLoading('playerLoading');
                     initializeFavoriteButtons();
                 })
@@ -702,19 +831,18 @@
                 });
         }
 
-        // Search function
         function searchPlayers(page = 1) {
             const searchTerm = document.getElementById('playerSearch').value;
             const filter = document.getElementById('playerFilter').value;
             const gender = document.getElementById('playerGender').value;
-            
-            currentSearchTerm = searchTerm;
-            currentFilter = filter;
-            currentGender = gender;
+
+            currentPlayerSearchTerm = searchTerm;
+            currentPlayerFilter = filter;
+            currentPlayerGender = gender;
             currentPlayerPage = page;
-            
+
             showLoading('playerLoading');
-            
+
             fetch(`/Search/GetPlayers?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&gender=${encodeURIComponent(gender)}&page=${page}`)
                 .then(response => {
                     if (!response.ok) {
@@ -725,7 +853,7 @@
                 .then(html => {
                     document.getElementById('playersResults').innerHTML = html;
                     updatePlayerDisplayInfo();
-                    updatePaginationInfo(searchTerm, filter, gender);
+                    updatePlayerPaginationInfo(searchTerm, filter, gender);
                     hideLoading('playerLoading');
                     initializeFavoriteButtons();
                 })
@@ -735,12 +863,11 @@
                 });
         }
 
-        // Update player display info with clearer wording
         function updatePlayerDisplayInfo() {
             const count = document.querySelectorAll('#playersResults .result-card').length;
             const countElement = document.getElementById('playerCount');
             if (countElement) {
-                if (currentSearchTerm || currentFilter !== '' || currentGender !== 'all') {
+                if (currentPlayerSearchTerm || currentPlayerFilter !== '' || currentPlayerGender !== 'all') {
                     countElement.textContent = `Page ${currentPlayerPage} - Showing ${count} players (Filtered)`;
                 } else {
                     countElement.textContent = `Page ${currentPlayerPage} - Showing ${count} players`;
@@ -748,8 +875,7 @@
             }
         }
 
-        // Function to update pagination information
-        function updatePaginationInfo(searchTerm = '', filter = '', gender = 'all') {
+        function updatePlayerPaginationInfo(searchTerm = '', filter = '', gender = 'all') {
             fetch(`/Search/GetPlayerCount?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&gender=${encodeURIComponent(gender)}`)
                 .then(response => {
                     if (!response.ok) {
@@ -758,118 +884,606 @@
                     return response.json();
                 })
                 .then(data => {
-                    createPaginationControls(data.totalPages, data.totalCount);
+                    createPlayerPaginationControls(data.totalPages, data.totalCount);
                 })
                 .catch(error => {
-                    console.error('Error getting pagination info:', error);
-                    document.getElementById('paginationContainer').innerHTML = '';
+                    console.error('Error getting player pagination info:', error);
+                    document.getElementById('playerPaginationContainer').innerHTML = '';
                 });
         }
 
-        // Function to create beautiful pagination controls
-        function createPaginationControls(totalPages, totalCount) {
-            const container = document.getElementById('paginationContainer');
-            
+        function createPlayerPaginationControls(totalPages, totalCount) {
+            const container = document.getElementById('playerPaginationContainer');
+
             if (totalPages <= 1) {
                 container.innerHTML = '';
                 return;
             }
 
             let paginationHTML = `
-                <div class="pagination-container">
-                    <div class="pagination-info">
-                        Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
-                    </div>
-                    <div class="pagination-buttons">
-            `;
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
+                        </div>
+                        <div class="pagination-buttons">
+                `;
 
             // Previous button
             paginationHTML += `
-                <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
-                        onclick="changePage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
-                    <i class="fas fa-chevron-left"></i> Previous
-                </button>
-            `;
+                    <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
+                            onclick="changePlayerPage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                `;
 
-            // Page numbers - show max 5 pages
+            // Page numbers
             const startPage = Math.max(1, currentPlayerPage - 2);
             const endPage = Math.min(totalPages, startPage + 4);
 
-            // First page and ellipsis
             if (startPage > 1) {
-                paginationHTML += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+                paginationHTML += `<button class="page-btn" onclick="changePlayerPage(1)">1</button>`;
                 if (startPage > 2) {
                     paginationHTML += `<span class="pagination-ellipsis">...</span>`;
                 }
             }
 
-            // Page numbers
             for (let i = startPage; i <= endPage; i++) {
                 if (i === currentPlayerPage) {
                     paginationHTML += `<button class="page-btn active">${i}</button>`;
                 } else {
-                    paginationHTML += `<button class="page-btn" onclick="changePage(${i})">${i}</button>`;
+                    paginationHTML += `<button class="page-btn" onclick="changePlayerPage(${i})">${i}</button>`;
                 }
             }
 
-            // Last page and ellipsis
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) {
                     paginationHTML += `<span class="pagination-ellipsis">...</span>`;
                 }
-                paginationHTML += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+                paginationHTML += `<button class="page-btn" onclick="changePlayerPage(${totalPages})">${totalPages}</button>`;
             }
 
             // Next button
             paginationHTML += `
-                <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
-                        onclick="changePage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
-                    Next <i class="fas fa-chevron-right"></i>
-                </button>
-            `;
+                    <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
+                            onclick="changePlayerPage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
 
             paginationHTML += `
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
             container.innerHTML = paginationHTML;
         }
 
-        // Function to change page
-        function changePage(page) {
-            if (currentSearchTerm || currentFilter !== '' || currentGender !== 'all') {
+        function changePlayerPage(page) {
+            if (currentPlayerSearchTerm || currentPlayerFilter !== '' || currentPlayerGender !== 'all') {
                 searchPlayers(page);
             } else {
                 loadInitialPlayers(page);
             }
         }
 
-        // Reset search and show all players
-        function resetSearch() {
+        function resetPlayerSearch() {
             loadInitialPlayers(1);
         }
 
-        // Helper function to show errors
-        function showError(containerId, message) {
-            document.getElementById(containerId).innerHTML = `
-                <div class="col-12">
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-triangle text-muted"></i>
-                        <h4>Error</h4>
-                        <p class="text-muted">${message}</p>
-                    </div>
-                </div>
-            `;
+        // ========== COMMUNITY FUNCTIONS ==========
+        function loadInitialCommunities(page = 1) {
+            showLoading('communityLoading');
+            currentCommunityPage = page;
+            currentCommunitySearchTerm = '';
+            currentCommunityFilter = '';
+
+            // Reset form fields
+            document.getElementById('communitySearch').value = '';
+            document.getElementById('communityFilter').value = '';
+
+            fetch(`/Search/GetInitialCommunities?page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('communitiesResults').innerHTML = html;
+                    updateCommunityDisplayInfo();
+                    updateCommunityPaginationInfo();
+                    hideLoading('communityLoading');
+                    initializeCommunityButtons();
+                })
+                .catch(error => {
+                    console.error('Error loading communities:', error);
+                    hideLoading('communityLoading');
+                    showError('communitiesResults', 'Error loading communities. Please try again.');
+                });
         }
 
-        // Re-initialize favorite buttons
+        function searchCommunities(page = 1) {
+            const searchTerm = document.getElementById('communitySearch').value;
+            const filter = document.getElementById('communityFilter').value;
+
+            currentCommunitySearchTerm = searchTerm;
+            currentCommunityFilter = filter;
+            currentCommunityPage = page;
+
+            showLoading('communityLoading');
+
+            // The search now includes location search automatically since the backend
+            // searches both CommunityName and Description (which includes location)
+            fetch(`/Search/GetCommunities?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('communitiesResults').innerHTML = html;
+                    updateCommunityDisplayInfo();
+                    updateCommunityPaginationInfo(searchTerm, filter);
+                    hideLoading('communityLoading');
+                    initializeCommunityButtons();
+                })
+                .catch(error => {
+                    console.error('Error searching communities:', error);
+                    hideLoading('communityLoading');
+                });
+        }
+
+        function updateCommunityDisplayInfo() {
+            const count = document.querySelectorAll('#communitiesResults .result-card').length;
+            const countElement = document.getElementById('communityCount');
+            if (countElement) {
+                if (currentCommunitySearchTerm || currentCommunityFilter !== '') {
+                    countElement.textContent = `Page ${currentCommunityPage} - Showing ${count} communities (Filtered)`;
+                } else {
+                    countElement.textContent = `Page ${currentCommunityPage} - Showing ${count} communities`;
+                }
+            }
+        }
+
+        function updateCommunityPaginationInfo(searchTerm = '', filter = '') {
+            fetch(`/Search/GetCommunityCount?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    createCommunityPaginationControls(data.totalPages, data.totalCount);
+                })
+                .catch(error => {
+                    console.error('Error getting community pagination info:', error);
+                    document.getElementById('communityPaginationContainer').innerHTML = '';
+                });
+        }
+
+        function createCommunityPaginationControls(totalPages, totalCount) {
+            const container = document.getElementById('communityPaginationContainer');
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let paginationHTML = `
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Page ${currentCommunityPage} of ${totalPages} • Total ${totalCount} communities
+                        </div>
+                        <div class="pagination-buttons">
+                `;
+
+            // Previous button
+            paginationHTML += `
+                    <button class="page-nav ${currentCommunityPage === 1 ? 'disabled' : ''}" 
+                            onclick="changeCommunityPage(${currentCommunityPage - 1})" ${currentCommunityPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                `;
+
+            // Page numbers
+            const startPage = Math.max(1, currentCommunityPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            if (startPage > 1) {
+                paginationHTML += `<button class="page-btn" onclick="changeCommunityPage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentCommunityPage) {
+                    paginationHTML += `<button class="page-btn active">${i}</button>`;
+                } else {
+                    paginationHTML += `<button class="page-btn" onclick="changeCommunityPage(${i})">${i}</button>`;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+                paginationHTML += `<button class="page-btn" onclick="changeCommunityPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Next button
+            paginationHTML += `
+                    <button class="page-nav ${currentCommunityPage === totalPages ? 'disabled' : ''}" 
+                            onclick="changeCommunityPage(${currentCommunityPage + 1})" ${currentCommunityPage === totalPages ? 'disabled' : ''}>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+
+            paginationHTML += `
+                        </div>
+                    </div>
+                `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        function changeCommunityPage(page) {
+            if (currentCommunitySearchTerm || currentCommunityFilter !== '') {
+                searchCommunities(page);
+            } else {
+                loadInitialCommunities(page);
+            }
+        }
+
+        function resetCommunitySearch() {
+            loadInitialCommunities(1);
+        }
+
+        // ========== GAME FUNCTIONS ==========
+        function loadInitialGames(page = 1) {
+            showLoading('gameLoading');
+            currentGamePage = page;
+            currentGameSearchTerm = '';
+            currentGameFilter = '';
+
+            // Reset form fields
+            document.getElementById('gameSearch').value = '';
+            document.getElementById('gameFilter').value = '';
+
+            fetch(`/Search/GetInitialGames?page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('gamesResults').innerHTML = html;
+                    updateGameDisplayInfo();
+                    updateGamePaginationInfo();
+                    hideLoading('gameLoading');
+                    initializeGameButtons();
+                })
+                .catch(error => {
+                    console.error('Error loading games:', error);
+                    hideLoading('gameLoading');
+                    showError('gamesResults', 'Error loading games. Please try again.');
+                });
+        }
+
+        function searchGames(page = 1) {
+            const searchTerm = document.getElementById('gameSearch').value;
+            const filter = document.getElementById('gameFilter').value;
+
+            currentGameSearchTerm = searchTerm;
+            currentGameFilter = filter;
+            currentGamePage = page;
+
+            showLoading('gameLoading');
+
+            fetch(`/Search/GetGames?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('gamesResults').innerHTML = html;
+                    updateGameDisplayInfo();
+                    updateGamePaginationInfo(searchTerm, filter);
+                    hideLoading('gameLoading');
+                    initializeGameButtons();
+                })
+                .catch(error => {
+                    console.error('Error searching games:', error);
+                    hideLoading('gameLoading');
+                });
+        }
+
+        function updateGameDisplayInfo() {
+            const count = document.querySelectorAll('#gamesResults .result-card').length;
+            const countElement = document.getElementById('gameCount');
+            if (countElement) {
+                if (currentGameSearchTerm || currentGameFilter !== '') {
+                    countElement.textContent = `Page ${currentGamePage} - Showing ${count} games (Filtered)`;
+                } else {
+                    countElement.textContent = `Page ${currentGamePage} - Showing ${count} games`;
+                }
+            }
+        }
+
+        function updateGamePaginationInfo(searchTerm = '', filter = '') {
+            fetch(`/Search/GetGameCount?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    createGamePaginationControls(data.totalPages, data.totalCount);
+                })
+                .catch(error => {
+                    console.error('Error getting game pagination info:', error);
+                    document.getElementById('gamePaginationContainer').innerHTML = '';
+                });
+        }
+
+        function createGamePaginationControls(totalPages, totalCount) {
+            const container = document.getElementById('gamePaginationContainer');
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let paginationHTML = `
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Page ${currentGamePage} of ${totalPages} • Total ${totalCount} games
+                        </div>
+                        <div class="pagination-buttons">
+                `;
+
+            // Previous button
+            paginationHTML += `
+                    <button class="page-nav ${currentGamePage === 1 ? 'disabled' : ''}" 
+                            onclick="changeGamePage(${currentGamePage - 1})" ${currentGamePage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                `;
+
+            // Page numbers
+            const startPage = Math.max(1, currentGamePage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            if (startPage > 1) {
+                paginationHTML += `<button class="page-btn" onclick="changeGamePage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentGamePage) {
+                    paginationHTML += `<button class="page-btn active">${i}</button>`;
+                } else {
+                    paginationHTML += `<button class="page-btn" onclick="changeGamePage(${i})">${i}</button>`;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+                paginationHTML += `<button class="page-btn" onclick="changeGamePage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Next button
+            paginationHTML += `
+                    <button class="page-nav ${currentGamePage === totalPages ? 'disabled' : ''}" 
+                            onclick="changeGamePage(${currentGamePage + 1})" ${currentGamePage === totalPages ? 'disabled' : ''}>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+
+            paginationHTML += `
+                        </div>
+                    </div>
+                `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        function changeGamePage(page) {
+            if (currentGameSearchTerm || currentGameFilter !== '') {
+                searchGames(page);
+            } else {
+                loadInitialGames(page);
+            }
+        }
+
+        function resetGameSearch() {
+            loadInitialGames(1);
+        }
+
+        // ========== COMPETITION FUNCTIONS ==========
+        function loadInitialCompetitions(page = 1) {
+            showLoading('competitionLoading');
+            currentCompetitionPage = page;
+            currentCompetitionSearchTerm = '';
+            currentCompetitionFilter = '';
+
+            // Reset form fields
+            document.getElementById('competitionSearch').value = '';
+            document.getElementById('competitionFilter').value = '';
+
+            fetch(`/Search/GetInitialCompetitions?page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('competitionsResults').innerHTML = html;
+                    updateCompetitionDisplayInfo();
+                    updateCompetitionPaginationInfo();
+                    hideLoading('competitionLoading');
+                })
+                .catch(error => {
+                    console.error('Error loading competitions:', error);
+                    hideLoading('competitionLoading');
+                    showError('competitionsResults', 'Error loading competitions. Please try again.');
+                });
+        }
+
+        function searchCompetitions(page = 1) {
+            const searchTerm = document.getElementById('competitionSearch').value;
+            const filter = document.getElementById('competitionFilter').value;
+
+            currentCompetitionSearchTerm = searchTerm;
+            currentCompetitionFilter = filter;
+            currentCompetitionPage = page;
+
+            showLoading('competitionLoading');
+
+            fetch(`/Search/GetCompetitions?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}&page=${page}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('competitionsResults').innerHTML = html;
+                    updateCompetitionDisplayInfo();
+                    updateCompetitionPaginationInfo(searchTerm, filter);
+                    hideLoading('competitionLoading');
+                })
+                .catch(error => {
+                    console.error('Error searching competitions:', error);
+                    hideLoading('competitionLoading');
+                });
+        }
+
+        function updateCompetitionDisplayInfo() {
+            const count = document.querySelectorAll('#competitionsResults .result-card').length;
+            const countElement = document.getElementById('competitionCount');
+            if (countElement) {
+                if (currentCompetitionSearchTerm || currentCompetitionFilter !== '') {
+                    countElement.textContent = `Page ${currentCompetitionPage} - Showing ${count} competitions (Filtered)`;
+                } else {
+                    countElement.textContent = `Page ${currentCompetitionPage} - Showing ${count} competitions`;
+                }
+            }
+        }
+
+        function updateCompetitionPaginationInfo(searchTerm = '', filter = '') {
+            fetch(`/Search/GetCompetitionCount?searchTerm=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    createCompetitionPaginationControls(data.totalPages, data.totalCount);
+                })
+                .catch(error => {
+                    console.error('Error getting competition pagination info:', error);
+                    document.getElementById('competitionPaginationContainer').innerHTML = '';
+                });
+        }
+
+        function createCompetitionPaginationControls(totalPages, totalCount) {
+            const container = document.getElementById('competitionPaginationContainer');
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let paginationHTML = `
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Page ${currentCompetitionPage} of ${totalPages} • Total ${totalCount} competitions
+                        </div>
+                        <div class="pagination-buttons">
+                `;
+
+            // Previous button
+            paginationHTML += `
+                    <button class="page-nav ${currentCompetitionPage === 1 ? 'disabled' : ''}" 
+                            onclick="changeCompetitionPage(${currentCompetitionPage - 1})" ${currentCompetitionPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                `;
+
+            // Page numbers
+            const startPage = Math.max(1, currentCompetitionPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            if (startPage > 1) {
+                paginationHTML += `<button class="page-btn" onclick="changeCompetitionPage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentCompetitionPage) {
+                    paginationHTML += `<button class="page-btn active">${i}</button>`;
+                } else {
+                    paginationHTML += `<button class="page-btn" onclick="changeCompetitionPage(${i})">${i}</button>`;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+                }
+                paginationHTML += `<button class="page-btn" onclick="changeCompetitionPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Next button
+            paginationHTML += `
+                    <button class="page-nav ${currentCompetitionPage === totalPages ? 'disabled' : ''}" 
+                            onclick="changeCompetitionPage(${currentCompetitionPage + 1})" ${currentCompetitionPage === totalPages ? 'disabled' : ''}>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+
+            paginationHTML += `
+                        </div>
+                    </div>
+                `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        function changeCompetitionPage(page) {
+            if (currentCompetitionSearchTerm || currentCompetitionFilter !== '') {
+                searchCompetitions(page);
+            } else {
+                loadInitialCompetitions(page);
+            }
+        }
+
+        function resetCompetitionSearch() {
+            loadInitialCompetitions(1);
+        }
+
+        // ========== HELPER FUNCTIONS ==========
         function initializeFavoriteButtons() {
             document.querySelectorAll('.favorite-btn').forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     this.classList.toggle('btn-custom');
                     this.classList.toggle('btn-outline-custom');
-                    
+
                     if (this.classList.contains('btn-custom')) {
                         this.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
                     } else {
@@ -879,7 +1493,86 @@
             });
         }
 
-        // Helper functions
+        function initializeCommunityButtons() {
+            document.querySelectorAll('.join-community-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const communityId = this.getAttribute('data-community-id');
+                    const communityType = this.getAttribute('data-community-type');
+                    joinCommunity(communityId, communityType, this);
+                });
+            });
+        }
+
+        function initializeGameButtons() {
+            document.querySelectorAll('.favorite-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    this.classList.toggle('btn-custom');
+                    this.classList.toggle('btn-outline-custom');
+
+                    if (this.classList.contains('btn-custom')) {
+                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                    } else {
+                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                    }
+                });
+            });
+        }
+
+        function joinCommunity(communityId, communityType, button) {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+
+            fetch('/Search/JoinCommunity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `communityId=${communityId}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.requiresApproval) {
+                            button.innerHTML = '<i class="fas fa-clock me-1"></i>Pending';
+                            button.classList.remove('btn-custom');
+                            button.classList.add('btn-warning');
+                            alert(data.message);
+                        } else {
+                            button.innerHTML = '<i class="fas fa-check me-1"></i>Joined';
+                            button.classList.remove('btn-custom');
+                            button.classList.add('btn-success');
+                            button.disabled = true;
+                            alert(data.message);
+                        }
+                    } else {
+                        button.innerHTML = '<i class="fas fa-plus me-1"></i>Join Community';
+                        button.disabled = false;
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error joining community:', error);
+                    button.innerHTML = '<i class="fas fa-plus me-1"></i>Join Community';
+                    button.disabled = false;
+                    alert('Error joining community. Please try again.');
+                });
+        }
+
+        function showError(containerId, message) {
+            document.getElementById(containerId).innerHTML = `
+                    <div class="col-12">
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle text-muted"></i>
+                            <h4>Error</h4>
+                            <p class="text-muted">${message}</p>
+                        </div>
+                    </div>
+                `;
+        }
+
         function showLoading(elementId) {
             const element = document.getElementById(elementId);
             if (element) element.style.display = 'block';
@@ -890,43 +1583,29 @@
             if (element) element.style.display = 'none';
         }
 
-        // Enhanced View Profile functionality
-        async function openProfileModal(userId) {
-            try {
-                const response = await fetch(`/Search/GetPlayerProfile/${userId}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const playerData = await response.json();
-                
-                if (playerData) {
-                    document.getElementById('profileModalImage').src = playerData.profilePicture || '/images/user.png';
-                    document.getElementById('profileModalName').textContent = playerData.username;
-                    document.getElementById('profileModalLevel').textContent = 'Player';
-                    document.getElementById('profileModalEmail').textContent = playerData.email || 'Not provided';
-                    document.getElementById('profileModalPhone').textContent = playerData.phoneNo || 'Not provided';
-                    document.getElementById('profileModalGender').textContent = playerData.gender || 'Not specified';
-                    document.getElementById('profileModalAge').textContent = playerData.age ? playerData.age + ' years' : 'Not specified';
-                    document.getElementById('profileModalLocation').textContent = 'Location data';
-                    document.getElementById('profileModalBio').textContent = playerData.bio || 'No bio available';
-
-                    const modal = new bootstrap.Modal(document.getElementById('viewProfileModal'));
-                    modal.show();
-                }
-            } catch (error) {
-                console.error('Error loading player profile:', error);
-                alert('Error loading player profile. Please try again.');
-            }
-        }
-
         // Enter key support for search
-        document.querySelectorAll('.search-input').forEach(input => {
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    const tabId = this.closest('.tab-pane').id;
-                    if (tabId === 'players') searchPlayers(1);
-                }
-            });
+        document.getElementById('playerSearch')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchPlayers(1);
+            }
+        });
+
+        document.getElementById('communitySearch')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchCommunities(1);
+            }
+        });
+
+        document.getElementById('gameSearch')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchGames(1);
+            }
+        });
+
+        document.getElementById('competitionSearch')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchCompetitions(1);
+            }
         });
     </script>
 }
