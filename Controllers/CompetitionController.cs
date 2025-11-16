@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Http;
 using PicklePlay.Models.ViewModels; // Make sure this is included for enums
 using System.Security.Claims;
+using PicklePlay.Helpers;
 
 namespace PicklePlay.Controllers
 {
@@ -265,6 +266,294 @@ namespace PicklePlay.Controllers
             
             TempData["SuccessMessage"] = "Payment successful!";
             return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+        }
+
+        // Add this method to your CompetitionController class:
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EndCompetition(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated" });
+            }
+
+            try
+            {
+                var schedule = await _context.Schedules
+                    .Include(s => s.Participants)
+                    .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+                if (schedule == null)
+                {
+                    return NotFound(new { success = false, message = "Competition not found" });
+                }
+
+                // Check if user is organizer
+                bool isOrganizer = schedule.Participants.Any(p => 
+                    p.UserId == currentUserId.Value && 
+                    p.Role == ParticipantRole.Organizer);
+
+                if (!isOrganizer)
+                {
+                    return Forbid();
+                }
+
+                // Check if competition is in progress
+                if (schedule.Status != ScheduleStatus.InProgress)
+                {
+                    return BadRequest(new { success = false, message = "Competition must be in progress to end it" });
+                }
+
+                // ⬇️ UPDATED: Check if past end date using Malaysia time
+                var nowUtc = DateTime.UtcNow;
+                if (schedule.EndTime.HasValue && nowUtc < schedule.EndTime.Value)
+                {
+                    var malaysiaEndTime = DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value);
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Competition cannot be ended before the scheduled end time ({malaysiaEndTime:MMM dd, yyyy hh:mm tt} MYT)" 
+                    });
+                }
+
+                // Update status to Completed
+                schedule.Status = ScheduleStatus.Completed;
+
+                _context.Schedules.Update(schedule);
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"Competition {scheduleId} ended by user {currentUserId}");
+
+                return Ok(new { 
+                    success = true, 
+                    message = "Competition ended successfully" 
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error ending competition: {ex.Message}");
+                return StatusCode(500, new { 
+                    success = false, 
+                    message = "An error occurred while ending the competition" 
+                });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TriggerAutoEnd()
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+
+            try
+            {
+                var nowUtc = DateTime.UtcNow;
+                var nowMalaysia = DateTimeHelper.GetMalaysiaTime();
+                var autoEndThreshold = nowUtc.AddHours(-24);
+
+                Console.WriteLine($"=== Manual Auto-End Trigger ===");
+                Console.WriteLine($"Current Malaysia time: {nowMalaysia:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine($"Current UTC time: {nowUtc:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine($"Threshold (24hr ago UTC): {autoEndThreshold:yyyy-MM-dd HH:mm:ss}");
+
+                // Find competitions to end
+                var competitionsToEnd = await _context.Schedules
+                    .Where(s => s.ScheduleType == ScheduleType.Competition &&
+                               s.Status == ScheduleStatus.InProgress &&
+                               s.EndTime.HasValue &&
+                               s.EndTime.Value <= autoEndThreshold)
+                    .ToListAsync();
+
+                // Find one-off schedules to end
+                var oneOffToEnd = await _context.Schedules
+                    .Where(s => s.ScheduleType == ScheduleType.OneOff &&
+                               s.Status == ScheduleStatus.Active &&
+                               s.EndTime.HasValue &&
+                               s.EndTime.Value <= autoEndThreshold)
+                    .ToListAsync();
+
+                // Find recurring schedules to end
+                var recurringToEnd = await _context.Schedules
+                    .Where(s => s.ScheduleType == ScheduleType.Recurring &&
+                               s.Status == ScheduleStatus.Active &&
+                               s.EndTime.HasValue &&
+                               s.EndTime.Value <= autoEndThreshold)
+                    .ToListAsync();
+
+                Console.WriteLine($"\nFound schedules to auto-end:");
+                Console.WriteLine($"  - Competitions (→ Completed): {competitionsToEnd.Count}");
+                Console.WriteLine($"  - OneOff (→ Past): {oneOffToEnd.Count}");
+                Console.WriteLine($"  - Recurring (→ Past): {recurringToEnd.Count}");
+
+                var results = new List<object>();
+
+                // End competitions
+                foreach (var comp in competitionsToEnd)
+                {
+                    comp.Status = ScheduleStatus.Completed;
+                    var endTimeMalaysia = comp.EndTime.HasValue 
+                        ? DateTimeHelper.ConvertToMalaysiaTime(comp.EndTime.Value) 
+                        : DateTime.MinValue;
+                    
+                    Console.WriteLine($"  ✓ Competition {comp.ScheduleId}: {comp.GameName}");
+                    Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
+                    
+                    results.Add(new
+                    {
+                        scheduleId = comp.ScheduleId,
+                        type = "Competition",
+                        gameName = comp.GameName,
+                        endTime = endTimeMalaysia,
+                        newStatus = "Completed"
+                    });
+                }
+
+                // End one-off schedules
+                foreach (var schedule in oneOffToEnd)
+                {
+                    schedule.Status = ScheduleStatus.Past;
+                    var endTimeMalaysia = schedule.EndTime.HasValue 
+                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+                        : DateTime.MinValue;
+                    
+                    Console.WriteLine($"  ✓ OneOff {schedule.ScheduleId}: {schedule.GameName}");
+                    Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
+                    
+                    results.Add(new
+                    {
+                        scheduleId = schedule.ScheduleId,
+                        type = "OneOff",
+                        gameName = schedule.GameName,
+                        endTime = endTimeMalaysia,
+                        newStatus = "Past"
+                    });
+                }
+
+                // End recurring schedules
+                foreach (var schedule in recurringToEnd)
+                {
+                    schedule.Status = ScheduleStatus.Past;
+                    var endTimeMalaysia = schedule.EndTime.HasValue 
+                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+                        : DateTime.MinValue;
+                    
+                    Console.WriteLine($"  ✓ Recurring {schedule.ScheduleId}: {schedule.GameName}");
+                    Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
+                    
+                    results.Add(new
+                    {
+                        scheduleId = schedule.ScheduleId,
+                        type = "Recurring",
+                        gameName = schedule.GameName,
+                        endTime = endTimeMalaysia,
+                        newStatus = "Past"
+                    });
+                }
+
+                var totalChanges = competitionsToEnd.Count + oneOffToEnd.Count + recurringToEnd.Count;
+
+                if (totalChanges > 0)
+                {
+                    await _context.SaveChangesAsync();
+                    Console.WriteLine($"\n✓ Successfully auto-ended {totalChanges} schedules");
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Auto-ended {totalChanges} schedules",
+                    summary = new
+                    {
+                        competitionsEnded = competitionsToEnd.Count,
+                        oneOffEnded = oneOffToEnd.Count,
+                        recurringEnded = recurringToEnd.Count,
+                        total = totalChanges
+                    },
+                    schedules = results,
+                    timestamp = new
+                    {
+                        malaysiaTime = nowMalaysia,
+                        utcTime = nowUtc,
+                        threshold = autoEndThreshold
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in manual auto-end: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DebugAutoEndCheck(int scheduleId)
+        {
+            var schedule = await _context.Schedules
+                .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+            if (schedule == null)
+            {
+                return NotFound();
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var nowMalaysia = DateTimeHelper.GetMalaysiaTime();
+            var autoEndThreshold = nowUtc.AddHours(-24);
+
+            var endTimeMalaysia = schedule.EndTime.HasValue 
+                ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+                : (DateTime?)null;
+
+            var expectedNewStatus = schedule.ScheduleType == ScheduleType.Competition 
+                ? "Completed" 
+                : "Past";
+
+            var shouldAutoEnd = false;
+            var reason = "";
+
+            if (schedule.ScheduleType == ScheduleType.Competition)
+            {
+                shouldAutoEnd = schedule.Status == ScheduleStatus.InProgress &&
+                               schedule.EndTime.HasValue &&
+                               schedule.EndTime.Value <= autoEndThreshold;
+                reason = !shouldAutoEnd ? $"Status must be InProgress (current: {schedule.Status}) and EndTime must be past 24hr threshold" : "Ready to auto-end";
+            }
+            else if (schedule.ScheduleType == ScheduleType.OneOff || schedule.ScheduleType == ScheduleType.Recurring)
+            {
+                shouldAutoEnd = schedule.Status == ScheduleStatus.Active &&
+                               schedule.EndTime.HasValue &&
+                               schedule.EndTime.Value <= autoEndThreshold;
+                reason = !shouldAutoEnd ? $"Status must be Active (current: {schedule.Status}) and EndTime must be past 24hr threshold" : "Ready to auto-end";
+            }
+
+            return Ok(new
+            {
+                scheduleId = schedule.ScheduleId,
+                gameName = schedule.GameName,
+                scheduleType = schedule.ScheduleType.ToString(),
+                currentStatus = schedule.Status.ToString(),
+                endTimeUtc = schedule.EndTime,
+                endTimeMalaysia = endTimeMalaysia,
+                endTimeKind = schedule.EndTime?.Kind.ToString(),
+                currentUtcTime = nowUtc,
+                currentMalaysiaTime = nowMalaysia,
+                autoEndThreshold = autoEndThreshold,
+                isPastThreshold = schedule.EndTime.HasValue && schedule.EndTime.Value <= autoEndThreshold,
+                shouldAutoEnd = shouldAutoEnd,
+                reason = reason,
+                expectedNewStatus = shouldAutoEnd ? expectedNewStatus : schedule.Status.ToString()
+            });
         }
     }
 }

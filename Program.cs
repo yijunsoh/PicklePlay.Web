@@ -58,6 +58,9 @@ builder.Services.AddScoped<IPayPalService, PayPalService>();
 // Add HttpClient for CAPTCHA validation
 builder.Services.AddHttpClient();
 
+// Add this line where you register other services (before builder.Build())
+builder.Services.AddHostedService<ScheduleAutoEndService>();
+
 var app = builder.Build();
 
 // Pipeline

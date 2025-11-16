@@ -448,7 +448,29 @@
                         <i class="bi bi-play-fill"></i> Start Competition
                     </button>
                 }
-                @if (canManage)
+
+                @if (Model.Status == ScheduleStatus.InProgress)
+            {
+                    var canEnd = Model.EndTime.HasValue && DateTime.UtcNow >= Model.EndTime.Value;
+                    var timeUntilEnd = Model.EndTime.HasValue ? Model.EndTime.Value - DateTime.UtcNow : TimeSpan.Zero;
+                
+                <button class="btn btn-danger" 
+                        id="endCompetitionBtn"
+                        @(canEnd ? "" : "disabled")
+                        title="@(canEnd ? "End Competition" : $"Competition can be ended after {Model.EndTime:MMM dd, yyyy hh:mm tt}")">
+                    <i class="bi bi-stop-fill"></i> End Competition
+                </button>
+            }
+
+            @* Submit Result to RANK button (only for completed competitions) *@
+            @if (Model.Status == ScheduleStatus.Completed)
+            {
+                <button class="btn btn-primary" id="submitRankBtn">
+                    <i class="bi bi-graph-up-arrow"></i> Submit Result to RANK
+                </button>
+            }
+            
+               @if (canManage && Model.Status != ScheduleStatus.Completed)
                 {
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown"
@@ -1218,22 +1240,32 @@
 
             <!-- Chat Input Area -->
             <div class="card-footer bg-white">
-                <form id="chatForm" onsubmit="sendScheduleMessage(event); return false;">
-                    @Html.AntiForgeryToken()
-                    <div class="input-group">
-                        <input type="text" 
-                               class="form-control" 
-                               id="chatInput" 
-                               placeholder="Type your message..." 
-                               maxlength="2000"
-                               required>
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-send-fill"></i> Send
-                        </button>
-                    </div>
-                    <small class="text-muted">Press Enter to send • Max 2000 characters</small>
-                </form>
+    @if (Model.Status == ScheduleStatus.Completed)
+    {
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            This competition has ended. You can still view messages but cannot send new ones.
+        </div>
+    }
+    else
+    {
+        <form id="chatForm" onsubmit="sendScheduleMessage(event); return false;">
+            @Html.AntiForgeryToken()
+            <div class="input-group">
+                <input type="text" 
+                       class="form-control" 
+                       id="chatInput" 
+                       placeholder="Type your message..." 
+                       maxlength="2000"
+                       required>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send-fill"></i> Send
+                </button>
             </div>
+            <small class="text-muted">Press Enter to send • Max 2000 characters</small>
+        </form>
+    }
+</div>
         </div>
     }
 </div>
@@ -3060,29 +3092,36 @@
     }
 
     window.sendScheduleMessage = async function(event) {
-        event.preventDefault();
+    event.preventDefault();
 
-        const input = document.getElementById('chatInput');
-        if (!input) return;
+    const input = document.getElementById('chatInput');
+    if (!input) return;
 
-        const message = input.value.trim();
-        if (!message) return;
+    const message = input.value.trim();
+    if (!message) return;
 
-        if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
-            alert('Not connected to chat. Please refresh the page.');
-            return;
-        }
-
-        try {
-            await scheduleChatConnection.invoke("SendScheduleMessage", scheduleId, message);
-            input.value = '';
-        } catch (error) {
-            console.error("Error sending message:", error);
-            alert("Failed to send message. Please try again.");
-        }
-
+    // ⬇️ ADD THIS CHECK
+    const competitionStatus = '@Model.Status';
+    if (competitionStatus === '@ScheduleStatus.Completed.ToString()') {
+        alert('This competition has ended. You cannot send new messages.');
         return false;
-    };
+    }
+
+    if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
+        alert('Not connected to chat. Please refresh the page.');
+        return;
+    }
+
+    try {
+        await scheduleChatConnection.invoke("SendScheduleMessage", scheduleId, message);
+        input.value = '';
+    } catch (error) {
+        console.error("Error sending message:", error);
+        alert("Failed to send message. Please try again.");
+    }
+
+    return false;
+};
 
     function appendChatMessage(data, shouldScroll = true) {
     const messagesContainer = document.getElementById('chatMessages');
@@ -3260,5 +3299,60 @@
 
     console.log('✓ Schedule Chat module ready');
 })();
+
+// ==================== END COMPETITION FUNCTIONALITY ====================
+var endCompBtn = document.getElementById('endCompetitionBtn');
+if (endCompBtn && !endCompBtn.disabled) {
+    endCompBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        if (!confirm('Are you sure you want to end this competition?\n\nThis will:\n• Mark the competition as completed\n• Disable team registration\n• Lock chat messages\n• Move competition to "Ended" list')) {
+            return;
+        }
+        
+        const scheduleId = COMP_DATA.scheduleId;
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        
+        endCompBtn.disabled = true;
+        endCompBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ending...';
+        
+        fetch('/Competition/EndCompetition', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                scheduleId: scheduleId,
+                __RequestVerificationToken: token
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Competition ended successfully!\n\nRedirecting to competition listing...');
+                window.location.href = '/Competition/Listing';
+            } else {
+                alert('Error: ' + data.message);
+                endCompBtn.disabled = false;
+                endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while ending the competition');
+            endCompBtn.disabled = false;
+            endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
+        });
+    });
+}
+
+// ==================== SUBMIT TO RANK FUNCTIONALITY (Placeholder) ====================
+var submitRankBtn = document.getElementById('submitRankBtn');
+if (submitRankBtn) {
+    submitRankBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Submit to RANK feature will be implemented in the future.\n\nThis will sync competition results with the ranking system.');
+    });
+}
     </script>
 }
