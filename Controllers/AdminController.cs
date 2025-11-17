@@ -394,7 +394,7 @@ public class AdminController : Controller
         {
             return RedirectToAction("Login", "Auth");
         }
-        return View();
+        return RedirectToAction("Index", "EscrowAdmin");
     }
 
     public IActionResult Refund()
