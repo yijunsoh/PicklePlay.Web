@@ -44,6 +44,10 @@ namespace PicklePlay.Data
         public DbSet<CommunityChatMessage> CommunityChatMessages { get; set; }
         public DbSet<ScheduleChatMessage> ScheduleChatMessages { get; set; }
 
+        public DbSet<PlayerRank> PlayerRanks { get; set; }
+        public DbSet<RankMatch> RankMatches { get; set; }
+        public DbSet<RankMatchHistory> RankMatchHistories { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

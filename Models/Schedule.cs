@@ -51,11 +51,11 @@ namespace PicklePlay.Models
         [Column("num_team")]
         public int? NumTeam { get; set; }
 
-        [Column("minRankRestriction", TypeName = "decimal(5,2)")]
-        public decimal? MinRankRestriction { get; set; } = 0.00m;
+        [Column("minRankRestriction", TypeName = "decimal(5,3)")]
+        public decimal? MinRankRestriction { get; set; } = 0.000m;
 
-        [Column("maxRankRestriction", TypeName = "decimal(5,2)")]
-        public decimal? MaxRankRestriction { get; set; } = 3.00m;
+        [Column("maxRankRestriction", TypeName = "decimal(5,3)")]
+        public decimal? MaxRankRestriction { get; set; } = 0.000m;
 
         [Column("genderRestriction")] // Removed TypeName
         public GenderRestriction? GenderRestriction { get; set; } = Models.GenderRestriction.None;

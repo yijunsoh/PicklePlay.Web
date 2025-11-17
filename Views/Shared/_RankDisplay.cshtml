@@ -1,0 +1,154 @@
+@* filepath: c:\Users\xkyh0\Downloads\PicklePlay.Web\Views\Shared\_RankDisplay.cshtml *@
+
+@* UserId *@
+@model int
+
+<div class="card shadow-sm rank-card" id="rankCard-@Model">
+    <div class="card-body text-center">
+        <div class="d-flex justify-content-center align-items-center mb-3">
+            <i class="bi bi-graph-up-arrow text-primary me-2" style="font-size: 2rem;"></i>
+            <h4 class="mb-0">RANK</h4>
+        </div>
+        
+        <div id="rankLoading-@Model" class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading rating...</p>
+        </div>
+
+        <div id="rankData-@Model" style="display: none;">
+            <!-- Rating Display -->
+            <div class="rank-rating-display mb-3">
+                <div class="rank-rating-value" id="rankRating-@Model">NR</div>
+                <div class="rank-status-badge" id="rankStatus-@Model"></div>
+            </div>
+
+            <!-- Reliability Score -->
+            <div class="mb-3">
+                <label class="form-label small text-muted">Reliability Score</label>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar" id="rankReliabilityBar-@Model" 
+                         role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        <span id="rankReliabilityText-@Model">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="row g-2 text-start">
+                <div class="col-6">
+                    <small class="text-muted">Matches</small>
+                    <div class="fw-bold" id="rankTotalMatches-@Model">0</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Win Rate</small>
+                    <div class="fw-bold" id="rankWinRate-@Model">0%</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Partners</small>
+                    <div class="fw-bold" id="rankPartners-@Model">0</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Opponents</small>
+                    <div class="fw-bold" id="rankOpponents-@Model">0</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- View Details Button -->
+            <a href="#" class="btn btn-sm btn-outline-primary w-100" 
+               onclick="showRankDetails(@Model); return false;">
+                <i class="bi bi-list-ul"></i> View Match History
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .rank-rating-display {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        color: white;
+    }
+
+    .rank-rating-value {
+        font-size: 3rem;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .rank-status-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+
+    .progress-bar {
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    // Load rank data
+    (function() {
+        const userId = @Model;
+        
+        fetch(`/Rank/GetPlayerRank?userId=${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayRankData(userId, data.rank);
+                } else {
+                    document.getElementById(`rankLoading-${userId}`).innerHTML = 
+                        '<p class="text-danger">Failed to load rank data</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rank:', error);
+                document.getElementById(`rankLoading-${userId}`).innerHTML = 
+                    '<p class="text-danger">Error loading rank</p>';
+            });
+    })();
+
+    function displayRankData(userId, rank) {
+        document.getElementById(`rankLoading-${userId}`).style.display = 'none';
+        document.getElementById(`rankData-${userId}`).style.display = 'block';
+        
+        document.getElementById(`rankRating-${userId}`).textContent = rank.rating;
+        document.getElementById(`rankStatus-${userId}`).textContent = rank.status;
+        document.getElementById(`rankTotalMatches-${userId}`).textContent = rank.totalMatches;
+        document.getElementById(`rankWinRate-${userId}`).textContent = rank.winRate.toFixed(1) + '%';
+        document.getElementById(`rankPartners-${userId}`).textContent = rank.uniquePartners;
+        document.getElementById(`rankOpponents-${userId}`).textContent = rank.uniqueOpponents;
+        
+        const reliability = rank.reliabilityScore;
+        const reliabilityBar = document.getElementById(`rankReliabilityBar-${userId}`);
+        reliabilityBar.style.width = reliability + '%';
+        reliabilityBar.setAttribute('aria-valuenow', reliability);
+        document.getElementById(`rankReliabilityText-${userId}`).textContent = reliability.toFixed(0) + '%';
+        
+        // Color code reliability bar
+        if (reliability >= 80) {
+            reliabilityBar.className = 'progress-bar bg-success';
+        } else if (reliability >= 60) {
+            reliabilityBar.className = 'progress-bar bg-info';
+        } else if (reliability >= 40) {
+            reliabilityBar.className = 'progress-bar bg-warning';
+        } else {
+            reliabilityBar.className = 'progress-bar bg-danger';
+        }
+    }
+
+    function showRankDetails(userId) {
+        // TODO: Navigate to match history page or show modal
+        window.location.href = `/Rank/MatchHistory?userId=${userId}`;
+    }
+</script>

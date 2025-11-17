@@ -58,6 +58,13 @@ builder.Services.AddScoped<IEscrowService, EscrowService>();
 // Add HttpClient for CAPTCHA validation
 builder.Services.AddHttpClient();
 
+// Add this line where you register other services (before builder.Build())
+builder.Services.AddHostedService<ScheduleAutoEndService>();
+
+// Add these lines where you register other services (before builder.Build())
+builder.Services.AddScoped<RankAlgorithmService>();
+builder.Services.AddScoped<RankMatchProcessingService>();
+
 var app = builder.Build();
 
 // Pipeline

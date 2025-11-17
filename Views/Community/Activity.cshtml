@@ -224,17 +224,11 @@ else
                         @* Creation Buttons Moved Below Profile *@
                         <div class="create-event-section">
                             <h6 class="create-event-title">Create Event</h6>
-                            <a asp-action="CreateOneOff" asp-controller="Community"
-                                class="btn btn-green mb-2 w-100">
-                                <i class="fas fa-plus-circle me-1"></i>One-Off Game
+                            <a asp-action="CreateGameSchedule" asp-controller="Community" class="btn btn-green mb-2 w-100">
+                                <i class="fas fa-calendar-plus me-1"></i>New Game
                             </a>
-                            <a asp-action="CreateRecurring" asp-controller="Community"
-                                class="btn btn-green mb-2 w-100">
-                                <i class="fas fa-redo me-1"></i>Recurring Game
-                            </a>
-                            <a asp-action="CreateCompetition" asp-controller="Community"
-                                class="btn btn-green w-100">
-                                <i class="fas fa-trophy me-1"></i>Competition
+                            <a asp-action="CreateCompetition" asp-controller="Community" class="btn btn-green w-100">
+                                <i class="fas fa-trophy me-1"></i>New Competition
                             </a>
                         </div>
                     }

@@ -34,113 +34,111 @@ namespace PicklePlay.Controllers
 
         // Community Home Page
         // --- UPDATED: Community Home Page with community filtering ---
-public IActionResult Activity(int? communityId)
-{
-    // ⬇️ ADD THIS: Get current user ID
-    var currentUserId = GetCurrentUserId();
-    if (!currentUserId.HasValue)
-    {
-        return RedirectToAction("Login", "Account");
-    }
-
-    // Store the current community in session or view data
-    if (communityId.HasValue)
-    {
-        HttpContext.Session.SetInt32("CurrentCommunityId", communityId.Value);
-    }
-    else
-    {
-        // If no community specified, try to get from session
-        communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
-    }
-
-    // Get the current community object
-    var currentCommunity = communityId.HasValue ?
-        _context.Communities.Find(communityId.Value) : null;
-
-    ViewData["CurrentCommunityId"] = communityId;
-    ViewData["CurrentCommunity"] = currentCommunity;
-
-    // --- NEW: Get additional community data ---
-    if (communityId.HasValue && currentCommunity != null)
-    {
-        // ⬇️ ADD THIS: Get user's role in the community
-        var membership = _context.CommunityMembers
-            .FirstOrDefault(cm => cm.CommunityId == communityId.Value && 
-                                 cm.UserId == currentUserId.Value && 
-                                 cm.Status == "Active");
-
-        if (membership != null)
+        public IActionResult Activity(int? communityId)
         {
-            ViewBag.UserRole = membership.CommunityRole; // Should be "Admin", "Moderator", or "Member"
-            Console.WriteLine($"User {currentUserId.Value} role in community {communityId.Value}: {membership.CommunityRole}");
+            // ⬇️ ADD THIS: Get current user ID
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            // Store the current community in session or view data
+            if (communityId.HasValue)
+            {
+                HttpContext.Session.SetInt32("CurrentCommunityId", communityId.Value);
+            }
+            else
+            {
+                // If no community specified, try to get from session
+                communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
+            }
+
+            // Get the current community object
+            var currentCommunity = communityId.HasValue ?
+                _context.Communities.Find(communityId.Value) : null;
+
+            ViewData["CurrentCommunityId"] = communityId;
+            ViewData["CurrentCommunity"] = currentCommunity;
+
+            // --- NEW: Get additional community data ---
+            if (communityId.HasValue && currentCommunity != null)
+            {
+                // ⬇️ ADD THIS: Get user's role in the community
+                var membership = _context.CommunityMembers
+                    .FirstOrDefault(cm => cm.CommunityId == communityId.Value &&
+                                         cm.UserId == currentUserId.Value &&
+                                         cm.Status == "Active");
+
+                if (membership != null)
+                {
+                    ViewBag.UserRole = membership.CommunityRole; // Should be "Admin", "Moderator", or "Member"
+                    Console.WriteLine($"User {currentUserId.Value} role in community {communityId.Value}: {membership.CommunityRole}");
+                }
+                else
+                {
+                    ViewBag.UserRole = "Guest"; // Not a member
+                    Console.WriteLine($"User {currentUserId.Value} is NOT a member of community {communityId.Value}");
+                }
+                // ⬆️ END OF NEW CODE
+
+                // Get member count
+                var memberCount = _context.CommunityMembers
+                    .Count(cm => cm.CommunityId == communityId.Value && cm.Status == "Active");
+                ViewData["MemberCount"] = memberCount;
+
+                // Get announcements (latest 5, not expired)
+                var announcements = _context.CommunityAnnouncements
+                    .Include(a => a.Poster)
+                    .Where(a => a.CommunityId == communityId.Value &&
+                               (!a.ExpiryDate.HasValue || a.ExpiryDate.Value > DateTime.UtcNow))
+                    .OrderByDescending(a => a.PostDate)
+                    .Take(5)
+                    .ToList();
+                ViewData["Announcements"] = announcements;
+
+                // Get community members (first 15, admins first)
+                var communityMembers = _context.CommunityMembers
+                    .Include(cm => cm.User)
+                    .Where(cm => cm.CommunityId == communityId.Value && cm.Status == "Active")
+                    .OrderBy(cm => cm.CommunityRole) // Admins first
+                    .ThenBy(cm => cm.User.Username)
+                    .Take(15)
+                    .ToList();
+                ViewData["CommunityMembers"] = communityMembers;
+            }
+            else
+            {
+                // Set default values when no community is selected
+                ViewBag.UserRole = "Guest"; // ⬅️ ADD THIS
+                ViewData["MemberCount"] = 0;
+                ViewData["Announcements"] = new List<CommunityAnnouncement>();
+                ViewData["CommunityMembers"] = new List<CommunityMember>();
+            }
+
+            // Filter schedules by community
+            IQueryable<Schedule> query = _context.Schedules;
+
+            if (communityId.HasValue)
+            {
+                query = query.Where(s => s.CommunityId == communityId.Value);
+            }
+
+            var games = query.ToList();
+
+            return View(games);
         }
-        else
-        {
-            ViewBag.UserRole = "Guest"; // Not a member
-            Console.WriteLine($"User {currentUserId.Value} is NOT a member of community {communityId.Value}");
-        }
-        // ⬆️ END OF NEW CODE
 
-        // Get member count
-        var memberCount = _context.CommunityMembers
-            .Count(cm => cm.CommunityId == communityId.Value && cm.Status == "Active");
-        ViewData["MemberCount"] = memberCount;
-
-        // Get announcements (latest 5, not expired)
-        var announcements = _context.CommunityAnnouncements
-            .Include(a => a.Poster)
-            .Where(a => a.CommunityId == communityId.Value &&
-                       (!a.ExpiryDate.HasValue || a.ExpiryDate.Value > DateTime.UtcNow))
-            .OrderByDescending(a => a.PostDate)
-            .Take(5)
-            .ToList();
-        ViewData["Announcements"] = announcements;
-
-        // Get community members (first 15, admins first)
-        var communityMembers = _context.CommunityMembers
-            .Include(cm => cm.User)
-            .Where(cm => cm.CommunityId == communityId.Value && cm.Status == "Active")
-            .OrderBy(cm => cm.CommunityRole) // Admins first
-            .ThenBy(cm => cm.User.Username)
-            .Take(15)
-            .ToList();
-        ViewData["CommunityMembers"] = communityMembers;
-    }
-    else
-    {
-        // Set default values when no community is selected
-        ViewBag.UserRole = "Guest"; // ⬅️ ADD THIS
-        ViewData["MemberCount"] = 0;
-        ViewData["Announcements"] = new List<CommunityAnnouncement>();
-        ViewData["CommunityMembers"] = new List<CommunityMember>();
-    }
-
-    // Filter schedules by community
-    IQueryable<Schedule> query = _context.Schedules;
-
-    if (communityId.HasValue)
-    {
-        query = query.Where(s => s.CommunityId == communityId.Value);
-    }
-
-    var games = query.ToList();
-
-    return View(games);
-}
-
-        // --- CREATE RECURRING ---
         [HttpGet]
-        public IActionResult CreateRecurring()
-        {
-            return View(new ScheduleRecurringViewModel());
-        }
+public IActionResult CreateGameSchedule()
+{
+    return View(new ScheduleUnifiedViewModel());
+}
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateRecurring(ScheduleRecurringViewModel vm)
+        public async Task<IActionResult> CreateGameSchedule(ScheduleUnifiedViewModel vm)
         {
-
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
             {
@@ -149,15 +147,74 @@ public IActionResult Activity(int? communityId)
 
             var currentCommunityId = HttpContext.Session.GetInt32("CurrentCommunityId");
 
-            // --- Validation ---
-            if (vm.RecurringWeek == null || !vm.RecurringWeek.Any())
+            // Validate based on schedule type
+            if (vm.IsRecurring)
             {
-                ModelState.AddModelError("RecurringWeek", "Please select at least one day.");
+                // Recurring validation
+                if (!vm.RecurringEndDate.HasValue)
+                {
+                    ModelState.AddModelError("RecurringEndDate", "Please select when to stop repeating");
+                }
+                else if (vm.RecurringEndDate.Value < DateTime.Today)
+                {
+                    ModelState.AddModelError("RecurringEndDate", "End date must be in the future");
+                }
+
+                if (!vm.AutoCreateWhen.HasValue)
+                {
+                    ModelState.AddModelError("AutoCreateWhen", "Please select when to auto-create instances");
+                }
+
+                if (!vm.StartTime.HasValue)
+                {
+                    ModelState.AddModelError("StartTime", "Please select start time");
+                }
+            }
+            else
+            {
+                // OneOff validation
+                if (!vm.StartTime.HasValue)
+                {
+                    ModelState.AddModelError("StartTime", "Start date & time is required");
+                }
+                else if (vm.StartTime.Value <= DateTime.Now)
+                {
+                    ModelState.AddModelError("StartTime", "Please select a future date and time");
+                }
             }
 
-            if (vm.RecurringEndDate.HasValue && vm.RecurringEndDate.Value < DateTime.Today)
+            // Fee validation
+            if ((vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) && !vm.FeeAmount.HasValue)
             {
-                ModelState.AddModelError("RecurringEndDate", "The end date must be in the future.");
+                ModelState.AddModelError("FeeAmount", "Fee amount is required");
+            }
+
+            // Validate RANK range
+            if (vm.MinRankRestriction.HasValue && vm.MaxRankRestriction.HasValue)
+            {
+                if (vm.MinRankRestriction.Value > vm.MaxRankRestriction.Value)
+                {
+                    ModelState.AddModelError("MaxRankRestriction", "Maximum RANK must be greater than or equal to Minimum RANK");
+                }
+            }
+
+            // Validate decimal places (3 decimal max)
+            if (vm.MinRankRestriction.HasValue)
+            {
+                var minDecimalPlaces = BitConverter.GetBytes(decimal.GetBits(vm.MinRankRestriction.Value)[3])[2];
+                if (minDecimalPlaces > 3)
+                {
+                    ModelState.AddModelError("MinRankRestriction", "Minimum RANK can have maximum 3 decimal places");
+                }
+            }
+
+            if (vm.MaxRankRestriction.HasValue)
+            {
+                var maxDecimalPlaces = BitConverter.GetBytes(decimal.GetBits(vm.MaxRankRestriction.Value)[3])[2];
+                if (maxDecimalPlaces > 3)
+                {
+                    ModelState.AddModelError("MaxRankRestriction", "Maximum RANK can have maximum 3 decimal places");
+                }
             }
 
             if (!ModelState.IsValid)
@@ -165,20 +222,106 @@ public IActionResult Activity(int? communityId)
                 return View(vm);
             }
 
-            // --- 1. Create the Parent "Template" Schedule ---
+            try
+            {
+                if (vm.IsRecurring)
+                {
+                    // Create recurring schedule
+                    await CreateRecurringScheduleFromUnified(vm, currentUserId.Value, currentCommunityId);
+                }
+                else
+                {
+                    // Create one-off schedule
+                    await CreateOneOffScheduleFromUnified(vm, currentUserId.Value, currentCommunityId);
+                }
 
+                TempData["SuccessMessage"] = vm.IsRecurring
+                    ? "Recurring schedule created successfully!"
+                    : "Game scheduled successfully!";
+
+                return RedirectToAction("Activity", "Community");
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", $"An error occurred: {ex.Message}");
+                return View(vm);
+            }
+        }
+
+        // ⬇️ ADD: Helper method for creating one-off
+        private async Task CreateOneOffScheduleFromUnified(ScheduleUnifiedViewModel vm, int userId, int? communityId)
+        {
+            var newSchedule = new Schedule
+            {
+                ScheduleType = ScheduleType.OneOff,
+                GameName = vm.GameName,
+                Description = vm.Description,
+                EventTag = vm.EventTag,
+                Location = vm.Location,
+                StartTime = vm.StartTime!.Value,
+                Duration = vm.Duration,
+                NumPlayer = vm.NumPlayer,
+                MinRankRestriction = vm.MinRankRestriction,
+                MaxRankRestriction = vm.MaxRankRestriction,
+                GenderRestriction = vm.GenderRestriction,
+                AgeGroupRestriction = vm.AgeGroupRestriction,
+                FeeType = vm.FeeType,
+                FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
+                Privacy = vm.Privacy,
+                CancellationFreeze = vm.CancellationFreeze,
+                HostRole = vm.HostRole,
+                CommunityId = communityId,
+                CreatedByUserId = userId,
+                Status = ScheduleStatus.Active
+            };
+
+            if (newSchedule.StartTime.HasValue && newSchedule.Duration.HasValue)
+            {
+                var durationTimeSpan = ScheduleHelper.GetTimeSpan(newSchedule.Duration.Value);
+                newSchedule.EndTime = newSchedule.StartTime.Value.Add(durationTimeSpan);
+            }
+
+            _scheduleRepository.Add(newSchedule);
+
+            // Add organizer and player
+            var organizer = new ScheduleParticipant
+            {
+                ScheduleId = newSchedule.ScheduleId,
+                UserId = userId,
+                Role = ParticipantRole.Organizer,
+                Status = ParticipantStatus.Confirmed
+            };
+            _context.ScheduleParticipants.Add(organizer);
+
+            if (newSchedule.HostRole == HostRole.HostAndPlay)
+            {
+                var player = new ScheduleParticipant
+                {
+                    ScheduleId = newSchedule.ScheduleId,
+                    UserId = userId,
+                    Role = ParticipantRole.Player,
+                    Status = ParticipantStatus.Confirmed
+                };
+                _context.ScheduleParticipants.Add(player);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        // ⬇️ ADD: Helper method for creating recurring
+        private async Task CreateRecurringScheduleFromUnified(ScheduleUnifiedViewModel vm, int userId, int? communityId)
+        {
             RecurringWeek combinedWeek = RecurringWeek.None;
             foreach (var day in vm.RecurringWeek!) { combinedWeek |= day; }
 
             var parentSchedule = new Schedule
             {
-                ScheduleType = Models.ScheduleType.Recurring,
+                ScheduleType = ScheduleType.Recurring,
                 ParentScheduleId = null,
                 RecurringWeek = combinedWeek,
                 RecurringEndDate = vm.RecurringEndDate,
                 AutoCreateWhen = vm.AutoCreateWhen,
-                StartTime = DateTime.Today.Add(vm.StartTime.ToTimeSpan()),
-                EndTime = null,
+                StartTime = vm.StartTime!.Value,
                 GameName = vm.GameName,
                 Description = vm.Description,
                 EventTag = vm.EventTag,
@@ -192,19 +335,16 @@ public IActionResult Activity(int? communityId)
                 FeeType = vm.FeeType,
                 FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
                 Privacy = vm.Privacy,
-                GameFeature = vm.GameFeature,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
-                CommunityId = currentCommunityId,
-                CreatedByUserId = currentUserId.Value,
+                CommunityId = communityId,
+                CreatedByUserId = userId,
                 Status = ScheduleStatus.Active
             };
 
-            // --- 2. Save Parent to get its ID ---
             _scheduleRepository.Add(parentSchedule);
 
-
-            // --- 3. Generate and Save all Child "Instance" Schedules ---
+            // Generate instances
             var durationTimeSpan = ScheduleHelper.GetTimeSpan(vm.Duration);
             var dayFlagMap = BuildDayFlagMap();
 
@@ -212,11 +352,11 @@ public IActionResult Activity(int? communityId)
             {
                 if (dayFlagMap.TryGetValue(date.DayOfWeek, out var dayFlag) && vm.RecurringWeek.Contains(dayFlag))
                 {
-                    var instanceStartTime = date.Add(vm.StartTime.ToTimeSpan());
+                    var instanceStartTime = date.Add(vm.StartTime!.Value.TimeOfDay);
 
                     var instanceSchedule = new Schedule
                     {
-                        ScheduleType = Models.ScheduleType.OneOff,
+                        ScheduleType = ScheduleType.OneOff,
                         ParentScheduleId = parentSchedule.ScheduleId,
                         StartTime = instanceStartTime,
                         EndTime = instanceStartTime.Add(durationTimeSpan),
@@ -233,154 +373,41 @@ public IActionResult Activity(int? communityId)
                         FeeType = parentSchedule.FeeType,
                         FeeAmount = parentSchedule.FeeAmount,
                         Privacy = parentSchedule.Privacy,
-                        GameFeature = parentSchedule.GameFeature,
                         CancellationFreeze = parentSchedule.CancellationFreeze,
                         HostRole = parentSchedule.HostRole,
-                        CommunityId = currentCommunityId,
-                        CreatedByUserId = currentUserId.Value,
-                        Status = ScheduleStatus.Active,
-                        RecurringWeek = null,
-                        RecurringEndDate = null,
-                        AutoCreateWhen = null
+                        CommunityId = communityId,
+                        CreatedByUserId = userId,
+                        Status = ScheduleStatus.Active
                     };
 
                     _scheduleRepository.Add(instanceSchedule);
-                    // --- ADD THIS NEW CODE ---
 
-
-                    if (currentUserId.HasValue) // <-- Check if the nullable int has a value
+                    // Add organizer and player for each instance
+                    var organizer = new ScheduleParticipant
                     {
-                        // Add as Organizer
-                        var organizer = new ScheduleParticipant
-                        {
-                            ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
-                            UserId = currentUserId.Value,
-                            Role = ParticipantRole.Organizer,
-                            Status = ParticipantStatus.Confirmed
-                        };
-                        _context.ScheduleParticipants.Add(organizer);
-
-                        // Add as Player if "Host and Play"
-                        if (instanceSchedule.HostRole == HostRole.HostAndPlay) // <--- FIX 1
-                        {
-                            var player = new ScheduleParticipant
-                            {
-                                ScheduleId = instanceSchedule.ScheduleId, // <--- FIX 1
-                                UserId = currentUserId.Value,
-                                Role = ParticipantRole.Player,
-                                Status = ParticipantStatus.Confirmed
-                            };
-                            _context.ScheduleParticipants.Add(player);
-                        }
-
-                        // Save participant changes
-                        await _context.SaveChangesAsync();
-                    }
-                    // --- END OF NEW CODE ---
-                }
-            } // <--- FIX 2: End of the 'for' loop
-
-            return RedirectToAction("Activity", "Community"); // <--- FIX 2: Return moved outside the loop
-        }
-
-        // --- CREATE ONE-OFF ---
-        [HttpGet]
-        public IActionResult CreateOneOff()
-        {
-            return View(new ScheduleCreateViewModel());
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateOneOff(ScheduleCreateViewModel vm)
-        {
-
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
-            {
-                return Json(new { success = false, message = "Please log in." });
-            }
-
-            var currentCommunityId = HttpContext.Session.GetInt32("CurrentCommunityId");
-
-            if (vm.StartTime <= DateTime.Now)
-            {
-                ModelState.AddModelError("StartTime", "Please select a future date and time.");
-            }
-
-            if (!ModelState.IsValid)
-            {
-                return View(vm);
-            }
-
-            var newSchedule = new Schedule
-            {
-                ScheduleType = Models.ScheduleType.OneOff,
-                GameName = vm.GameName,
-                Description = vm.Description,
-                EventTag = vm.EventTag,
-                Location = vm.Location,
-                StartTime = vm.StartTime,
-                Duration = vm.Duration,
-                NumPlayer = vm.NumPlayer,
-                MinRankRestriction = vm.MinRankRestriction,
-                MaxRankRestriction = vm.MaxRankRestriction,
-                GenderRestriction = vm.GenderRestriction,
-                AgeGroupRestriction = vm.AgeGroupRestriction,
-                FeeType = vm.FeeType,
-                FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
-                Privacy = vm.Privacy,
-                GameFeature = vm.GameFeature,
-                CancellationFreeze = vm.CancellationFreeze,
-                HostRole = vm.HostRole,
-                CommunityId = currentCommunityId,
-                CreatedByUserId = currentUserId.Value,
-                Status = ScheduleStatus.Active // Set status
-            };
-
-            if (newSchedule.StartTime.HasValue && newSchedule.Duration.HasValue)
-            {
-                var durationTimeSpan = ScheduleHelper.GetTimeSpan(newSchedule.Duration.Value);
-                newSchedule.EndTime = newSchedule.StartTime.Value.Add(durationTimeSpan);
-            }
-
-            _scheduleRepository.Add(newSchedule);
-            // --- ADD THIS NEW CODE ---
-
-            if (currentUserId.HasValue) // <-- Check if the nullable int has a value
-            {
-                // Add as Organizer
-                var organizer = new ScheduleParticipant
-                {
-                    ScheduleId = newSchedule.ScheduleId,
-                    UserId = currentUserId.Value, // <-- Use .Value to get the non-nullable int
-                    Role = ParticipantRole.Organizer,
-                    Status = ParticipantStatus.Confirmed
-                };
-                _context.ScheduleParticipants.Add(organizer);
-
-                // Add as Player if "Host and Play"
-                if (newSchedule.HostRole == HostRole.HostAndPlay)
-                {
-                    var player = new ScheduleParticipant
-                    {
-                        ScheduleId = newSchedule.ScheduleId,
-                        UserId = currentUserId.Value, // <-- Use .Value
-                        Role = ParticipantRole.Player,
+                        ScheduleId = instanceSchedule.ScheduleId,
+                        UserId = userId,
+                        Role = ParticipantRole.Organizer,
                         Status = ParticipantStatus.Confirmed
                     };
-                    _context.ScheduleParticipants.Add(player);
+                    _context.ScheduleParticipants.Add(organizer);
+
+                    if (instanceSchedule.HostRole == HostRole.HostAndPlay)
+                    {
+                        var player = new ScheduleParticipant
+                        {
+                            ScheduleId = instanceSchedule.ScheduleId,
+                            UserId = userId,
+                            Role = ParticipantRole.Player,
+                            Status = ParticipantStatus.Confirmed
+                        };
+                        _context.ScheduleParticipants.Add(player);
+                    }
                 }
-
-                // Save participant changes
-                await _context.SaveChangesAsync();
             }
-            // --- END OF NEW CODE ---
-            return RedirectToAction("Activity", "Community");
+
+            await _context.SaveChangesAsync();
         }
-
-        // REPLACE this entire action in CommunityController.cs
-
         // In CommunityController.cs
 
         [HttpPost]
