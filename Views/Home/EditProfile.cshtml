@@ -442,6 +442,161 @@
                 font-size: 1.5rem;
             }
         }
+
+        .rank-profile-display {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 25px;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.rank-profile-rating {
+    font-size: 3.5rem;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    margin-bottom: 10px;
+}
+
+.rank-profile-status {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.25);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.rank-reliability-section {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.rank-reliability-section label {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.rank-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.rank-stat-item {
+    text-align: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.rank-stat-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 4px;
+}
+
+.rank-stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.rank-match-types {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.rank-match-type-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.rank-match-type-item:last-child {
+    border-bottom: none;
+}
+
+.rank-action-buttons {
+    margin-top: 15px;
+}
+
+.btn-view-history {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s;
+}
+
+.btn-view-history:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.btn-view-leaderboard {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 10px;
+    transition: all 0.3s;
+}
+
+.btn-view-leaderboard:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+}
+
+
+/* Refresh Button Animation */
+@@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.rotate-animation {
+    animation: rotate 1s linear infinite;
+}
+
+#refreshRankBtn {
+    transition: all 0.3s ease;
+}
+
+#refreshRankBtn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+#refreshRankBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
     </style>
 }
 
@@ -656,6 +811,43 @@
                 </div>
                 </div>
 
+                    <div class="form-container mt-4">
+        <h5 class="mb-3"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Your RANK Rating</h5>
+        
+        <!-- RANK Section -->
+<div class="form-container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Your RANK Rating
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshRankBtn" title="Refresh RANK data">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success" id="recalculateRankBtn" title="Recalculate rating from all matches">
+                <i class="bi bi-calculator"></i> Recalculate
+            </button>
+    </div>
+    
+    <div id="profileRankLoading" class="text-center py-3">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted mt-2 small">Loading your rating...</p>
+    </div>
+
+    <div id="profileRankData" style="display: none;">
+        <!-- RANK content will be loaded here -->
+    </div>
+    
+    <div id="profileRankError" style="display: none;">
+        <div class="alert alert-danger mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span id="rankErrorMessage">Failed to load RANK data</span>
+        </div>
+    </div>
+</div>
+    </div>
+
                 <div class="mt-4">
                     @{
                         var achievements = await GetUserAchievements(Model.UserId);
@@ -753,6 +945,7 @@
                         </a>
                     </div>
                 </div>
+
 
                 <!-- Quick Stats -->
                 <div class="side-box">
@@ -1302,6 +1495,260 @@
                 });
             });
 
+/* filepath: c:\Users\xkyh0\Downloads\PicklePlay.Web\Views\Home\EditProfile.cshtml */
 
+
+
+// ==================== LOAD RANK DATA ====================
+const userId = @Model.UserId;
+
+// Load on page load
+loadProfileRank();
+
+// Add refresh button handler
+document.getElementById('refreshRankBtn')?.addEventListener('click', function() {
+    const btn = this;
+    const icon = btn.querySelector('i');
+    
+    // Show loading state
+    btn.disabled = true;
+    icon.classList.add('rotate-animation');
+    
+    // Reload data
+    loadProfileRank().finally(() => {
+        btn.disabled = false;
+        icon.classList.remove('rotate-animation');
+    });
+});
+
+async function loadProfileRank() {
+    const loadingDiv = document.getElementById('profileRankLoading');
+    const dataDiv = document.getElementById('profileRankData');
+    const errorDiv = document.getElementById('profileRankError');
+    
+    // Show loading, hide others
+    loadingDiv.style.display = 'block';
+    dataDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    
+    try {
+        const response = await fetch(`/Rank/GetPlayerRank?userId=${userId}&_=${Date.now()}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            const rank = data.rank;
+            dataDiv.style.display = 'block';
+            
+            // Determine colors
+            let statusColor = rank.status === 'Reliable' ? 'success' : 
+                             rank.status === 'Provisional' ? 'warning' : 'secondary';
+            
+            let reliabilityColor = 'danger';
+            if (rank.reliabilityScore >= 80) reliabilityColor = 'success';
+            else if (rank.reliabilityScore >= 60) reliabilityColor = 'info';
+            else if (rank.reliabilityScore >= 40) reliabilityColor = 'warning';
+            
+            dataDiv.innerHTML = `
+                <div class="rank-profile-display">
+                    <div class="rank-profile-rating">${rank.rating}</div>
+                    <div class="rank-profile-status">${rank.status}</div>
+                </div>
+                
+                <div class="rank-reliability-section">
+                    <label class="d-block mb-2">
+                        <i class="bi bi-shield-check me-1"></i>Reliability Score
+                    </label>
+                    <div class="progress" style="height: 25px; border-radius: 12px;">
+                        <div class="progress-bar bg-${reliabilityColor}" 
+                             style="width: ${rank.reliabilityScore}%;">
+                            <strong>${rank.reliabilityScore.toFixed(0)}%</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rank-stats-grid">
+                    <div class="rank-stat-item">
+                        <div class="rank-stat-value">${rank.totalMatches}</div>
+                        <div class="rank-stat-label">Total Matches</div>
+                    </div>
+                    <div class="rank-stat-item">
+                        <div class="rank-stat-value">${rank.winRate.toFixed(1)}%</div>
+                        <div class="rank-stat-label">Win Rate</div>
+                    </div>
+                </div>
+                
+                ${rank.totalMatches > 0 ? `
+                    <div class="rank-match-types">
+                        <div class="rank-match-type-item">
+                            <span><i class="bi bi-person me-2"></i>Singles</span>
+                            <strong>${rank.singlesMatches}</strong>
+                        </div>
+                        <div class="rank-match-type-item">
+                            <span><i class="bi bi-people me-2"></i>Doubles</span>
+                            <strong>${rank.doublesMatches}</strong>
+                        </div>
+                        <div class="rank-match-type-item">
+                            <span><i class="bi bi-trophy me-2"></i>Wins</span>
+                            <strong class="text-success">${rank.wins}</strong>
+                        </div>
+                        <div class="rank-match-type-item">
+                            <span><i class="bi bi-x-circle me-2"></i>Losses</span>
+                            <strong class="text-danger">${rank.losses}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="rank-action-buttons">
+                        <a href="/Rank/MatchHistory?userId=${userId}" class="btn btn-view-history">
+                            <i class="bi bi-clock-history me-2"></i>View Match History
+                        </a>
+                        <a href="/Rank/Leaderboard" class="btn btn-view-leaderboard">
+                            <i class="bi bi-trophy me-2"></i>View Leaderboard
+                        </a>
+                    </div>
+                ` : `
+                    <div class="text-center py-3">
+                        <i class="bi bi-info-circle text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No matches played yet</p>
+                        <small class="text-muted">Start playing to build your rating!</small>
+                    </div>
+                `}
+            `;
+        } else {
+            dataDiv.style.display = 'block';
+            dataDiv.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-graph-up-arrow text-muted" style="font-size: 3rem;"></i>
+                    <h6 class="mt-3">No Rating Yet</h6>
+                    <p class="text-muted small mb-3">Play matches and submit results to get your RANK rating!</p>
+                    <a href="/Competition/Listing" class="btn btn-sm btn-primary">
+                        <i class="bi bi-trophy me-2"></i>Browse Competitions
+                    </a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading RANK:', error);
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        document.getElementById('rankErrorMessage').textContent = 
+            `Failed to load RANK data: ${error.message}`;
+    }
+}
+
+// ==================== RECALCULATE RANK ====================
+document.getElementById('recalculateRankBtn')?.addEventListener('click', async function() {
+    const btn = this;
+    const icon = btn.querySelector('i');
+    const userId = @Model.UserId;
+    
+    // Confirm action
+    if (!confirm('Recalculate your RANK rating?\n\nThis will replay all your matches and update your rating based on the latest algorithm.\n\nThis may take a few moments.')) {
+        return;
+    }
+    
+    // Show loading state
+    btn.disabled = true;
+    icon.classList.remove('bi-calculator');
+    icon.classList.add('bi-hourglass-split', 'rotate-animation');
+    btn.innerHTML = '<i class="bi bi-hourglass-split rotate-animation me-1"></i> Recalculating...';
+    
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        
+        const response = await fetch('/Rank/RecalculatePlayerRank', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                userId: userId,
+                __RequestVerificationToken: token
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <h6><i class="bi bi-check-circle-fill me-2"></i>Rating Recalculated Successfully!</h6>
+                    <hr>
+                    <div class="row small">
+                        <div class="col-6">
+                            <strong>Rating:</strong><br>
+                            ${data.details.oldRating} → <strong class="text-success">${data.details.newRating}</strong>
+                            <span class="badge ${parseFloat(data.details.ratingChange) >= 0 ? 'bg-success' : 'bg-danger'}">
+                                ${parseFloat(data.details.ratingChange) >= 0 ? '+' : ''}${data.details.ratingChange}
+                            </span>
+                        </div>
+                        <div class="col-6">
+                            <strong>Reliability:</strong><br>
+                            ${data.details.oldReliability}% → <strong class="text-info">${data.details.newReliability}%</strong>
+                            <span class="badge bg-info">
+                                ${parseFloat(data.details.reliabilityChange) >= 0 ? '+' : ''}${data.details.reliabilityChange}%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-2 small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Processed ${data.details.matchesProcessed} matches | Status: ${data.details.status}
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Insert alert before RANK section
+            const rankSection = document.querySelector('.form-container.mt-4');
+            rankSection.insertAdjacentHTML('beforebegin', alertHtml);
+            
+            // Reload RANK display
+            await loadProfileRank();
+            
+            // Reset button
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-calculator"></i> Recalculate';
+            
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+                document.querySelector('.alert-success')?.remove();
+            }, 10000);
+            
+        } else {
+            throw new Error(data.message || 'Recalculation failed');
+        }
+        
+    } catch (error) {
+        console.error('Error recalculating rank:', error);
+        
+        // Show error message
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-x-circle-fill me-2"></i>
+                <strong>Error:</strong> ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const rankSection = document.querySelector('.form-container.mt-4');
+        rankSection.insertAdjacentHTML('beforebegin', alertHtml);
+        
+        // Reset button
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-calculator"></i> Recalculate';
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            document.querySelector('.alert-danger')?.remove();
+        }, 5000);
+    }
+});
         </script>
 }

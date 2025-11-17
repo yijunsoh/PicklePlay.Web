@@ -108,5 +108,7 @@ namespace PicklePlay.Models
         public virtual ICollection<TeamInvitation> ReceivedTeamInvitations { get; set; } = new List<TeamInvitation>();
         public virtual ICollection<Friendship> FriendshipsSent { get; set; } = new List<Friendship>();
         public virtual ICollection<Friendship> FriendshipsReceived { get; set; } = new List<Friendship>();
+
+        public PlayerRank? Rank { get; set; }
     }
 }

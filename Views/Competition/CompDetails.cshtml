@@ -465,9 +465,25 @@
             @* Submit Result to RANK button (only for completed competitions) *@
             @if (Model.Status == ScheduleStatus.Completed)
             {
-                <button class="btn btn-primary" id="submitRankBtn">
-                    <i class="bi bi-graph-up-arrow"></i> Submit Result to RANK
-                </button>
+                   <div id="rankSubmitContainer" class="d-flex gap-2">
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary" id="submitRankBtn">
+            <i class="bi bi-graph-up-arrow"></i> Submit to RANK
+        </button>
+        
+
+        
+        <!-- Submitted Status -->
+        <div id="rankSubmittedStatus" style="display: none;">
+            <button type="button" class="btn btn-success" disabled>
+                <i class="bi bi-check-circle-fill me-2"></i>Submitted to RANK
+            </button>
+            <small class="text-muted d-block mt-2">
+                <i class="bi bi-info-circle me-1"></i>
+                <span id="rankSubmissionInfo"></span>
+            </small>
+        </div>
+    </div>
             }
             
                @if (canManage && Model.Status != ScheduleStatus.Completed)
@@ -1607,6 +1623,75 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="submitRankModal" tabindex="-1" aria-labelledby="submitRankModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="submitRankModalLabel">
+                    <i class="bi bi-graph-up-arrow"></i> Submit Competition Results to RANK
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>About RANK System:</strong> This will automatically process all completed matches from this competition and update participant ratings using our DUPR-like algorithm.
+                </div>
+
+                <div id="rankSubmissionSummary" class="mb-3" style="display: none;">
+                    <h6><i class="bi bi-list-check me-2"></i>Match Summary</h6>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <h3 class="text-primary mb-0" id="totalMatchesCount">0</h3>
+                                    <small class="text-muted">Total Matches</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <h3 class="text-success mb-0" id="singlesMatchesCount">0</h3>
+                                    <small class="text-muted">Singles</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <h3 class="text-info mb-0" id="doublesMatchesCount">0</h3>
+                                    <small class="text-muted">Doubles</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="rankLoadingSpinner" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading match data...</p>
+                </div>
+
+                <div id="rankProcessingStatus" style="display: none;">
+                    <!-- Status messages will appear here -->
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> 
+                    <ul class="mb-0 mt-2">
+                        <li>All completed matches will be submitted to RANK</li>
+                        <li>Player ratings will be updated based on match results</li>
+                        <li>This action cannot be undone</li>
+                        <li>Only matches with valid scores will be processed</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAutoSubmitRank" style="display: none;">
+                    <i class="bi bi-graph-up-arrow me-2"></i>Submit All Matches to RANK
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -3346,13 +3431,257 @@ if (endCompBtn && !endCompBtn.disabled) {
     });
 }
 
-// ==================== SUBMIT TO RANK FUNCTIONALITY (Placeholder) ====================
+
+
+// Show reset button if already submitted
+(function checkRankSubmissionStatus() {
+    const scheduleId = COMP_DATA.scheduleId;
+    const submitBtn = document.getElementById('submitRankBtn');
+    const resetBtn = document.getElementById('resetRankBtn');
+    const submittedStatus = document.getElementById('rankSubmittedStatus');
+    
+    if (!submitBtn) return;
+    
+    fetch(`/Rank/CheckCompetitionRankStatus?scheduleId=${scheduleId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.isSubmitted) {
+                submitBtn.style.display = 'none';
+                resetBtn.style.display = 'inline-block';
+                submittedStatus.style.display = 'block';
+                
+                const submissionDate = new Date(data.submissionDate);
+                const formattedDate = submissionDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                document.getElementById('rankSubmissionInfo').textContent = 
+                    `${data.matchesProcessed} match(es) submitted on ${formattedDate}`;
+            }
+        })
+        .catch(error => console.error('Error checking RANK status:', error));
+})();
+
+// Reset button handler
+document.getElementById('resetRankBtn')?.addEventListener('click', async function(e) {
+    e.preventDefault();
+    
+    if (!confirm('Reset and reprocess all RANK data for this competition?\n\nThis will:\n• Delete existing RANK results\n• Reset all player ratings\n• Reprocess with updated algorithm\n\nContinue?')) {
+        return;
+    }
+    
+    const scheduleId = COMP_DATA.scheduleId;
+    const btn = e.target;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Resetting...';
+    
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        
+        const response = await fetch('/Rank/ResetAndReprocess', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                scheduleId: scheduleId,
+                __RequestVerificationToken: token
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Successfully reset and reprocessed!\n\n' + data.message);
+            location.reload();
+        } else {
+            alert('❌ Error: ' + data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ An error occurred: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
+    }
+});
+
+// ==================== SUBMIT TO RANK FUNCTIONALITY (AUTO-PROCESS) ====================
 var submitRankBtn = document.getElementById('submitRankBtn');
 if (submitRankBtn) {
     submitRankBtn.addEventListener('click', function(e) {
         e.preventDefault();
-        alert('Submit to RANK feature will be implemented in the future.\n\nThis will sync competition results with the ranking system.');
+        
+        // Show the modal and load match summary
+        var modal = new bootstrap.Modal(document.getElementById('submitRankModal'));
+        modal.show();
+        
+        // Load match summary
+        loadMatchSummaryForRank();
     });
 }
+
+async function loadMatchSummaryForRank() {
+    const scheduleId = COMP_DATA.scheduleId;
+    const summaryDiv = document.getElementById('rankSubmissionSummary');
+    const loadingDiv = document.getElementById('rankLoadingSpinner');
+    const confirmBtn = document.getElementById('confirmAutoSubmitRank');
+    
+    try {
+        const response = await fetch(`/Rank/GetCompetitionMatchSummary?scheduleId=${scheduleId}`);
+        const data = await response.json();
+        
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            summaryDiv.style.display = 'block';
+            confirmBtn.style.display = 'inline-block';
+            
+            document.getElementById('totalMatchesCount').textContent = data.summary.totalMatches;
+            document.getElementById('singlesMatchesCount').textContent = data.summary.singlesMatches;
+            document.getElementById('doublesMatchesCount').textContent = data.summary.doublesMatches;
+            
+            if (data.summary.totalMatches === 0) {
+                summaryDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No completed matches found in this competition.
+                    </div>
+                `;
+                confirmBtn.style.display = 'none';
+            }
+        } else {
+            summaryDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle me-2"></i>
+                    ${data.message}
+                </div>
+            `;
+            summaryDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading match summary:', error);
+        loadingDiv.style.display = 'none';
+        summaryDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle me-2"></i>
+                Failed to load match data. Please try again.
+            </div>
+        `;
+        summaryDiv.style.display = 'block';
+    }
+}
+
+document.getElementById('confirmAutoSubmitRank')?.addEventListener('click', async function(e) {
+    e.preventDefault();
+    
+    const scheduleId = COMP_DATA.scheduleId;
+    const confirmBtn = e.target;
+    const statusDiv = document.getElementById('rankProcessingStatus');
+    
+    if (!confirm('Confirm submission to RANK?\n\nThis will process all completed matches and update player ratings.\n\nThis action cannot be undone.')) {
+        return;
+    }
+    
+    // Disable button and show processing
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = `
+        <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Processing...</span>
+                </div>
+                <span>Processing competition results...</span>
+            </div>
+        </div>
+    `;
+    
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        
+        const response = await fetch('/Rank/AutoSubmitCompetitionResults', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                scheduleId: scheduleId,
+                __RequestVerificationToken: token
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+    statusDiv.innerHTML = `
+        <div class="alert alert-success">
+            <h6><i class="bi bi-check-circle-fill me-2"></i>Successfully Submitted to RANK!</h6>
+            <p class="mb-2">${data.message}</p>
+            ${data.details ? `
+                <hr>
+                <small>
+                    <strong>Details:</strong><br>
+                    • Total Matches: ${data.details.totalMatches}<br>
+                    • Successfully Processed: ${data.details.processed}<br>
+                    • Skipped: ${data.details.skipped}
+                    ${data.details.errors && data.details.errors.length > 0 ? `
+                        <br><br><strong>Errors:</strong>
+                        <ul class="mb-0 mt-1">
+                            ${data.details.errors.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </small>
+            ` : ''}
+            <div class="mt-3 text-center">
+                <strong>All player ratings have been updated!</strong>
+            </div>
+        </div>
+    `;
+    
+    // Update button to show completion
+    confirmBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Submission Complete';
+    confirmBtn.classList.remove('btn-primary');
+    confirmBtn.classList.add('btn-success');
+    
+    // Close modal and reload after 2 seconds
+    setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById('submitRankModal'))?.hide();
+        location.reload(); // This will show the "Done Submit" button
+    }, 2000);
+}else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle-fill me-2"></i>
+                    <strong>Error:</strong> ${data.message}
+                    ${data.error ? `<br><small>${data.error}</small>` : ''}
+                </div>
+            `;
+            
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle-fill me-2"></i>
+                <strong>Error:</strong> An unexpected error occurred while processing results.
+                <br><small>${error.message}</small>
+            </div>
+        `;
+        
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+    }
+});
     </script>
 }

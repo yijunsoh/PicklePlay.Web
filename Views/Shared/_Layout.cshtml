@@ -108,6 +108,45 @@
         .dropdown-item-custom:hover {
             background-color: #f8f9fa;
         }
+
+        .rank-modal-display {
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 2px solid #dee2e6;
+}
+
+.rank-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.rank-modal-rating {
+    font-size: 2.5rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.rank-stat-mini {
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.rank-stat-mini .fw-bold {
+    font-size: 1.1rem;
+    color: #667eea;
+}
+
+.rank-stat-mini .text-muted {
+    font-size: 0.75rem;
+}
     </style>
 
     @await RenderSectionAsync("Styles", required: false)
@@ -288,6 +327,8 @@
                 // Render profile content
                 contentDiv.innerHTML = renderUserProfile(user);
                 console.log('Profile rendered successfully');
+
+                 loadModalRankData(user.userId);
                 
             } catch (error) {
                 console.error('=== Error in showUserProfilePreview ===');
@@ -368,6 +409,18 @@
                         ${actionButtons}
                     </div>
                 </div>
+
+                <!-- ⬇️ NEW: RANK Display -->
+        <div class="user-preview-section" id="rankSection-${user.userId}">
+            <h6><i class="bi bi-graph-up-arrow me-2 text-primary"></i>RANK Rating</h6>
+            <div id="rankLoading-${user.userId}" class="text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="text-muted ms-2">Loading rating...</span>
+            </div>
+            <div id="rankData-${user.userId}" style="display: none;"></div>
+        </div>
                 
                 <!-- Stats -->
                 <div class="user-preview-section">
@@ -448,6 +501,99 @@
                 </div>
             `;
         }
+
+        function loadModalRankData(userId) {
+    fetch(`/Rank/GetPlayerRank?userId=${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            const loadingDiv = document.getElementById(`rankLoading-${userId}`);
+            const dataDiv = document.getElementById(`rankData-${userId}`);
+            
+            if (loadingDiv) loadingDiv.style.display = 'none';
+            if (!dataDiv) return;
+            
+            if (data.success) {
+                const rank = data.rank;
+                dataDiv.style.display = 'block';
+                
+                // Get status color
+                let statusColor = 'secondary';
+                if (rank.status === 'Reliable') statusColor = 'success';
+                else if (rank.status === 'Provisional') statusColor = 'warning';
+                
+                // Get reliability color
+                let reliabilityColor = 'danger';
+                if (rank.reliabilityScore >= 80) reliabilityColor = 'success';
+                else if (rank.reliabilityScore >= 60) reliabilityColor = 'info';
+                else if (rank.reliabilityScore >= 40) reliabilityColor = 'warning';
+                
+                dataDiv.innerHTML = `
+                    <div class="rank-modal-display">
+                        <div class="rank-modal-header">
+                            <div class="rank-modal-rating">
+                                ${rank.rating}
+                            </div>
+                            <span class="badge bg-${statusColor}">${rank.status}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">Reliability</small>
+                                <small class="fw-bold">${rank.reliabilityScore.toFixed(0)}%</small>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-${reliabilityColor}" 
+                                     style="width: ${rank.reliabilityScore}%;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-2 text-center small">
+                            <div class="col-4">
+                                <div class="rank-stat-mini">
+                                    <div class="fw-bold">${rank.totalMatches}</div>
+                                    <div class="text-muted">Matches</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="rank-stat-mini">
+                                    <div class="fw-bold">${rank.winRate.toFixed(1)}%</div>
+                                    <div class="text-muted">Win Rate</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="rank-stat-mini">
+                                    <div class="fw-bold">${rank.uniquePartners + rank.uniqueOpponents}</div>
+                                    <div class="text-muted">Network</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${rank.totalMatches > 0 ? `
+                            <div class="text-center mt-2">
+                                <a href="/Rank/MatchHistory?userId=${userId}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-clock-history me-1"></i>View Match History
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                dataDiv.innerHTML = '<p class="text-muted text-center mb-0">No rating data available</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading rank:', error);
+            const loadingDiv = document.getElementById(`rankLoading-${userId}`);
+            const dataDiv = document.getElementById(`rankData-${userId}`);
+            if (loadingDiv) loadingDiv.style.display = 'none';
+            if (dataDiv) {
+                dataDiv.style.display = 'block';
+                dataDiv.innerHTML = '<p class="text-danger text-center mb-0 small">Failed to load rating</p>';
+            }
+        });
+}
         
         function getAwardIcon(type) {
             const icons = {
