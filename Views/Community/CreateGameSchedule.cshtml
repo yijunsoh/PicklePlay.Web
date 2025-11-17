@@ -1,0 +1,812 @@
+@* filepath: c:\Users\xkyh0\Downloads\PicklePlay.Web\Views\Community\CreateGameSchedule.cshtml *@
+
+@model PicklePlay.Models.ScheduleUnifiedViewModel
+@using PicklePlay.Models
+
+@{
+    ViewData["Title"] = "Create Game Schedule";
+}
+
+@functions {
+    string GetDurationDisplay(Duration duration)
+    {
+        return duration switch
+        {
+            Duration.H0_5 => "30 Minutes",
+            Duration.H1 => "1 Hour",
+            Duration.H1_5 => "1.5 Hours",
+            Duration.H2 => "2 Hours",
+            Duration.H2_5 => "2.5 Hours",
+            Duration.H3 => "3 Hours",
+            Duration.H3_5 => "3.5 Hours",
+            Duration.H4 => "4 Hours",
+            Duration.H5 => "5 Hours",
+            Duration.H6 => "6 Hours",
+            Duration.H7 => "7 Hours",
+            Duration.H8 => "8 Hours",
+            Duration.D1 => "1 Day",
+            Duration.D2 => "2 Days",
+            Duration.D3 => "3 Days",
+            _ => duration.ToString()
+        };
+    }
+}
+
+<div class="create-schedule-container">
+    <div class="schedule-header">
+        <div>
+            <h2><i class="bi bi-calendar-plus me-2"></i>Create Game Schedule</h2>
+            <p class="text-muted mb-0">Schedule a game for your community</p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" onclick="confirmExit()">
+            <i class="bi bi-x-lg me-1"></i>Cancel
+        </button>
+    </div>
+
+    <form asp-action="CreateGameSchedule" method="post" id="scheduleForm" onsubmit="return validateForm()">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <!-- Basic Information Card -->
+        <div class="form-card">
+            <div class="card-icon bg-primary">
+                <i class="bi bi-info-circle"></i>
+            </div>
+            <h5 class="card-title">Basic Information</h5>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="GameName" class="form-label required">Game Name</label>
+                    <input asp-for="GameName" class="form-control form-control-lg"
+                        placeholder="e.g., Friday Night Pickleball" maxlength="100" required />
+                    <span asp-validation-for="GameName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="NumPlayer" class="form-label required">Players</label>
+                    <input asp-for="NumPlayer" type="number" class="form-control form-control-lg" min="2" max="100"
+                        required />
+                    <span asp-validation-for="NumPlayer" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="3"
+                    placeholder="Add details about your game..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Location" class="form-label required">Location</label>
+                <input asp-for="Location" class="form-control" placeholder="e.g., ABC Sports Center, Court 1"
+                    required />
+                <span asp-validation-for="Location" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="EventTag" class="form-label">Event Tag</label>
+                <select asp-for="EventTag" class="form-select form-select-lg">
+                    <option value="@EventTag.None">No Tag</option>
+                    <option value="@EventTag.BeginnerFriendly">🟢 Beginner Friendly</option>
+                    <option value="@EventTag.Competitive">🔴 Competitive</option>
+                    <option value="@EventTag.Training">🏃 Training</option>
+                    <option value="@EventTag.SingleGame">🥇 Single Game</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Schedule Card -->
+        <div class="form-card">
+            <div class="card-icon bg-success">
+                <i class="bi bi-clock"></i>
+            </div>
+            <h5 class="card-title">Schedule</h5>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="StartTime" class="form-label required">Start Date & Time</label>
+                    <input asp-for="StartTime" type="datetime-local" class="form-control" id="startTimeInput"
+                        required onchange="validateStartTime()" />
+                    <span asp-validation-for="StartTime" class="text-danger"></span>
+                    <div id="startTimeError" class="text-danger mt-1" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <span id="startTimeErrorMsg"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Duration" class="form-label required">Duration</label>
+                    <div class="duration-selector">
+                        @foreach (Duration d in Enum.GetValues<Duration>())
+                        {
+                            <input type="radio" class="btn-check" name="Duration" value="@d" id="duration-@d"
+                                checked="@(d == Duration.H2)" />
+                            <label class="btn btn-outline-primary" for="duration-@d">
+                                @GetDurationDisplay(d)
+                            </label>
+                        }
+                    </div>
+                    <span asp-validation-for="Duration" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- Recurring Options -->
+            <div class="recurring-section mt-4">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="enableRecurring" onchange="toggleRecurring()" />
+                    <label class="form-check-label fw-semibold" for="enableRecurring">
+                        <i class="bi bi-arrow-repeat me-1"></i>Repeat Weekly
+                    </label>
+                </div>
+
+                <div id="recurringOptions" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold mb-2">Select Days <span class="text-danger">*</span></label>
+                        <div class="weekday-selector">
+                            @{
+                                var days = new[] {
+                                    (RecurringWeek.Mon, "M", "Monday"),
+                                    (RecurringWeek.Tue, "T", "Tuesday"),
+                                    (RecurringWeek.Wed, "W", "Wednesday"),
+                                    (RecurringWeek.Thur, "T", "Thursday"),
+                                    (RecurringWeek.Fri, "F", "Friday"),
+                                    (RecurringWeek.Sat, "S", "Saturday"),
+                                    (RecurringWeek.Sun, "S", "Sunday")
+                                };
+                            }
+                            @foreach (var (day, letter, name) in days)
+                            {
+                                <div class="weekday-item">
+                                    <input type="checkbox" class="btn-check recurring-day-checkbox" name="RecurringWeek" value="@day"
+                                        id="day-@day" onchange="validateRecurringDays()" />
+                                    <label class="btn btn-outline-primary" for="day-@day" title="@name">
+                                        <span class="weekday-letter">@letter</span>
+                                        <span class="weekday-name">@name.Substring(0, 3)</span>
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        <div id="recurringDaysError" class="text-danger mt-2" style="display: none;">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Please select at least one day
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="RecurringEndDate" class="form-label">Repeat Until <span class="text-danger">*</span></label>
+                            <input asp-for="RecurringEndDate" type="date" class="form-control" id="recurringEndDate" />
+                            <span asp-validation-for="RecurringEndDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="AutoCreateWhen" class="form-label">Auto-Create <span class="text-danger">*</span></label>
+                            <select asp-for="AutoCreateWhen" class="form-select" id="autoCreateWhen">
+                                <option value="">Select when to create</option>
+                                @foreach (AutoCreateWhen acw in Enum.GetValues<AutoCreateWhen>())
+                                {
+                                    <option value="@acw">@acw.ToString().Replace("B", "Before ").Replace("d", " days")</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AutoCreateWhen" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee & Privacy Card -->
+        <div class="form-card">
+            <div class="card-icon bg-warning">
+                <i class="bi bi-cash-coin"></i>
+            </div>
+            <h5 class="card-title">Fee & Privacy</h5>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="FeeType" class="form-label required">Fee Type</label>
+                    <div class="fee-type-selector">
+                        @foreach (FeeType ft in new[] { FeeType.Free, FeeType.PerPerson, FeeType.AutoSplitTotal })
+                        {
+                            <input type="radio" class="btn-check" name="FeeType" value="@((int)ft)" id="feeType-@ft"
+                                checked="@(ft == FeeType.Free)" onchange="toggleFeeAmount()" />
+                            <label class="btn btn-outline-success" for="feeType-@ft">
+                                <i class="bi bi-@(ft == FeeType.Free ? "gift" : "cash-stack") me-1"></i>
+                                @(ft == FeeType.Free ? "Free" : ft == FeeType.PerPerson ? "Per Person" : "Split Total")
+                            </label>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-6" id="feeAmountContainer" style="display: none;">
+                    <label asp-for="FeeAmount" class="form-label required">Amount (RM)</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text">RM</span>
+                        <input asp-for="FeeAmount" type="number" class="form-control" step="0.01" min="0"
+                            placeholder="0.00" id="feeAmountInput" />
+                    </div>
+                    <span asp-validation-for="FeeAmount" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label asp-for="Privacy" class="form-label">Privacy</label>
+                    <div class="privacy-selector">
+                        <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Public" id="privacy-public"
+                            checked />
+                        <label class="btn btn-outline-info" for="privacy-public">
+                            <i class="bi bi-globe me-1"></i>Public
+                        </label>
+                        <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Private"
+                            id="privacy-private" />
+                        <label class="btn btn-outline-info" for="privacy-private">
+                            <i class="bi bi-lock me-1"></i>Private
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Options (Collapsible) -->
+        <div class="form-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <div class="card-icon bg-secondary d-inline-flex">
+                        <i class="bi bi-sliders"></i>
+                    </div>
+                    <h5 class="card-title d-inline-block ms-2">Advanced Options</h5>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                    data-bs-target="#advancedOptions">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+
+            <div class="collapse" id="advancedOptions">
+                <div class="row g-3">
+                    <div class="col-md-6">
+    <label asp-for="MinRankRestriction" class="form-label">Minimum RANK</label>
+    <input asp-for="MinRankRestriction" type="number" class="form-control" 
+           step="0.001" min="0" max="8" 
+           placeholder="No minimum (open to all)" 
+           id="minRankInput"
+           oninput="validateRankInput(this)" />
+    <small class="form-text text-muted">Leave empty for no minimum (e.g., 2.500)</small>
+    <div id="minRankError" class="text-danger mt-1" style="display: none;">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <span id="minRankErrorMsg"></span>
+    </div>
+</div>
+<div class="col-md-6">
+    <label asp-for="MaxRankRestriction" class="form-label">Maximum RANK</label>
+    <input asp-for="MaxRankRestriction" type="number" class="form-control" 
+           step="0.001" min="0" max="8" 
+           placeholder="No maximum (open to all)" 
+           id="maxRankInput"
+           oninput="validateRankInput(this)" />
+    <small class="form-text text-muted">Leave empty for no maximum (e.g., 5.000)</small>
+    <div id="maxRankError" class="text-danger mt-1" style="display: none;">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <span id="maxRankErrorMsg"></span>
+    </div>
+</div>
+                    <div class="col-md-6">
+                        <label asp-for="GenderRestriction" class="form-label">Gender Restriction</label>
+                        <select asp-for="GenderRestriction" class="form-select">
+                            <option value="@GenderRestriction.None">No Restriction</option>
+                            <option value="@GenderRestriction.Male">Male Only</option>
+                            <option value="@GenderRestriction.Female">Female Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="AgeGroupRestriction" class="form-label">Age Group</label>
+                        <select asp-for="AgeGroupRestriction" class="form-select">
+                            <option value="@AgeGroupRestriction.None">All Ages</option>
+                            <option value="@AgeGroupRestriction.Junior">Youth (Under 18)</option>
+                            <option value="@AgeGroupRestriction.Adult">Adult (18-59)</option>
+                            <option value="@AgeGroupRestriction.Senior">Senior (60+)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="CancellationFreeze" class="form-label">Cancellation Policy</label>
+                        <select asp-for="CancellationFreeze" class="form-select">
+                            <option value="@CancellationFreeze.None">Anytime</option>    
+                            <option value="@CancellationFreeze.B2hr">Before 2 hours</option>
+                            <option value="@CancellationFreeze.B4hr">Before 4 hours</option>
+                            <option value="@CancellationFreeze.B8hr">Before 8 hours</option>
+                            <option value="@CancellationFreeze.B12hr">Before 12 hours</option>
+                            <option value="@CancellationFreeze.B24hr">Before 24 hours</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="HostRole" class="form-label">Host Role</label>
+                        <select asp-for="HostRole" class="form-select">
+                            <option value="@HostRole.HostAndPlay">Host & Play</option>
+                            <option value="@HostRole.HostOnly">Host Only</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-check-circle me-2"></i>Create Schedule
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Styles {
+    <style>
+        .create-schedule-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .schedule-header h2 {
+            margin: 0;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            position: relative;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label.required::after {
+            content: " *";
+            color: #dc3545;
+        }
+
+        /* Duration Selector */
+        .duration-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .duration-selector .btn {
+            flex: 1;
+            min-width: 80px;
+        }
+
+        /* Weekday Selector */
+        .weekday-selector {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+
+        .weekday-item label {
+            width: 100%;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .weekday-letter {
+            display: none;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .weekday-name {
+            display: block;
+            font-size: 0.9rem;
+        }
+
+        @@media (max-width: 768px) {
+            .weekday-letter {
+                display: block;
+            }
+
+            .weekday-name {
+                display: none;
+            }
+        }
+
+        .weekday-item input:checked+label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Fee Type Selector */
+        .fee-type-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .fee-type-selector .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        /* Privacy Selector */
+        .privacy-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .privacy-selector .btn {
+            flex: 1;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .form-actions .btn {
+            min-width: 250px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .form-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Recurring Section */
+        .recurring-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .form-check-input:checked {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+
+        /* Error states */
+        .form-control.is-invalid,
+        .form-select.is-invalid {
+            border-color: #dc3545;
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .create-schedule-container {
+                padding: 1rem 0.5rem;
+            }
+
+            .form-card {
+                padding: 1.5rem;
+            }
+
+            .schedule-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Set minimum datetime and initialize
+        document.addEventListener("DOMContentLoaded", function () {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+            document.getElementById('startTimeInput').min = minDateTime;
+            document.getElementById('recurringEndDate').min = `${year}-${month}-${day}`;
+
+            // Initialize fee amount visibility
+            toggleFeeAmount();
+
+            // Add blur event listeners for RANK range validation
+            const minRankInput = document.getElementById('minRankInput');
+            const maxRankInput = document.getElementById('maxRankInput');
+            
+            minRankInput?.addEventListener('blur', validateRankRange);
+            maxRankInput?.addEventListener('blur', validateRankRange);
+        });
+
+        // ⬇️ ADD: Validate RANK input - 3 decimal places
+        function validateRankInput(input) {
+            const value = input.value;
+            const inputId = input.id;
+            const errorDiv = document.getElementById(inputId.replace('Input', 'Error'));
+            const errorMsg = document.getElementById(inputId.replace('Input', 'ErrorMsg'));
+            
+            // Clear previous error
+            errorDiv.style.display = 'none';
+            input.classList.remove('is-invalid');
+            
+            // Skip validation if empty (optional field)
+            if (!value) {
+                // Also clear range error when field becomes empty
+                validateRankRange();
+                return true;
+            }
+            
+            const numValue = parseFloat(value);
+            
+            // Check if valid number
+            if (isNaN(numValue)) {
+                errorDiv.style.display = 'block';
+                errorMsg.textContent = 'Please enter a valid number';
+                input.classList.add('is-invalid');
+                return false;
+            }
+            
+            // Check range (0.000 to 8.000)
+            if (numValue < 0 || numValue > 8) {
+                errorDiv.style.display = 'block';
+                errorMsg.textContent = 'RANK must be between 0.000 and 8.000';
+                input.classList.add('is-invalid');
+                return false;
+            }
+            
+            // Check decimal places (max 3)
+            const decimalPart = value.split('.')[1];
+            if (decimalPart && decimalPart.length > 3) {
+                errorDiv.style.display = 'block';
+                errorMsg.textContent = 'RANK can have maximum 3 decimal places (e.g., 2.500)';
+                input.classList.add('is-invalid');
+                
+                // Auto-fix: round to 3 decimal places
+                setTimeout(() => {
+                    input.value = numValue.toFixed(3);
+                    validateRankInput(input);
+                }, 500);
+                return false;
+            }
+            
+            // Trigger range validation after individual validation passes
+            validateRankRange();
+            return true;
+        }
+
+        // ⬇️ UPDATE: Validate RANK range (min <= max) with better error handling
+        function validateRankRange() {
+            const minRankInput = document.getElementById('minRankInput');
+            const maxRankInput = document.getElementById('maxRankInput');
+            const minRankError = document.getElementById('minRankError');
+            const maxRankError = document.getElementById('maxRankError');
+            const maxRankErrorMsg = document.getElementById('maxRankErrorMsg');
+            
+            const minValue = parseFloat(minRankInput.value);
+            const maxValue = parseFloat(maxRankInput.value);
+            
+            // Clear range error first
+            maxRankError.style.display = 'none';
+            maxRankInput.classList.remove('is-invalid');
+            
+            // Skip if either is empty
+            if (!minRankInput.value || !maxRankInput.value) return true;
+            
+            // Check if min > max
+            if (minValue > maxValue) {
+                maxRankError.style.display = 'block';
+                maxRankErrorMsg.textContent = 'Maximum RANK must be greater than or equal to Minimum RANK';
+                maxRankInput.classList.add('is-invalid');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Validate start time in real-time
+        function validateStartTime() {
+            const startTimeInput = document.getElementById('startTimeInput');
+            const startTimeError = document.getElementById('startTimeError');
+            const startTimeErrorMsg = document.getElementById('startTimeErrorMsg');
+            const selectedTime = new Date(startTimeInput.value);
+            const now = new Date();
+
+            if (startTimeInput.value && selectedTime <= now) {
+                startTimeError.style.display = 'block';
+                startTimeErrorMsg.textContent = 'Start time must be in the future. Please select a later date and time.';
+                startTimeInput.classList.add('is-invalid');
+                return false;
+            } else {
+                startTimeError.style.display = 'none';
+                startTimeInput.classList.remove('is-invalid');
+                return true;
+            }
+        }
+
+        // Validate recurring days selection
+        function validateRecurringDays() {
+            const recurringEnabled = document.getElementById('enableRecurring').checked;
+            if (!recurringEnabled) return true;
+
+            const checkboxes = document.querySelectorAll('.recurring-day-checkbox');
+            const recurringDaysError = document.getElementById('recurringDaysError');
+            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+
+            if (!anyChecked) {
+                recurringDaysError.style.display = 'block';
+                return false;
+            } else {
+                recurringDaysError.style.display = 'none';
+                return true;
+            }
+        }
+
+        // Toggle recurring options
+        function toggleRecurring() {
+            const enabled = document.getElementById('enableRecurring').checked;
+            const options = document.getElementById('recurringOptions');
+            options.style.display = enabled ? 'block' : 'none';
+
+            if (enabled) {
+                document.getElementById('recurringEndDate').required = true;
+                document.getElementById('autoCreateWhen').required = true;
+            } else {
+                document.getElementById('recurringEndDate').required = false;
+                document.getElementById('autoCreateWhen').required = false;
+                document.getElementById('recurringDaysError').style.display = 'none';
+            }
+        }
+
+        // Toggle fee amount
+        function toggleFeeAmount() {
+            const feeTypeRadio = document.querySelector('input[name="FeeType"]:checked');
+            if (!feeTypeRadio) return;
+
+            const feeType = parseInt(feeTypeRadio.value);
+            const container = document.getElementById('feeAmountContainer');
+            const feeInput = document.getElementById('feeAmountInput');
+
+            const showFeeAmount = (feeType === 2 || feeType === 3);
+
+            container.style.display = showFeeAmount ? 'block' : 'none';
+            feeInput.required = showFeeAmount;
+
+            if (!showFeeAmount) {
+                feeInput.value = '';
+            }
+        }
+
+        // Comprehensive form validation before submit
+        function validateForm() {
+            let isValid = true;
+            let firstErrorField = null;
+
+            // Validate start time
+            if (!validateStartTime()) {
+                isValid = false;
+                firstErrorField = firstErrorField || document.getElementById('startTimeInput');
+            }
+
+            // Validate recurring options if enabled
+            const recurringEnabled = document.getElementById('enableRecurring').checked;
+            if (recurringEnabled) {
+                if (!validateRecurringDays()) {
+                    isValid = false;
+                    if (!firstErrorField) {
+                        firstErrorField = document.querySelector('.weekday-selector');
+                    }
+                }
+
+                // Check recurring end date
+                const recurringEndDate = document.getElementById('recurringEndDate');
+                if (!recurringEndDate.value) {
+                    alert('Please select when to stop repeating.');
+                    firstErrorField = firstErrorField || recurringEndDate;
+                    isValid = false;
+                }
+
+                // Check auto-create
+                const autoCreateWhen = document.getElementById('autoCreateWhen');
+                if (!autoCreateWhen.value) {
+                    alert('Please select when to auto-create schedule instances.');
+                    firstErrorField = firstErrorField || autoCreateWhen;
+                    isValid = false;
+                }
+            }
+
+            // Validate fee amount if needed
+            const feeType = parseInt(document.querySelector('input[name="FeeType"]:checked').value);
+            if (feeType === 2 || feeType === 3) {
+                const feeAmount = document.getElementById('feeAmountInput');
+                if (!feeAmount.value || parseFloat(feeAmount.value) <= 0) {
+                    alert('Please enter a valid fee amount.');
+                    firstErrorField = firstErrorField || feeAmount;
+                    isValid = false;
+                }
+            }
+
+            // Validate RANK inputs
+            const minRankInput = document.getElementById('minRankInput');
+            const maxRankInput = document.getElementById('maxRankInput');
+
+            if (minRankInput.value && !validateRankInput(minRankInput)) {
+                isValid = false;
+                firstErrorField = firstErrorField || minRankInput;
+            }
+
+            if (maxRankInput.value && !validateRankInput(maxRankInput)) {
+                isValid = false;
+                firstErrorField = firstErrorField || maxRankInput;
+            }
+
+            // Validate RANK range
+            if (!validateRankRange()) {
+                isValid = false;
+                firstErrorField = firstErrorField || maxRankInput;
+            }
+
+            // Scroll to first error
+            if (!isValid && firstErrorField) {
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstErrorField.focus();
+            }
+
+            return isValid;
+        }
+
+        // Confirm exit
+        function confirmExit() {
+            if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+                window.location.href = '@Url.Action("Activity", "Community")';
+            }
+        }
+
+        // Prevent negative numbers
+        document.addEventListener('input', function (e) {
+            if (e.target.matches('input[type="number"]') && e.target.value && e.target.value.startsWith('-')) {
+                e.target.value = e.target.value.replace('-', '');
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === '-' && e.target.matches('input[type="number"]')) {
+                e.preventDefault();
+            }
+        });
+    </script>
+}
