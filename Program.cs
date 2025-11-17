@@ -54,7 +54,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 // ADD PAYMENT SERVICES - THESE ARE MISSING
 builder.Services.AddScoped<IPaymentService, MockPaymentService>();
 builder.Services.AddScoped<IPayPalService, PayPalService>();
-
+builder.Services.AddScoped<IEscrowService, EscrowService>();
 // Add HttpClient for CAPTCHA validation
 builder.Services.AddHttpClient();
 

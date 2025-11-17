@@ -1,0 +1,445 @@
+@using PicklePlay.Models
+@{
+    var modalContext = ViewData["ModalContext"] as string ?? "game";
+    var scheduleId = ViewData["ScheduleId"] as int?;
+    var feeAmount = ViewData["FeeAmount"] as decimal? ?? 0;
+    var gameName = ViewData["GameName"] as string ?? "this event";
+}
+
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalLabel">
+                    <i class="bi bi-credit-card"></i> Secure Payment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Payment Summary -->
+                <div class="payment-summary mb-4">
+                    <h6 class="fw-bold">Payment Summary</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>@gameName Fee:</span>
+                        <strong>RM <span id="paymentAmount">@feeAmount.ToString("0.00")</span></strong>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mb-2">
+                        <span>Escrow Protection:</span>
+                        <span>Included</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total Amount:</span>
+                        <strong class="text-primary">RM <span
+                                id="totalAmount">@feeAmount.ToString("0.00")</span></strong>
+                    </div>
+                </div>
+
+                <!-- Balance Check -->
+                <div class="balance-check mb-3">
+                    <div class="alert alert-info" id="balanceInfo">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-arrow-repeat spinner-border spinner-border-sm me-2"></i>
+                            <span id="balanceText">Checking your wallet balance...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Verification -->
+                <div class="password-verification mb-3" id="passwordSection" style="display: none;">
+                    <h6 class="fw-bold mb-3">Security Verification</h6>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-shield-exclamation"></i> Please enter your password to confirm payment
+                    </div>
+                    <div class="mb-3">
+                        <label for="userPassword" class="form-label">Your Password</label>
+                        <input type="password" class="form-control" id="userPassword" placeholder="Enter your password"
+                            required>
+                        <div class="form-text">Your password is required for security verification</div>
+                    </div>
+                    <div class="alert alert-danger d-none" id="passwordError">
+                        <i class="bi bi-exclamation-circle"></i> <span id="passwordErrorText"></span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary btn-lg" id="proceedToPaymentBtn" disabled
+                        style="display: none;">
+                        <i class="bi bi-shield-check"></i> Proceed to Payment
+                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" id="processPaymentBtn" disabled
+                        style="display: none;">
+                        <i class="bi bi-lock-fill"></i> Confirm Payment
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="checkBalance()"
+                        id="refreshBalanceBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Balance
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted">
+                    <i class="bi bi-shield-check"></i> Secured with escrow protection • Funds held until event
+                    completion
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global variables
+    let paymentAmount = @feeAmount;
+    let currentScheduleId = @scheduleId;
+    let isBalanceChecked = false;
+    let canAffordPayment = false;
+    let currentWalletBalance = 0;
+
+    // --- 1. BALANCE CHECK FUNCTION ---
+    function checkBalance() {
+        const balanceInfo = document.getElementById('balanceInfo');
+        const balanceText = document.getElementById('balanceText');
+        const proceedBtn = document.getElementById('proceedToPaymentBtn');
+        const refreshBtn = document.getElementById('refreshBalanceBtn');
+
+        balanceInfo.className = 'alert alert-info';
+        balanceText.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm me-2"></i> Checking balance...';
+        proceedBtn.disabled = true;
+        refreshBtn.disabled = true;
+
+        fetch('/api/wallet/balance')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                refreshBtn.disabled = false;
+                isBalanceChecked = true;
+
+                if (data.success) {
+                    currentWalletBalance = data.balance;
+                    canAffordPayment = data.balance >= paymentAmount;
+
+                    if (canAffordPayment) {
+                        balanceInfo.className = 'alert alert-success';
+                        balanceText.innerHTML =
+                            `<i class="bi bi-check-circle-fill me-2"></i> 
+                             Sufficient balance: RM ${data.balance.toFixed(2)}`;
+
+                        proceedBtn.style.display = 'block';
+                        proceedBtn.disabled = false;
+                        proceedBtn.innerHTML =
+                            `<i class="bi bi-shield-check"></i> Proceed to Pay RM ${paymentAmount.toFixed(2)}`;
+                    } else {
+                        balanceInfo.className = 'alert alert-danger';
+                        balanceText.innerHTML =
+                            `<i class="bi bi-exclamation-circle-fill me-2"></i> 
+                             Insufficient balance. 
+                             You have RM ${data.balance.toFixed(2)}, need RM ${paymentAmount.toFixed(2)}
+                             <button type="button" class="btn btn-warning btn-sm ms-2" onclick="redirectToTopUp()">
+                                 <i class="bi bi-plus-circle"></i> Top Up Wallet
+                             </button>`;
+                        proceedBtn.style.display = 'none';
+                    }
+                } else {
+                    balanceInfo.className = 'alert alert-warning';
+                    balanceText.innerHTML =
+                        `<i class="bi bi-exclamation-triangle-fill me-2"></i> Could not check balance: ${data.message}`;
+                    proceedBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                refreshBtn.disabled = false;
+                balanceInfo.className = 'alert alert-danger';
+                balanceText.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i> Error checking balance';
+                proceedBtn.style.display = 'none';
+                console.error('Balance check error:', error);
+            });
+    }
+
+    // Redirect to top-up page
+    function redirectToTopUp() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+        modal.hide();
+        const returnUrl = encodeURIComponent(window.location.href + '?paymentPending=true');
+        window.location.href = '/Wallet/TopUp?returnUrl=' + returnUrl;
+    }
+
+    // Toggle confirm button based on password input
+    function toggleConfirmButton() {
+        const password = document.getElementById('userPassword').value.trim();
+        const confirmBtn = document.getElementById('processPaymentBtn');
+        confirmBtn.disabled = password.length === 0;
+    }
+
+    // --- 2. CORE PAYMENT EXECUTION FUNCTION ---
+    function executeEscrowPayment(btn) {
+        const password = document.getElementById('userPassword').value.trim();
+
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+        btn.disabled = true;
+
+        fetch('/Escrow/ProcessPayment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                scheduleId: currentScheduleId,
+                userId: @Context.Session.GetInt32("UserId"),
+                amount: paymentAmount,
+                paymentType: 'GameFee',
+                password: password
+            })
+        })
+            .then(async response => {
+                const raw = await response.text();
+                let data;
+
+                try {
+                    data = raw ? JSON.parse(raw) : {};
+                } catch {
+                    throw new Error(raw || 'Server returned invalid response.');
+                }
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Payment failed');
+                }
+
+                return data;
+            })
+            .then(data => {
+                showPaymentSuccess(data.message || 'Payment successful!');
+            })
+            .catch(err => {
+                console.error(err);
+                showPaymentError(err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-lock-fill"></i> Confirm Payment';
+            });
+    }
+
+
+
+
+    // --- 3. EVENT LISTENERS AND FLOW CONTROL ---
+
+    // Proceed to password verification
+    document.getElementById('proceedToPaymentBtn').addEventListener('click', function () {
+        if (!canAffordPayment || !isBalanceChecked) return;
+
+        this.style.display = 'none';
+        document.getElementById('passwordSection').style.display = 'block';
+        document.getElementById('processPaymentBtn').style.display = 'block';
+        document.getElementById('refreshBalanceBtn').style.display = 'none';
+    });
+
+    // Process payment with password verification
+    document.getElementById('processPaymentBtn').addEventListener('click', function () {
+        const password = document.getElementById('userPassword').value.trim();
+        const passwordError = document.getElementById('passwordError');
+        const passwordErrorText = document.getElementById('passwordErrorText');
+        const btn = this;
+
+        if (!password) {
+            passwordErrorText.textContent = 'Please enter your password';
+            passwordError.classList.remove('d-none');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Verifying...';
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        fetch('/Auth/VerifyPaymentPassword', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': token
+            },
+            body: `password=${encodeURIComponent(password)}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Password valid, proceed to the payment function
+                    executeEscrowPayment(btn);
+                } else {
+                    passwordErrorText.textContent = data.message ||
+                        'Invalid password. Please try again.';
+                    passwordError.classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-lock-fill"></i> Confirm Payment';
+                    document.getElementById('userPassword').value = '';
+                    toggleConfirmButton();
+                }
+            })
+            .catch(error => {
+                passwordErrorText.textContent = 'Error verifying password. Please try again.';
+                passwordError.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-lock-fill"></i> Confirm Payment';
+                console.error('Password verification error:', error);
+                toggleConfirmButton();
+            });
+    });
+
+    // Show success message and reload page
+    function showPaymentSuccess(message) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+        modal.hide();
+
+        const successHtml = `
+        <div class="alert alert-success alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                <div>
+                    <h6 class="mb-1">Payment Successful!</h6> 
+                    <p class="mb-0">${message}</p>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+        document.body.insertAdjacentHTML('afterbegin', successHtml);
+
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+    }
+
+    // Show error message
+    function showPaymentError(message) {
+        const errorHtml = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-x-circle-fill me-2 fs-4"></i>
+                <div>
+                    <h6 class="mb-1">Payment Failed</h6> 
+                    <p class="mb-0">${message}</p>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+        document.body.insertAdjacentHTML('afterbegin', errorHtml);
+    }
+
+    // Modal show event: Reset and start balance check
+    document.getElementById('paymentModal').addEventListener('show.bs.modal', function () {
+        document.getElementById('passwordSection').style.display = 'none';
+        document.getElementById('processPaymentBtn').style.display = 'none';
+        document.getElementById('proceedToPaymentBtn').style.display = 'none';
+        document.getElementById('refreshBalanceBtn').style.display = 'block';
+        document.getElementById('userPassword').value = '';
+        document.getElementById('passwordError').classList.add('d-none');
+
+        isBalanceChecked = false;
+        canAffordPayment = false;
+
+        setTimeout(checkBalance, 300);
+    });
+
+    // Modal hide event: Clear password
+    document.getElementById('paymentModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('userPassword').value = '';
+        document.getElementById('passwordError').classList.add('d-none');
+    });
+
+    // DOMContentLoaded setup
+    document.addEventListener('DOMContentLoaded', function () {
+        const passwordInput = document.getElementById('userPassword');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', toggleConfirmButton);
+        }
+    });
+
+    // Keyboard 'Enter' key support
+    document.getElementById('userPassword').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            const confirmBtn = document.getElementById('processPaymentBtn');
+            if (!confirmBtn.disabled) {
+                confirmBtn.click();
+            }
+        }
+    });
+</script>
+
+<style>
+    .payment-summary {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        border: none;
+        color: #000;
+        font-weight: 600;
+    }
+
+    .btn-warning:hover {
+        background: linear-gradient(135deg, #e0a800 0%, #c69500 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+    }
+
+    .alert {
+        border: none;
+        border-radius: 8px;
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
+        color: #0f5132;
+    }
+
+    .alert-danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%);
+        color: #721c24;
+    }
+
+    .alert-info {
+        background: linear-gradient(135deg, #cff4fc 0%, #9eeaf9 100%);
+        color: #055160;
+    }
+
+    .alert-warning {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        color: #664d03;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .modal-footer {
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+    }
+</style>

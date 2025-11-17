@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PicklePlay.Data;
 using PicklePlay.Models;
@@ -649,5 +650,35 @@ namespace PicklePlay.Controllers
             return RedirectToAction("EditProfile", "Home");
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyPaymentPassword(string password)
+        {
+            try
+            {
+                var currentUserId = HttpContext.Session.GetInt32("UserId");
+                if (!currentUserId.HasValue)
+                {
+                    return Json(new { success = false, message = "User not authenticated" });
+                }
+
+                // Use the new dedicated method
+                var authResult = await _authService.VerifyPaymentPasswordAsync(currentUserId.Value, password);
+
+                if (authResult.Success)
+                {
+                    return Json(new { success = true });
+                }
+                else
+                {
+                    return Json(new { success = false, message = authResult.Error });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error verifying payment password: {ex.Message}");
+                return Json(new { success = false, message = "Error verifying password" });
+            }
+        }
     }
 }

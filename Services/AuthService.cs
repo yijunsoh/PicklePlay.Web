@@ -498,6 +498,50 @@ public class AuthService : IAuthService
             return false;
         }
 
+
+
+    }
+    public async Task<AuthenticationResult> VerifyPaymentPasswordAsync(int userId, string password)
+    {
+        try
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+
+            if (user == null)
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "User not found"
+                };
+            }
+
+            bool isPasswordValid = VerifyPassword(password, user.Password);
+
+            if (!isPasswordValid)
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Invalid password"
+                };
+            }
+
+            return new AuthenticationResult
+            {
+                Success = true,
+                User = user
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Payment password verification error for user ID: {UserId}", userId);
+            return new AuthenticationResult
+            {
+                Success = false,
+                Error = "An error occurred during password verification"
+            };
+        }
     }
 
 

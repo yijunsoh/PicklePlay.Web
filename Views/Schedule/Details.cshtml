@@ -6,23 +6,31 @@
 
 @{
     ViewData["Title"] = Model.GameName ?? "Game Details";
+    ViewData["ModalContext"] = "game";
+    ViewData["ScheduleId"] = Model.ScheduleId;
+    ViewData["FeeAmount"] = Model.FeeAmount;
+    ViewData["GameName"] = Model.GameName ?? "Game";
 
     // --- 1. SETUP BLOCK ---
     var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
-    var currentUserParticipation = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+    var currentUserParticipation = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId && p.Role ==
+    ParticipantRole.Player);
 
     // --- Requirement 1: Check if any restrictions exist ---
     bool hasRestrictions = Model.AgeGroupRestriction != AgeGroupRestriction.None ||
-                           Model.GenderRestriction != GenderRestriction.None ||
-                           Model.MinRankRestriction.HasValue ||
-                           Model.MaxRankRestriction.HasValue ||
-                           Model.CancellationFreeze != CancellationFreeze.None;
+    Model.GenderRestriction != GenderRestriction.None ||
+    Model.MinRankRestriction.HasValue ||
+    Model.MaxRankRestriction.HasValue ||
+    Model.CancellationFreeze != CancellationFreeze.None;
 
     // --- Requirement 2: Prepare participant lists ---
     var organizers = Model.Participants.Where(p => p.Role == ParticipantRole.Organizer).ToList();
-    var confirmedPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed).ToList();
-    var onHoldPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.OnHold).ToList();
-    var pendingPaymentPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.PendingPayment).ToList();
+    var confirmedPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status ==
+    ParticipantStatus.Confirmed).ToList();
+    var onHoldPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status ==
+    ParticipantStatus.OnHold).ToList();
+    var pendingPaymentPlayers = Model.Participants.Where(p => p.Role == ParticipantRole.Player && p.Status ==
+    ParticipantStatus.PendingPayment).ToList();
 
 
     // --- Requirement 3: Prepare player slot visuals ---
@@ -35,7 +43,7 @@
         if (emptySlots < 0) emptySlots = 0; // Safety check
     }
 
-     // *** Get bookmark status from ViewBag (set in ScheduleController) ***
+    // *** Get bookmark status from ViewBag (set in ScheduleController) ***
     bool isBookmarked = ViewBag.IsBookmarked ?? false;
 }
 
@@ -47,7 +55,8 @@
         gap: 15px;
     }
 
-    .player-slot, .empty-slot {
+    .player-slot,
+    .empty-slot {
         width: 65px;
         height: 65px;
         border-radius: 50%;
@@ -66,7 +75,7 @@
         border-radius: 50%;
         border: 2px solid #198754;
     }
-    
+
     .player-slot .player-name {
         display: block;
         font-size: 0.75rem;
@@ -76,7 +85,7 @@
         text-overflow: ellipsis;
         width: 65px;
     }
-    
+
     .player-slot-wrapper {
         display: flex;
         flex-direction: column;
@@ -92,7 +101,7 @@
         font-size: 1.5rem;
         color: #ced4da;
     }
-    
+
     .organizer-item {
         display: flex;
         flex-direction: column;
@@ -101,7 +110,7 @@
         margin-right: 15px;
         margin-bottom: 10px;
     }
-    
+
     .organizer-item img {
         width: 60px;
         height: 60px;
@@ -109,7 +118,7 @@
         border-radius: 50%;
         border: 2px solid #0d6efd;
     }
-    
+
     .organizer-item .player-name {
         font-size: 0.8rem;
         margin-top: 5px;
@@ -132,6 +141,7 @@
     .bookmark-icon.bi-bookmark-fill {
         color: #0d6efd;
     }
+
     .bookmark-icon:hover {
         opacity: 0.7;
     }
@@ -159,50 +169,57 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-center">
                     <h2 class="mb-0 me-3">@Model.GameName</h2>
-                    @if(Model.EventTag.HasValue && Model.EventTag != EventTag.None) 
+                    @if (Model.EventTag.HasValue && Model.EventTag != EventTag.None)
                     {
                         <span class="badge bg-primary fs-6">@Model.EventTag.ToString()</span>
                     }
                 </div>
-               
+
                 <div>
                     <!-- *** FIX: Added 'text-decoration-none' to remove the underline *** -->
-                    <a href="#" class="text-secondary me-2 fs-4 text-decoration-none" 
-                       id="bookmark-toggle" 
-                       data-schedule-id="@Model.ScheduleId"
-                       title="@(isBookmarked ? "Remove bookmark" : "Add bookmark")">
-                        
+                    <a href="#" class="text-secondary me-2 fs-4 text-decoration-none" id="bookmark-toggle"
+                        data-schedule-id="@Model.ScheduleId"
+                        title="@(isBookmarked ? "Remove bookmark" : "Add bookmark")">
+
                         <i class="bookmark-icon bi @(isBookmarked ? "bi-bookmark-fill" : "bi-bookmark")"></i>
                     </a>
-    
+
                     @if (organizers.Any(o => o.UserId == currentUserId))
                     {
                         <div class="dropdown d-inline-block">
-                            <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a href="#" class="text-secondary fs-4" id="settingsDropdown" data-bs-toggle="dropdown"
+                                aria-expanded="false">
                                 <i class="bi bi-gear"></i>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
                                 <li>
-                                    <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
+                                    <a class="dropdown-item" asp-action="Edit" asp-controller="Schedule"
+                                        asp-route-id="@Model.ScheduleId">
                                         <i class="bi bi-pencil-square me-2"></i>Edit
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" asp-action="Index" asp-controller="ManageGame" asp-route-id="@Model.ScheduleId">
+                                    <a class="dropdown-item" asp-action="Index" asp-controller="ManageGame"
+                                        asp-route-id="@Model.ScheduleId">
                                         <i class="bi bi-person-lines-fill me-2"></i>Manage Requests
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addOrganizerModal">
+                                    <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                        data-bs-target="#addOrganizerModal">
                                         <i class="bi bi-person-plus-fill me-2"></i>Add Organizer
                                     </a>
-                                </li>                      
-                                <li><hr class="dropdown-divider"></li>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
 
-                                @if (Model.Status != ScheduleStatus.Past && Model.EndTime < DateTime.Now && Model.EndorsementStatus == EndorsementStatus.InProgress)
+                                @if (Model.Status != ScheduleStatus.Past && Model.EndTime < DateTime.Now &&
+                                                            Model.EndorsementStatus == EndorsementStatus.InProgress)
                                 {
                                     <li>
-                                        <form asp-action="EndGame" asp-controller="Schedule" method="post" onsubmit="return confirm('Are you sure you want to end this game?')">
+                                        <form asp-action="EndGame" asp-controller="Schedule" method="post"
+                                            onsubmit="return confirm('Are you sure you want to end this game?')">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
                                             <button type="submit" class="dropdown-item text-success">
@@ -210,14 +227,17 @@
                                             </button>
                                         </form>
                                     </li>
-                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
                                 }
                                 <li>
-                                     <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule" asp-route-id="@Model.ScheduleId">
-                                         <i class="bi bi-trash me-2"></i>Delete
-                                     </a>
+                                    <a class="dropdown-item text-danger" asp-action="Delete" asp-controller="Schedule"
+                                        asp-route-id="@Model.ScheduleId">
+                                        <i class="bi bi-trash me-2"></i>Delete
+                                    </a>
                                 </li>
-                           </ul>
+                            </ul>
                         </div>
                     }
                 </div>
@@ -230,30 +250,29 @@
             <hr />
             <h4>Participants</h4>
 
-            
-           <h5 class="mt-3"><i class="bi bi-person-check-fill text-primary"></i> Organizer</h5>
-@if (organizers.Any())
-{
-    <div class="d-flex flex-wrap align-items-center mt-3">
-        @foreach (var p in organizers)
-        {
-            <div class="organizer-item" 
-                 style="cursor: pointer;" 
-                 onclick="showUserProfilePreview(@p.UserId)"
-                 title="Click to view @p.User?.Username's profile">
-                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                <span class="player-name">@p.User?.Username</span>
-            </div>
-        }
-    </div>
-}
-else
-{
-    <p class="text-muted">No organizer listed.</p>
-}
+
+            <h5 class="mt-3"><i class="bi bi-person-check-fill text-primary"></i> Organizer</h5>
+            @if (organizers.Any())
+            {
+                <div class="d-flex flex-wrap align-items-center mt-3">
+                    @foreach (var p in organizers)
+                    {
+                        <div class="organizer-item" style="cursor: pointer;" onclick="showUserProfilePreview(@p.UserId)"
+                            title="Click to view @p.User?.Username's profile">
+                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                                alt="Profile" />
+                            <span class="player-name">@p.User?.Username</span>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No organizer listed.</p>
+            }
 
             <h5 class="mt-4">
-                <i class="bi bi-people-fill text-success"></i> Confirmed 
+                <i class="bi bi-people-fill text-success"></i> Confirmed
                 @if (maxPlayers > 0)
                 {
                     <span>(@confirmedPlayers.Count() / @maxPlayers)</span>
@@ -265,17 +284,16 @@ else
             </h5>
             <div class="participant-grid mt-3">
                 @foreach (var p in confirmedPlayers)
-    {
-        <div class="player-slot-wrapper" 
-             style="cursor: pointer;" 
-             onclick="showUserProfilePreview(@p.UserId)"
-             title="Click to view @p.User?.Username's profile">
-            <div class="player-slot">
-                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)" alt="Profile"/>
-            </div>
-            <span class="player-name">@p.User?.Username</span>
-        </div>
-    }
+                {
+                    <div class="player-slot-wrapper" style="cursor: pointer;" onclick="showUserProfilePreview(@p.UserId)"
+                        title="Click to view @p.User?.Username's profile">
+                        <div class="player-slot">
+                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
+                                alt="Profile" />
+                        </div>
+                        <span class="player-name">@p.User?.Username</span>
+                    </div>
+                }
 
                 @if (maxPlayers > 0)
                 {
@@ -293,35 +311,35 @@ else
 
             @if (pendingPaymentPlayers.Any())
             {
-                <h5 class="mt-4"><i class="bi bi-credit-card text-info"></i> Pending Payment (@pendingPaymentPlayers.Count())</h5>
+                <h5 class="mt-4"><i class="bi bi-credit-card text-info"></i> Pending Payment
+                    (@pendingPaymentPlayers.Count())</h5>
                 <div class="d-flex flex-wrap align-items-center mt-3">
                     @foreach (var p in pendingPaymentPlayers)
-        {
-            <div class="organizer-item" 
-                 style="cursor: pointer;" 
-                 onclick="showUserProfilePreview(@p.UserId)"
-                 title="Click to view @p.User?.Username's profile">
-                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                <span class="player-name">@p.User?.Username</span>
-            </div>
-        }
+                    {
+                        <div class="organizer-item" style="cursor: pointer;" onclick="showUserProfilePreview(@p.UserId)"
+                            title="Click to view @p.User?.Username's profile">
+                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                                alt="Profile" />
+                            <span class="player-name">@p.User?.Username</span>
+                        </div>
+                    }
                 </div>
             }
 
             @if (onHoldPlayers.Any())
             {
-                <h5 class="mt-4"><i class="bi bi-person-fill-exclamation text-warning"></i> On Hold (@onHoldPlayers.Count())</h5>
+                <h5 class="mt-4"><i class="bi bi-person-fill-exclamation text-warning"></i> On Hold (@onHoldPlayers.Count())
+                </h5>
                 <div class="d-flex flex-wrap align-items-center mt-3">
                     @foreach (var p in onHoldPlayers)
-        {
-            <div class="organizer-item" 
-                 style="cursor: pointer;" 
-                 onclick="showUserProfilePreview(@p.UserId)"
-                 title="Click to view @p.User?.Username's profile">
-                <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)" alt="Profile"/>
-                <span class="player-name">@p.User?.Username</span>
-            </div>
-        }
+                    {
+                        <div class="organizer-item" style="cursor: pointer;" onclick="showUserProfilePreview(@p.UserId)"
+                            title="Click to view @p.User?.Username's profile">
+                            <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
+                                alt="Profile" />
+                            <span class="player-name">@p.User?.Username</span>
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -341,7 +359,8 @@ else
                         <span>@Model.StartTime?.ToString("h:mm tt") - @Model.EndTime?.ToString("h:mm tt")</span>
                         @if (Model.Duration.HasValue)
                         {
-                            <span class="text-muted small"> (@ScheduleHelper.GetFriendlyDuration(Model.Duration.Value))</span> 
+                            <span class="text-muted small">
+                                (@ScheduleHelper.GetFriendlyDuration(Model.Duration.Value))</span>
                         }
                     </p>
 
@@ -350,13 +369,13 @@ else
                         <strong>Where:</strong>
                         <span>@Model.Location</span>
                     </p>
-                    
+
                     <hr />
 
                     <p>
                         <i class="bi bi-cash-coin"></i>
                         <strong>Fee:</strong>
-                        @if(Model.FeeType == FeeType.Free || Model.FeeType == FeeType.None)
+                        @if (Model.FeeType == FeeType.Free || Model.FeeType == FeeType.None)
                         {
                             <span>Free</span>
                         }
@@ -366,15 +385,16 @@ else
                         }
                         else if (Model.FeeType == FeeType.AutoSplitTotal)
                         {
-                             <span>RM @Model.FeeAmount?.ToString("0.00") (Total)</span>
+                            <span>RM @Model.FeeAmount?.ToString("0.00") (Total)</span>
                         }
                     </p>
-                    
+
                     <div class="d-grid gap-2 mt-4">
-                        @if (currentUserParticipation == null && currentUserId.HasValue && 
-                             !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
+                        @if (currentUserParticipation == null && currentUserId.HasValue &&
+                                                !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
                         {
-                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                                data-bs-target="#joinGameModal">
                                 <i class="bi bi-person-plus-fill"></i> Join Game
                             </button>
                         }
@@ -391,25 +411,37 @@ else
                         }
                         else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
                         {
-                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                                <i class="bi bi-credit-card-fill"></i> Make Payment
-                            </button>
-                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
-                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
-                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    Cancel Spot
+                            <div class="payment-section">
+                                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal"
+                                    data-bs-target="#paymentModal">
+                                    <i class="bi bi-credit-card-fill"></i> Make Payment
                                 </button>
-                            </form>
-                            <small class="text-muted text-center">Your spot is reserved. Please complete payment.</small>
+
+                                <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        Cancel Spot
+                                    </button>
+                                </form>
+
+                                <small class="text-muted text-center">Your spot is reserved. Please complete
+                                    payment.</small>
+                            </div>
+
+
+
+                            <!-- Include Payment Modal Partial -->
+                            <partial name="_PaymentModal" />
                         }
                         else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
                         {
                             <button type="button" class="btn btn-success btn-lg" disabled>
                                 <i class="bi bi-check-circle-fill"></i> Joined
                             </button>
-                            
-                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2" onsubmit="return confirm('Are you sure you want to leave this game?');">
+
+                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
+                                onsubmit="return confirm('Are you sure you want to leave this game?');">
                                 @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
                                 <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -417,19 +449,22 @@ else
                                 </button>
                             </form>
                         }
-                        
-                        @if ((currentUserParticipation == null || currentUserParticipation.Status == ParticipantStatus.Cancelled) && 
-     organizers.Any(o => o.UserId == currentUserId) &&
-     Model.HostRole == HostRole.HostOnly)
-{
-     <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
-        <i class="bi bi-person-plus-fill"></i> Host and Play
-    </button>
-}
-                        
+
+                        @if ((currentUserParticipation == null || currentUserParticipation.Status ==
+                                                ParticipantStatus.Cancelled) &&
+                                                organizers.Any(o => o.UserId == currentUserId) &&
+                                                Model.HostRole == HostRole.HostOnly)
+                        {
+                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                                data-bs-target="#joinGameModal">
+                                <i class="bi bi-person-plus-fill"></i> Host and Play
+                            </button>
+                        }
+
                         @if (!currentUserId.HasValue)
                         {
-                             <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-success btn-lg">
+                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
+                                class="btn btn-success btn-lg">
                                 <i class="bi bi-box-arrow-in-right"></i> Log in to Join
                             </a>
                         }
@@ -444,11 +479,8 @@ else
                 <div class="card shadow-sm mt-3">
                     <div class="card-body">
                         <h5 class="card-title d-flex justify-content-between align-items-center mb-0"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#restrictionsCollapse"
-                            aria-expanded="false"
-                            aria-controls="restrictionsCollapse"
-                            style="cursor: pointer;">
+                            data-bs-toggle="collapse" data-bs-target="#restrictionsCollapse" aria-expanded="false"
+                            aria-controls="restrictionsCollapse" style="cursor: pointer;">
 
                             <span>Restrictions</span>
                             <a class="text-decoration-none text-secondary">
@@ -461,27 +493,29 @@ else
                             <dl class="row mt-3 mb-0">
                                 @if (Model.AgeGroupRestriction != AgeGroupRestriction.None)
                                 {
-                                    <dt class = "col-sm-4"><i class="bi bi-person-badge me-1"></i> Age</dt>
-                                    <dd class = "col-sm-8">@Model.AgeGroupRestriction.ToString()</dd>
+                                    <dt class="col-sm-4"><i class="bi bi-person-badge me-1"></i> Age</dt>
+                                    <dd class="col-sm-8">@Model.AgeGroupRestriction.ToString()</dd>
                                 }
                                 @if (Model.GenderRestriction != GenderRestriction.None)
                                 {
-                                    <dt class = "col-sm-4"><i class="bi bi-gender-ambiguous me-1"></i> Gender</dt>
-                                    <dd class = "col-sm-8">@Model.GenderRestriction.ToString()</dd>
+                                    <dt class="col-sm-4"><i class="bi bi-gender-ambiguous me-1"></i> Gender</dt>
+                                    <dd class="col-sm-8">@Model.GenderRestriction.ToString()</dd>
                                 }
                                 @if (Model.MinRankRestriction.HasValue || Model.MaxRankRestriction.HasValue)
                                 {
-                                    <dt class = "col-sm-4"><i class="bi bi-bar-chart-line me-1"></i> Skill</dt>
-                                    <dd class = "col-sm-8">
-                                        @(Model.MinRankRestriction.HasValue ? Model.MinRankRestriction.Value.ToString("0.0") : "Any")
+                                    <dt class="col-sm-4"><i class="bi bi-bar-chart-line me-1"></i> Skill</dt>
+                                    <dd class="col-sm-8">
+                                        @(Model.MinRankRestriction.HasValue ? Model.MinRankRestriction.Value.ToString("0.0") :
+                                                                        "Any")
                                         -
-                                        @(Model.MaxRankRestriction.HasValue ? Model.MaxRankRestriction.Value.ToString("0.0") : "Any")
+                                        @(Model.MaxRankRestriction.HasValue ? Model.MaxRankRestriction.Value.ToString("0.0") :
+                                                                        "Any")
                                     </dd>
                                 }
                                 @if (Model.CancellationFreeze != CancellationFreeze.None)
                                 {
-                                    <dt class = "col-sm-4"><i class="bi bi-calendar-x me-1"></i> Cancel</dt>
-                                    <dd class = "col-sm-8">@Model.CancellationFreeze.ToString()</dd>
+                                    <dt class="col-sm-4"><i class="bi bi-calendar-x me-1"></i> Cancel</dt>
+                                    <dd class="col-sm-8">@Model.CancellationFreeze.ToString()</dd>
                                 }
                             </dl>
                         </div>
@@ -504,7 +538,7 @@ else
                 How would you like to join?
             </div>
             <div class="modal-footer d-flex justify-content-center">
-                
+
                 <form asp-controller="Community" asp-action="JoinIndividually" method="post" class="me-2">
                     @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
                     <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
@@ -540,12 +574,13 @@ else
     </div>
 </div>
 
-<div class="modal fade" id="addOrganizerModal" tabindex="-1" aria-labelledby="addOrganizerModalLabel" aria-hidden="true">
+<div class="modal fade" id="addOrganizerModal" tabindex="-1" aria-labelledby="addOrganizerModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addOrganizerModalLabel">Add Organizer</h5>
-                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
@@ -554,11 +589,11 @@ else
                 </div>
                 <div id="organizer-search-spinner" class="text-center d-none">
                     <div class="spinner-border spinner-border-sm" role="status">
-                         <span class="visually-hidden">Loading...</span>
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
                 <div id="organizer-search-results">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -576,7 +611,7 @@ else
         // Your existing icon rotation script
         var collapseElement = document.getElementById('restrictionsCollapse');
         var triggerElement = document.querySelector('[data-bs-target="#restrictionsCollapse"]');
-        
+
         if (collapseElement && triggerElement) {
             var icon = triggerElement.querySelector('.toggle-icon');
 
@@ -584,7 +619,7 @@ else
                 collapseElement.addEventListener('show.bs.collapse', function () {
                     icon.classList.add('rotated');
                 });
-                
+
                 collapseElement.addEventListener('hide.bs.collapse', function () {
                     icon.classList.remove('rotated');
                 });
@@ -592,16 +627,16 @@ else
         }
 
         // *** FIX: Added Bookmark Toggle Script Back ***
-        document.getElementById('bookmark-toggle').addEventListener('click', function(e) {
-            e.preventDefault(); 
+        document.getElementById('bookmark-toggle').addEventListener('click', function (e) {
+            e.preventDefault();
 
             var button = this;
             var scheduleId = button.dataset.scheduleId;
             var icon = button.querySelector('.bookmark-icon');
-            
+
             // Find the token from one of the forms on the page
             var tokenInput = document.querySelector('form input[name="__RequestVerificationToken"]');
-            var token = tokenInput ? tokenInput.value : ''; 
+            var token = tokenInput ? tokenInput.value : '';
 
             if (!token) {
                 console.error('Anti-forgery token not found!');
@@ -617,27 +652,27 @@ else
                 },
                 body: 'scheduleId=' + scheduleId
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.isBookmarked) {
-                    icon.classList.remove('bi-bookmark');
-                    icon.classList.add('bi-bookmark-fill');
-                    button.setAttribute('title', 'Remove bookmark');
-                } else {
-                    icon.classList.remove('bi-bookmark-fill');
-                    icon.classList.add('bi-bookmark');
-                    button.setAttribute('title', 'Add bookmark');
-                }
-            })
-            .catch(error => {
-                console.error('Error toggling bookmark:', error);
-                alert('An error occurred. Please try again.');
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.isBookmarked) {
+                        icon.classList.remove('bi-bookmark');
+                        icon.classList.add('bi-bookmark-fill');
+                        button.setAttribute('title', 'Remove bookmark');
+                    } else {
+                        icon.classList.remove('bi-bookmark-fill');
+                        icon.classList.add('bi-bookmark');
+                        button.setAttribute('title', 'Add bookmark');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error toggling bookmark:', error);
+                    alert('An error occurred. Please try again.');
+                });
         });
 
         // --- *** NEW: Add Organizer Modal Scripts *** ---
@@ -646,7 +681,7 @@ else
         var organizerSearchResultsContainer = document.getElementById('organizer-search-results');
         var organizerSpinner = document.getElementById('organizer-search-spinner');
         var organizerSearchTimeout;
-        
+
         if (addOrganizerModal) {
             addOrganizerModal.addEventListener('show.bs.modal', function (event) {
                 // Clear the modal on show
@@ -661,21 +696,21 @@ else
 
                 if (query.length < 2) {
                     organizerSearchResultsContainer.innerHTML = '';
-                     return;
+                    return;
                 }
 
                 organizerSpinner.classList.remove('d-none');
 
                 organizerSearchTimeout = setTimeout(function () {
                     fetch(`/Community/SearchUsersForOrganizer?scheduleId=${scheduleId}&query=${query}`)
-                         .then(response => {
+                        .then(response => {
                             organizerSpinner.classList.add('d-none');
                             if (!response.ok) {
-                                 throw new Error('Search failed');
+                                throw new Error('Search failed');
                             }
                             return response.json();
                         })
-                         .then(users => {
+                        .then(users => {
                             renderOrganizerSearchResults(users, scheduleId);
                         })
                         .catch(error => {
@@ -691,7 +726,7 @@ else
                 organizerSearchResultsContainer.innerHTML = '<p class="text-muted">No users found or user is already a participant.</p>';
                 return;
             }
-            
+
             // Find the token from one of the forms on the page
             var tokenInput = document.querySelector('form input[name="__RequestVerificationToken"]');
             var token = tokenInput ? tokenInput.value : '';
@@ -700,18 +735,18 @@ else
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 // Using a light blue style for user search item (you can customize)
                 var userHtml = `
-                    <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background-color: #f8f9fa; margin-bottom: 5px;">
-                        <div class="d-flex align-items-center">
-                            <img src="${profilePic}" alt="${user.username}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px;" />
-                            <strong>${user.username}</strong>
-                        </div>
-                        <button class="btn btn-sm btn-primary add-organizer-btn" 
-                                data-schedule-id="${scheduleId}" 
-                                data-user-id="${user.userId}"
-                                data-token="${token}">
-                            Add Organizer
-                        </button>
-                    </div>`;
+                        <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background-color: #f8f9fa; margin-bottom: 5px;">
+                            <div class="d-flex align-items-center">
+                                <img src="${profilePic}" alt="${user.username}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px;" />
+                                <strong>${user.username}</strong>
+                            </div>
+                            <button class="btn btn-sm btn-primary add-organizer-btn" 
+                                    data-schedule-id="${scheduleId}" 
+                                    data-user-id="${user.userId}"
+                                    data-token="${token}">
+                                Add Organizer
+                            </button>
+                        </div>`;
                 organizerSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -727,8 +762,8 @@ else
             var token = button.getAttribute('data-token');
 
             if (!token) {
-                 alert('Error: Anti-forgery token not found. Please refresh the page.');
-                 return;
+                alert('Error: Anti-forgery token not found. Please refresh the page.');
+                return;
             }
 
             button.disabled = true;
@@ -742,27 +777,26 @@ else
                 },
                 body: `scheduleId=${scheduleId}&userId=${userId}`
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || 'Failed to add organizer') });
-                 }
-                return response.json();
-            })
-            .then(data => {
-                button.innerHTML = 'Added!';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-secondary');
-                
-                // Reload the page to show the new organizer
-                location.reload(); 
-            })
-            .catch(error => {
-                button.innerHTML = 'Error';
-                button.classList.remove('btn-primary');
-                button.classList.add('btn-danger');
-                alert('Error: ' + error.message);
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.message || 'Failed to add organizer') });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    button.innerHTML = 'Added!';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-secondary');
+
+                    // Reload the page to show the new organizer
+                    location.reload();
+                })
+                .catch(error => {
+                    button.innerHTML = 'Error';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    alert('Error: ' + error.message);
+                });
         }
     </script>
 }
-

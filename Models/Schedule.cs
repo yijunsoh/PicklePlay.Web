@@ -123,6 +123,16 @@ namespace PicklePlay.Models
         [ForeignKey("CommunityId")]
         public virtual Community? Community { get; set; }
 
+        [Column("escrow_status")]
+        [MaxLength(20)]
+        public string EscrowStatus { get; set; } = "Pending";
+
+        [Column("escrow_auto_dispute_time")]
+        public DateTime? EscrowAutoDisputeTime { get; set; }
+
+        [Column("total_escrow_amount", TypeName = "decimal(10,2)")]
+        public decimal TotalEscrowAmount { get; set; } = 0;
+
 
         // --- ADD NAVIGATION PROPERTY ---
         // This will hold the related Competition data if ScheduleType is Competition
@@ -134,6 +144,10 @@ namespace PicklePlay.Models
         public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
         // --- *** THIS IS THE NEW LINE YOU MUST ADD *** ---
         public virtual ICollection<Pool> Pools { get; set; } = new List<Pool>();
+
+        // In Schedule.cs, add these navigation properties
+        public virtual ICollection<Escrow> Escrows { get; set; } = new List<Escrow>();
+        public virtual ICollection<EscrowDispute> EscrowDisputes { get; set; } = new List<EscrowDispute>();
 
         public int? CreatedByUserId { get; set; }
 

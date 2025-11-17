@@ -58,6 +58,10 @@ namespace PicklePlay.Models
         [ForeignKey("WalletId")]
         public virtual Wallet Wallet { get; set; } = null!;
 
+        [Column("description")]
+        [StringLength(500)]
+        public string? Description { get; set; }
+
         [ForeignKey("EscrowId")]
         public virtual Escrow? Escrow { get; set; }
     }

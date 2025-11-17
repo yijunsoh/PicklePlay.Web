@@ -30,8 +30,12 @@ namespace PicklePlay.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
+        [ForeignKey("ScheduleId")]
+        public virtual Schedule Schedule { get; set; } = null!;
+
         [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
+
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public virtual ICollection<EscrowDispute> EscrowDisputes { get; set; } = new List<EscrowDispute>();
     }
