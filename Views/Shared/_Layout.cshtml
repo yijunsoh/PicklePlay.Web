@@ -191,9 +191,34 @@
                             <ul class="dropdown-menu" aria-labelledby="scheduleDropdown">
                                 <li><a class="dropdown-item" href="@Url.Action("GameListing", "Schedule")"><i class="fas fa-table-tennis-paddle-ball"></i> Game Schedule</a></li>
                                 <li><a class="dropdown-item" href="@Url.Action("MyGame", "MyGame")"><i class="bi bi-person-video"></i> My Games</a></li>
-                                <li><a class="dropdown-item" href="@Url.Action("Listing", "Competition")"><i class="fas fa-trophy me-1"></i> Competition Schedule</a></li>
+                                
                             </ul>
                         </li>
+
+                         <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="competitionDropdown" role="button" 
+           data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-trophy me-1"></i> Competition
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="competitionDropdown">
+            <li>
+                <a class="dropdown-item" href="@Url.Action("Listing", "Competition")">
+                    <i class="fas fa-list me-2"></i>Competition Schedule
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item" href="@Url.Action("Leaderboard", "Rank")">
+                    <i class="bi bi-trophy-fill me-2"></i>RANK Leaderboard
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="@Url.Action("MatchHistory", "Rank")">
+                    <i class="bi bi-clock-history me-2"></i>My Match History
+                </a>
+            </li>
+        </ul>
+    </li>
 
                         <li class="nav-item">
                             <a class="nav-link" href="@Url.Action("Index", "Communication")"><i class="bi bi-envelope-fill me-1"></i> Communications</a>

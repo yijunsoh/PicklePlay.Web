@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
 using PicklePlay.Models;
+using PicklePlay.Models.ViewModels;
 using PicklePlay.Services;
 using System;
 using System.Linq;
@@ -227,62 +228,182 @@ namespace PicklePlay.Controllers
         }
 
         /// <summary>
-        /// Get leaderboard
+        /// Display RANK leaderboard
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetLeaderboard(int skip = 0, int take = 50, string filter = "all")
+        public async Task<IActionResult> Leaderboard(string filter = "All", int page = 1)
         {
-            try
-            {
-                var query = _context.PlayerRanks
-                    .Include(r => r.User)
-                    .Where(r => r.Status != RankStatus.NR);
+            const int pageSize = 50;
 
-                // Apply filters
-                if (filter == "reliable")
-                {
+            // Base query
+            var query = _context.PlayerRanks
+                .Include(r => r.User)
+                .Where(r => r.TotalMatches > 0) // Only show players who have played
+                .AsQueryable();
+
+            // Apply filters
+            switch (filter)
+            {
+                case "Reliable":
                     query = query.Where(r => r.Status == RankStatus.Reliable);
-                }
-                else if (filter == "singles")
-                {
+                    break;
+                case "Provisional":
+                    query = query.Where(r => r.Status == RankStatus.Provisional);
+                    break;
+                case "Singles":
                     query = query.Where(r => r.SinglesMatches > r.DoublesMatches);
-                }
-                else if (filter == "doubles")
-                {
+                    break;
+                case "Doubles":
                     query = query.Where(r => r.DoublesMatches > r.SinglesMatches);
-                }
-
-                var leaderboard = await query
-                    .OrderByDescending(r => r.Rating)
-                    .Skip(skip)
-                    .Take(take)
-                    .Select((r, index) => new
-                    {
-                        rank = skip + index + 1,
-                        userId = r.UserId,
-                        username = r.User!.Username,
-                        profilePicture = r.User.ProfilePicture,
-                        rating = r.DisplayRating,
-                        numericRating = r.Rating,
-                        reliabilityScore = r.ReliabilityScore,
-                        status = r.Status.ToString(),
-                        totalMatches = r.TotalMatches,
-                        winRate = r.WinRate
-                    })
-                    .ToListAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    leaderboard = leaderboard,
-                    hasMore = leaderboard.Count == take
-                });
+                    break;
+                case "Active":
+                    var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+                    query = query.Where(r => r.LastMatchDate >= thirtyDaysAgo);
+                    break;
+                // "All" - no additional filter
             }
-            catch (Exception ex)
+
+            // Get total count for pagination
+            int totalPlayers = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalPlayers / (double)pageSize);
+
+            // Ensure page is within bounds
+            page = Math.Max(1, Math.Min(page, totalPages == 0 ? 1 : totalPages));
+
+            // Get paginated results
+var players = await query
+    .OrderByDescending(r => r.Rating)
+    .ThenByDescending(r => r.TotalMatches)
+    .Skip((page - 1) * pageSize)
+    .Take(pageSize)
+    .Select(r => new LeaderboardPlayerViewModel
+    {
+        UserId = r.UserId,
+        Username = r.User!.Username,
+        ProfilePicture = r.User.ProfilePicture,
+        Rating = r.DisplayRating,
+        NumericRating = r.Rating,
+        Status = r.Status.ToString(),
+        ReliabilityScore = r.ReliabilityScore,
+        TotalMatches = r.TotalMatches,
+        Wins = r.Wins,
+        Losses = r.Losses,
+        WinRate = r.WinRate,
+        LastMatchDate = r.LastMatchDate,
+        // ⬇️ REPLACE with Location property:
+        Location = r.User.Location
+    })
+    .ToListAsync();
+
+            // Assign ranks (considering pagination)
+            int startRank = (page - 1) * pageSize + 1;
+            for (int i = 0; i < players.Count; i++)
             {
-                Console.WriteLine($"Error getting leaderboard: {ex.Message}");
-                return StatusCode(500, new { success = false, message = "Error retrieving leaderboard" });
+                players[i].Rank = startRank + i;
             }
+
+            var viewModel = new LeaderboardViewModel
+            {
+                Players = players,
+                CurrentFilter = filter,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                TotalPlayers = totalPlayers
+            };
+
+            return View(viewModel);
+        }
+
+        /// <summary>
+        /// Get leaderboard data as JSON (for AJAX refresh)
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetLeaderboardData(string filter = "All", int page = 1)
+        {
+            const int pageSize = 50;
+
+            var query = _context.PlayerRanks
+                .Include(r => r.User)
+                .Where(r => r.TotalMatches > 0)
+                .AsQueryable();
+
+            // Apply same filters as Leaderboard action
+            switch (filter)
+            {
+                case "Reliable":
+                    query = query.Where(r => r.Status == RankStatus.Reliable);
+                    break;
+                case "Provisional":
+                    query = query.Where(r => r.Status == RankStatus.Provisional);
+                    break;
+                case "Singles":
+                    query = query.Where(r => r.SinglesMatches > r.DoublesMatches);
+                    break;
+                case "Doubles":
+                    query = query.Where(r => r.DoublesMatches > r.SinglesMatches);
+                    break;
+                case "Active":
+                    var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+                    query = query.Where(r => r.LastMatchDate >= thirtyDaysAgo);
+                    break;
+            }
+
+            int totalPlayers = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalPlayers / (double)pageSize);
+            page = Math.Max(1, Math.Min(page, totalPages == 0 ? 1 : totalPages));
+
+            var players = await query
+    .OrderByDescending(r => r.Rating)
+    .ThenByDescending(r => r.TotalMatches)
+    .Skip((page - 1) * pageSize)
+    .Take(pageSize)
+    .Select(r => new
+    {
+        userId = r.UserId,
+        username = r.User!.Username,
+        profilePicture = r.User.ProfilePicture,
+        rating = r.DisplayRating,
+        numericRating = r.Rating,
+        status = r.Status.ToString(),
+        reliabilityScore = r.ReliabilityScore,
+        totalMatches = r.TotalMatches,
+        wins = r.Wins,
+        losses = r.Losses,
+        winRate = r.WinRate,
+        lastMatchDate = r.LastMatchDate,
+        // ⬇️ REPLACE with Location property:
+        location = r.User.Location
+    })
+    .ToListAsync();
+
+            int startRank = (page - 1) * pageSize + 1;
+            var rankedPlayers = players.Select((p, i) => new
+            {
+                rank = startRank + i,
+                p.userId,
+                p.username,
+                p.profilePicture,
+                p.rating,
+                p.numericRating,
+                p.status,
+                p.reliabilityScore,
+                p.totalMatches,
+                p.wins,
+                p.losses,
+                p.winRate,
+                p.lastMatchDate,
+                p.location
+            });
+
+            return Ok(new
+            {
+                success = true,
+                players = rankedPlayers,
+                currentPage = page,
+                totalPages = totalPages,
+                totalPlayers = totalPlayers,
+                filter = filter
+            });
         }
 
         /// <summary>
@@ -474,9 +595,9 @@ namespace PicklePlay.Controllers
                         .ThenInclude(t => t!.TeamMembers)
                     .Include(m => m.Team2)
                         .ThenInclude(t => t!.TeamMembers)
-                    .Where(m => m.ScheduleId == scheduleId && 
+                    .Where(m => m.ScheduleId == scheduleId &&
                                m.Status == MatchStatus.Done &&
-                               m.Team1Id.HasValue && 
+                               m.Team1Id.HasValue &&
                                m.Team2Id.HasValue)
                     .ToListAsync();
 
@@ -528,7 +649,7 @@ namespace PicklePlay.Controllers
             {
                 // ⬇️ ADD: Debug logging
                 Console.WriteLine($"Parsing scores: Team1='{team1ScoreStr}', Team2='{team2ScoreStr}'");
-                
+
                 if (string.IsNullOrWhiteSpace(team1ScoreStr) || string.IsNullOrWhiteSpace(team2ScoreStr))
                 {
                     Console.WriteLine("Error: Empty score strings");
@@ -553,13 +674,13 @@ namespace PicklePlay.Controllers
                 // ⬇️ OPTION 1: Use last set score only (final game)
                 int team1Final = team1Scores.Last();
                 int team2Final = team2Scores.Last();
-                
+
                 // ⬇️ OPTION 2: Use total across all sets
                 // int team1Final = team1Scores.Sum();
                 // int team2Final = team2Scores.Sum();
 
                 Console.WriteLine($"Parsed final scores: Team1={team1Final}, Team2={team2Final}");
-                
+
                 return (team1Final, team2Final);
             }
             catch (Exception ex)
@@ -899,18 +1020,172 @@ namespace PicklePlay.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Display match history for a player
+        /// </summary>
+        /// <summary>
+/// Display match history for a player
+/// </summary>
+[HttpGet]
+public async Task<IActionResult> MatchHistory(int? userId, int page = 1, int pageSize = 5)
+{
+    var currentUserId = GetCurrentUserId();
+    if (!currentUserId.HasValue)
+    {
+        return RedirectToAction("Login", "Account");
     }
 
-    // Request model for match submission
-    public class MatchSubmissionRequest
+    // If no userId provided, show current user's history
+    int targetUserId = userId ?? currentUserId.Value;
+
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.UserId == targetUserId);
+
+    if (user == null)
     {
-        public int ScheduleId { get; set; }
-        public MatchFormat Format { get; set; }
-        public int Team1Player1Id { get; set; }
-        public int? Team1Player2Id { get; set; }
-        public int Team2Player1Id { get; set; }
-        public int? Team2Player2Id { get; set; }
-        public int Team1Score { get; set; }
-        public int Team2Score { get; set; }
+        return NotFound();
+    }
+
+    var playerRank = await _context.PlayerRanks
+        .FirstOrDefaultAsync(r => r.UserId == targetUserId);
+
+    // Get total match count for pagination
+    var totalMatches = await _context.RankMatchHistories
+        .Where(h => h.UserId == targetUserId)
+        .CountAsync();
+
+    int totalPages = (int)Math.Ceiling(totalMatches / (double)pageSize);
+    page = Math.Max(1, Math.Min(page, totalPages == 0 ? 1 : totalPages));
+
+    // Get paginated match history with details
+    var matchHistory = await _context.RankMatchHistories
+        .Include(h => h.User)
+        .Where(h => h.UserId == targetUserId)
+        .OrderByDescending(h => h.MatchDate)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(h => new RankMatchHistoryViewModel
+        {
+            MatchId = h.RankMatchId,
+            MatchDate = h.MatchDate,
+            Format = h.Format,
+            Outcome = h.Outcome,
+            RatingBefore = h.RatingBefore,
+            RatingAfter = h.RatingAfter,
+            RatingChange = h.RatingChange,
+            ReliabilityBefore = h.ReliabilityBefore,
+            ReliabilityAfter = h.ReliabilityAfter,
+            KFactorUsed = h.KFactorUsed,
+            PartnerId = h.PartnerId
+        })
+        .ToListAsync();
+
+    // Get partner, opponent, and competition details for each match
+    foreach (var history in matchHistory)
+    {
+        var rankMatch = await _context.RankMatches
+            .Include(rm => rm.Team1Player1)
+            .Include(rm => rm.Team1Player2)
+            .Include(rm => rm.Team2Player1)
+            .Include(rm => rm.Team2Player2)
+            .Include(rm => rm.Schedule) // Include competition
+            .FirstOrDefaultAsync(rm => rm.RankMatchId == history.MatchId);
+
+        if (rankMatch != null)
+        {
+            // Competition info
+            history.CompetitionTitle = rankMatch.Schedule?.GameName ?? "Unknown Competition";
+            history.CompetitionId = rankMatch.Schedule?.ScheduleId ?? 0;
+
+            // Determine which team the user was on
+            bool isTeam1 = rankMatch.Team1Player1Id == targetUserId || 
+                          rankMatch.Team1Player2Id == targetUserId;
+
+            history.TeamScore = isTeam1 ? rankMatch.Team1Score : rankMatch.Team2Score;
+            history.OpponentScore = isTeam1 ? rankMatch.Team2Score : rankMatch.Team1Score;
+
+            // Get partner name correctly
+            if (history.Format == MatchFormat.Doubles)
+            {
+                int? partnerId = null;
+                
+                if (isTeam1)
+                {
+                    // User is on Team 1, find their partner
+                    partnerId = rankMatch.Team1Player1Id == targetUserId 
+                        ? rankMatch.Team1Player2Id 
+                        : rankMatch.Team1Player1Id;
+                }
+                else
+                {
+                    // User is on Team 2, find their partner
+                    partnerId = rankMatch.Team2Player1Id == targetUserId 
+                        ? rankMatch.Team2Player2Id 
+                        : rankMatch.Team2Player1Id;
+                }
+
+                if (partnerId.HasValue)
+                {
+                    var partner = await _context.Users
+                        .FirstOrDefaultAsync(u => u.UserId == partnerId.Value);
+                    history.PartnerName = partner?.Username ?? "Unknown";
+                    history.PartnerId = partnerId.Value;
+                }
+            }
+
+            // Get opponent names
+            if (isTeam1)
+            {
+                history.OpponentNames = new List<string>
+                {
+                    rankMatch.Team2Player1?.Username ?? "Unknown"
+                };
+                if (rankMatch.Team2Player2 != null)
+                {
+                    history.OpponentNames.Add(rankMatch.Team2Player2.Username);
+                }
+            }
+            else
+            {
+                history.OpponentNames = new List<string>
+                {
+                    rankMatch.Team1Player1?.Username ?? "Unknown"
+                };
+                if (rankMatch.Team1Player2 != null)
+                {
+                    history.OpponentNames.Add(rankMatch.Team1Player2.Username);
+                }
+            }
+        }
+    }
+
+    // ⬇️ ADD: Create and return the view model
+    var viewModel = new PlayerMatchHistoryViewModel
+    {
+        UserId = targetUserId,
+        Username = user.Username,
+        ProfilePicture = user.ProfilePicture,
+        CurrentRating = playerRank?.DisplayRating ?? "NR",
+        CurrentStatus = playerRank?.Status.ToString() ?? "NR",
+        ReliabilityScore = playerRank?.ReliabilityScore ?? 0,
+        TotalMatches = playerRank?.TotalMatches ?? 0,
+        Wins = playerRank?.Wins ?? 0,
+        Losses = playerRank?.Losses ?? 0,
+        WinRate = playerRank?.WinRate ?? 0,
+        MatchHistory = matchHistory,
+        IsOwnProfile = targetUserId == currentUserId.Value,
+        CurrentPage = page,
+        TotalPages = totalPages,
+        PageSize = pageSize
+    };
+
+    return View(viewModel);
+}
     }
 }
+
+            
+
+           
+ 

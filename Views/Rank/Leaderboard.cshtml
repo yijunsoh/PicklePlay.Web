@@ -1,0 +1,453 @@
+@* filepath: c:\Users\xkyh0\Downloads\PicklePlay.Web\Views\Rank\Leaderboard.cshtml *@
+
+@model PicklePlay.Models.ViewModels.LeaderboardViewModel
+
+@{
+    ViewData["Title"] = "RANK Leaderboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-0">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i>
+                        RANK Leaderboard
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Top Pickleball Players • Updated in Real-time
+                    </p>
+                </div>
+                <div>
+                    <a href="/Rank/MatchHistory" class="btn btn-outline-primary">
+                        <i class="bi bi-clock-history me-2"></i>My Match History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">@Model.TotalPlayers</h3>
+                    <small class="text-muted">Total Players</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <i class="bi bi-star-fill text-success" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0" id="reliableCount">-</h3>
+                    <small class="text-muted">Reliable Players</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <i class="bi bi-hourglass-split text-warning" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0" id="provisionalCount">-</h3>
+                    <small class="text-muted">Provisional Players</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <i class="bi bi-graph-up text-info" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0" id="avgRating">-</h3>
+                    <small class="text-muted">Average Rating</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "All" ? "primary" : "outline-primary") filter-btn" data-filter="All">
+                        <i class="bi bi-grid-3x3-gap me-1"></i>All Players
+                    </button>
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "Reliable" ? "success" : "outline-success") filter-btn" data-filter="Reliable">
+                        <i class="bi bi-star me-1"></i>Reliable
+                    </button>
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "Provisional" ? "warning" : "outline-warning") filter-btn" data-filter="Provisional">
+                        <i class="bi bi-hourglass-split me-1"></i>Provisional
+                    </button>
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "Active" ? "info" : "outline-info") filter-btn" data-filter="Active">
+                        <i class="bi bi-activity me-1"></i>Active (30d)
+                    </button>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "Singles" ? "primary" : "outline-primary") filter-btn" data-filter="Singles">
+                        <i class="bi bi-person me-1"></i>Singles
+                    </button>
+                    <button type="button" class="btn btn-@(Model.CurrentFilter == "Doubles" ? "primary" : "outline-primary") filter-btn" data-filter="Doubles">
+                        <i class="bi bi-people me-1"></i>Doubles
+                    </button>
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div id="loadingSpinner" style="display: none;" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-2">Loading leaderboard...</p>
+            </div>
+
+            <div class="table-responsive" id="leaderboardTable">
+                @if (Model.Players.Any())
+                {
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="text-center" style="width: 60px;">Rank</th>
+                                <th style="width: 50px;"></th>
+                                <th>Player</th>
+                                <th class="text-center">Rating</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Reliability</th>
+                                <th class="text-center">Matches</th>
+                                <th class="text-center">W-L</th>
+                                <th class="text-center">Win %</th>
+                                <th class="text-center">Last Played</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody">
+                            @foreach (var player in Model.Players)
+                            {
+                                <tr class="@(player.Rank <= 3 ? "table-warning" : "")">
+                                    <td class="text-center">
+                                        @if (player.Rank == 1)
+                                        {
+                                            <span class="badge bg-warning text-dark fs-5">
+                                                <i class="bi bi-trophy-fill"></i> 1
+                                            </span>
+                                        }
+                                        else if (player.Rank == 2)
+                                        {
+                                            <span class="badge bg-secondary fs-5">
+                                                <i class="bi bi-trophy-fill"></i> 2
+                                            </span>
+                                        }
+                                        else if (player.Rank == 3)
+                                        {
+                                            <span class="badge bg-danger fs-5">
+                                                <i class="bi bi-trophy-fill"></i> 3
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <strong>#@player.Rank</strong>
+                                        }
+                                    </td>
+                                    <td>
+    @if (!string.IsNullOrEmpty(player.ProfilePicture))
+    {
+        <img src="@player.ProfilePicture" alt="@player.Username" 
+             class="rounded-circle cursor-pointer" 
+             style="width: 40px; height: 40px; object-fit: cover;"
+             onclick="showUserProfilePreview(@player.UserId)">
+    }
+    else
+    {
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center cursor-pointer"
+             style="width: 40px; height: 40px;"
+             onclick="showUserProfilePreview(@player.UserId)">
+            @player.Username!.Substring(0, 1).ToUpper()
+        </div>
+    }
+</td>
+<td>
+    <div>
+        <a href="javascript:void(0)" 
+           onclick="showUserProfilePreview(@player.UserId)"
+           class="text-decoration-none cursor-pointer fw-bold">
+            @player.Username
+        </a>
+        @if (!string.IsNullOrEmpty(player.Location))
+        {
+            <br><small class="text-muted">
+                <i class="bi bi-geo-alt"></i> @player.Location
+            </small>
+        }
+    </div>
+</td>
+                                    <td class="text-center">
+                                        <h5 class="mb-0 text-primary">@player.Rating</h5>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-@player.StatusBadge">
+                                            @player.Status
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 20px; min-width: 80px;">
+                                            <div class="progress-bar bg-@(player.ReliabilityScore >= 80 ? "success" : player.ReliabilityScore >= 60 ? "info" : player.ReliabilityScore >= 40 ? "warning" : "danger")"
+                                                 style="width: @player.ReliabilityScore%">
+                                                <small><strong>@player.ReliabilityScore.ToString("F0")%</strong></small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>@player.TotalMatches</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="text-success">@player.Wins</span> - 
+                                        <span class="text-danger">@player.Losses</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>@player.WinRate.ToString("F1")%</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <small class="text-muted">@player.LastPlayedDisplay</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="/Rank/MatchHistory?userId=@player.UserId" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-clock-history"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+                        <h5 class="mt-3 text-muted">No Players Found</h5>
+                        <p class="text-muted">Try changing the filter or check back later.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center" id="pagination">
+                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" href="#" data-page="@(Model.CurrentPage - 1)">Previous</a>
+                </li>
+                
+                @for (int i = 1; i <= Model.TotalPages; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link" href="#" data-page="@i">@i</a>
+                    </li>
+                }
+                
+                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="#" data-page="@(Model.CurrentPage + 1)">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>
+
+@section Scripts {
+<script>
+    const currentFilter = '@Model.CurrentFilter';
+    let currentPage = @Model.CurrentPage;
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            loadLeaderboard(filter, 1);
+        });
+    });
+
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        icon.classList.add('rotate-animation');
+        loadLeaderboard(currentFilter, currentPage).finally(() => {
+            icon.classList.remove('rotate-animation');
+        });
+    });
+
+    // Pagination
+    document.getElementById('pagination')?.addEventListener('click', function(e) {
+        if (e.target.classList.contains('page-link')) {
+            e.preventDefault();
+            const page = parseInt(e.target.dataset.page);
+            if (page > 0 && page <= @Model.TotalPages) {
+                loadLeaderboard(currentFilter, page);
+            }
+        }
+    });
+
+    async function loadLeaderboard(filter, page) {
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const tableContainer = document.getElementById('leaderboardTable');
+        
+        loadingSpinner.style.display = 'block';
+        tableContainer.style.opacity = '0.5';
+
+        try {
+            const response = await fetch(`/Rank/GetLeaderboardData?filter=${filter}&page=${page}`);
+            const data = await response.json();
+
+            if (data.success) {
+                updateLeaderboardTable(data.players);
+                updatePagination(data.currentPage, data.totalPages);
+                updateStats(data.players);
+                
+                currentPage = data.currentPage;
+                
+                // Update URL without reload
+                const url = new URL(window.location);
+                url.searchParams.set('filter', filter);
+                url.searchParams.set('page', page);
+                window.history.pushState({}, '', url);
+            }
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+            alert('Failed to load leaderboard. Please try again.');
+        } finally {
+            loadingSpinner.style.display = 'none';
+            tableContainer.style.opacity = '1';
+        }
+    }
+
+    function updateLeaderboardTable(players) {
+    const tbody = document.getElementById('leaderboardBody');
+    tbody.innerHTML = players.map(player => `
+        <tr class="${player.rank <= 3 ? 'table-warning' : ''}">
+            <td class="text-center">
+                ${player.rank === 1 ? '<span class="badge bg-warning text-dark fs-5"><i class="bi bi-trophy-fill"></i> 1</span>' :
+                  player.rank === 2 ? '<span class="badge bg-secondary fs-5"><i class="bi bi-trophy-fill"></i> 2</span>' :
+                  player.rank === 3 ? '<span class="badge bg-danger fs-5"><i class="bi bi-trophy-fill"></i> 3</span>' :
+                  `<strong>#${player.rank}</strong>`}
+            </td>
+            <td>
+                ${player.profilePicture ? 
+                    `<img src="${player.profilePicture}" alt="${player.username}" 
+                          class="rounded-circle cursor-pointer" 
+                          style="width: 40px; height: 40px; object-fit: cover;"
+                          onclick="showUserProfilePreview(${player.userId})">` :
+                    `<div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center cursor-pointer" 
+                          style="width: 40px; height: 40px;"
+                          onclick="showUserProfilePreview(${player.userId})">
+                        ${player.username.substring(0, 1).toUpperCase()}
+                    </div>`
+                }
+            </td>
+            <td>
+                <div>
+                    <a href="javascript:void(0)" 
+                       onclick="showUserProfilePreview(${player.userId})"
+                       class="text-decoration-none cursor-pointer fw-bold">
+                        ${player.username}
+                    </a>
+                    ${player.location ? `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${player.location}</small>` : ''}
+                </div>
+            </td>
+            <td class="text-center"><h5 class="mb-0 text-primary">${player.rating}</h5></td>
+            <td class="text-center">
+                <span class="badge bg-${player.status === 'Reliable' ? 'success' : player.status === 'Provisional' ? 'warning' : 'secondary'}">
+                    ${player.status}
+                </span>
+            </td>
+            <td class="text-center">
+                <div class="progress" style="height: 20px; min-width: 80px;">
+                    <div class="progress-bar bg-${player.reliabilityScore >= 80 ? 'success' : player.reliabilityScore >= 60 ? 'info' : player.reliabilityScore >= 40 ? 'warning' : 'danger'}"
+                         style="width: ${player.reliabilityScore}%">
+                        <small><strong>${player.reliabilityScore.toFixed(0)}%</strong></small>
+                    </div>
+                </div>
+            </td>
+            <td class="text-center"><strong>${player.totalMatches}</strong></td>
+            <td class="text-center">
+                <span class="text-success">${player.wins}</span> - <span class="text-danger">${player.losses}</span>
+            </td>
+            <td class="text-center"><strong>${player.winRate.toFixed(1)}%</strong></td>
+            <td class="text-center"><small class="text-muted">${getLastPlayedDisplay(player.lastMatchDate)}</small></td>
+            <td class="text-center">
+                <a href="javascript:void(0)" 
+                   onclick="showUserProfilePreview(${player.userId})"
+                   class="btn btn-sm btn-outline-primary" 
+                   title="View Profile">
+                    <i class="bi bi-person-circle"></i>
+                </a>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    function updatePagination(currentPage, totalPages) {
+        // Implementation for pagination update
+    }
+
+    function updateStats(players) {
+        const reliable = players.filter(p => p.status === 'Reliable').length;
+        const provisional = players.filter(p => p.status === 'Provisional').length;
+        const avgRating = players.length > 0 
+            ? (players.reduce((sum, p) => sum + p.numericRating, 0) / players.length).toFixed(3)
+            : '0.000';
+
+        document.getElementById('reliableCount').textContent = reliable;
+        document.getElementById('provisionalCount').textContent = provisional;
+        document.getElementById('avgRating').textContent = avgRating;
+    }
+
+    function getLastPlayedDisplay(lastMatchDate) {
+        if (!lastMatchDate) return 'Never';
+        const days = Math.floor((new Date() - new Date(lastMatchDate)) / (1000 * 60 * 60 * 24));
+        return `${days} days ago`;
+    }
+
+    // Initial stats load
+    updateStats(@Html.Raw(Json.Serialize(Model.Players)));
+</script>
+}
+
+@section Styles {
+<style>
+    .table-warning {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    @@keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .rotate-animation {
+        animation: rotate 1s linear infinite;
+    }
+        .cursor-pointer {
+        cursor: pointer;
+    }
+    .cursor-pointer:hover {
+        opacity: 0.8;
+    }
+</style>
+}
