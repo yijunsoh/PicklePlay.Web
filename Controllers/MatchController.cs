@@ -133,8 +133,15 @@ public async Task<IActionResult> StartCompetition(int id)
     }
 
     // Clear any old matches if they exist
-    var oldMatches = await _context.Matches.Where(m => m.ScheduleId == id).ToListAsync();
-    if (oldMatches.Any())
+    var oldMatches = await _context.Matches
+        .Where(m => m.ScheduleId == id)
+        .ToListAsync();
+
+    bool hasExistingEliminationBracket =
+        competition.Format == CompetitionFormat.Elimination &&
+        oldMatches.Any();
+
+    if (!hasExistingEliminationBracket && oldMatches.Any())
     {
         _context.Matches.RemoveRange(oldMatches);
         await _context.SaveChangesAsync();
@@ -150,8 +157,14 @@ public async Task<IActionResult> StartCompetition(int id)
             break;
 
         case CompetitionFormat.Elimination:
-            // This function saves matches directly to DB
-            await GenerateEliminationBracket(confirmedTeams, id, competition.ThirdPlaceMatch);
+            if (hasExistingEliminationBracket)
+            {
+                Console.WriteLine("Elimination bracket already exists. Skipping regeneration.");
+            }
+            else
+            {
+                await GenerateEliminationBracket(confirmedTeams, id, competition.ThirdPlaceMatch);
+            }
             break;
 
         case CompetitionFormat.RoundRobin:
@@ -507,33 +520,53 @@ private async Task GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competitio
 
         private async Task GenerateEliminationBracket(List<Team> teams, int scheduleId, bool hasThirdPlace)
         {
-            var seededTeams = teams.OrderBy(t => t.BracketSeed).ToDictionary(t => t.BracketSeed ?? 0, t => t);
+if (teams == null || teams.Count < 2)
+            {
+                throw new InvalidOperationException("At least two confirmed teams are required for an elimination bracket.");
+            }
 
-            int bracketSize;
-            if (teams.Count <= 8) bracketSize = 8;
-            else if (teams.Count <= 16) bracketSize = 16;
-            else if (teams.Count <= 32) bracketSize = 32;
-            else bracketSize = 64;
+            // Ensure every team has a unique seed
+            var orderedTeams = teams
+                .OrderBy(t => t.BracketSeed.HasValue ? 0 : 1)
+                .ThenBy(t => t.BracketSeed ?? int.MaxValue)
+                .ThenBy(t => t.TeamName)
+                .ToList();
 
+            var seededTeams = new Dictionary<int, Team>();
+            int nextSeed = 1;
+
+            foreach (var team in orderedTeams)
+            {
+                int seed = team.BracketSeed ?? nextSeed++;
+                while (seededTeams.ContainsKey(seed))
+                {
+                    seed = nextSeed++;
+                }
+
+                seededTeams[seed] = team;
+                if (!team.BracketSeed.HasValue)
+                {
+                    team.BracketSeed = seed;
+                    _context.Teams.Update(team);
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            int bracketSize = NextPowerOfTwo(seededTeams.Count);
             var seeding = GetSeedingOrder(bracketSize);
 
             var allMatches = new List<Match>();
             var currentRoundMatches = new List<Match>();
             var nextLinkPairs = new List<(Match child, Match parent)>();
             var loserLinkPairs = new List<(Match child, Match parent)>();
-
-            // Store Semi-Finals for 3rd place linking
             List<Match>? semiFinalMatches = null;
 
-            // 2. Create Round 1
             int roundNumber = 1;
             int matchNumber = 1;
             for (int i = 0; i < seeding.Length; i += 2)
             {
                 seededTeams.TryGetValue(seeding[i], out var team1);
                 seededTeams.TryGetValue(seeding[i + 1], out var team2);
-
-                int position = (matchNumber % 2 == 1) ? 1 : 2;
 
                 var match = new Match
                 {
@@ -543,21 +576,21 @@ private async Task GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competitio
                     MatchNumber = matchNumber,
                     Team1Id = team1?.TeamId,
                     Team2Id = team2?.TeamId,
-                    MatchPosition = position
+                    MatchPosition = matchNumber % 2 == 1 ? 1 : 2
                 };
                 matchNumber++;
 
-                if (team1 != null && team2 == null)
+                if (team1 != null && team2 == null || team1 == null && team2 != null)
                 {
                     match.IsBye = true;
                     match.Status = MatchStatus.Bye;
-                    match.WinnerId = team1.TeamId;
+                    match.WinnerId = team1?.TeamId ?? team2?.TeamId;
                 }
-                else if (team1 == null && team2 != null)
+                else if (team1 == null && team2 == null)
                 {
                     match.IsBye = true;
                     match.Status = MatchStatus.Bye;
-                    match.WinnerId = team2.TeamId;
+                    match.WinnerId = null;
                 }
                 else
                 {
@@ -700,18 +733,22 @@ private async Task GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competitio
 
         private int[] GetSeedingOrder(int size)
         {
-            switch (size)
-            {
-                case 16: return new[] { 1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15 };
-                case 32: return new[] { 1, 32, 17, 16, 9, 24, 25, 8, 5, 28, 21, 12, 13, 20, 29, 4, 3, 30, 19, 14, 11, 22, 27, 6, 7, 26, 23, 10, 15, 18, 31, 2 };
-                case 64: // simplified for brevity
-                    var seeds = new List<int>();
-                    for (int i = 0; i < 32; i++) { seeds.Add(i + 1); seeds.Add(64 - i); }
-                    return seeds.ToArray();
-                case 8:
-                default:
-                    return new[] { 1, 8, 4, 5, 3, 6, 2, 7 };
-            }
+             switch (size)
+    {
+        case 2: return new[] { 1, 2 };
+        case 4: return new[] { 1, 4, 2, 3 };
+        case 8: return new[] { 1, 8, 4, 5, 3, 6, 2, 7 };
+        case 16: return new[] { 1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15 };
+        case 32: return new[] { 1, 32, 17, 16, 9, 24, 25, 8, 5, 28, 21, 12, 13, 20, 29, 4, 3, 30, 19, 14, 11, 22, 27, 6, 7, 26, 23, 10, 15, 18, 31, 2 };
+        case 64:
+            var seeds = new int[64];
+            for (int i = 0; i < 32; i++) { seeds[i * 2] = i + 1; seeds[i * 2 + 1] = 64 - i; }
+            return seeds;
+        default:
+            int fallback = NextPowerOfTwo(size);
+            var simple = Enumerable.Range(1, fallback).ToArray();
+            return simple;
+    }
         }
 
         // GET: /Match/GetMatchListing/5
@@ -723,13 +760,7 @@ private async Task GeneratePoolPlayMatchesWithPlayoff(int scheduleId, Competitio
             var competition = await _context.Competitions
                 .FirstOrDefaultAsync(c => c.ScheduleId == id);
 
-            if (competition == null)
-            {
-                Console.WriteLine("Competition not found");
-                return PartialView("~/Views/Competition/_MatchListingEmpty.cshtml");
-            }
-
-            Console.WriteLine($"Competition found: Format = {competition.Format}");
+            Console.WriteLine($"Competition found: Format = {competition!.Format}");
 
             // *** ADD: Check if current user is organizer ***
             var currentUserId = GetCurrentUserId();
@@ -1247,234 +1278,147 @@ private async Task UpdateAwardWinnersForSchedule(int scheduleId)
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPlayoffBracketData(int scheduleId)
+public async Task<IActionResult> GetPlayoffBracketData(int scheduleId)
+{
+    var playoffMatches = await _context.Matches
+        .Where(m => m.ScheduleId == scheduleId && m.RoundNumber >= 2)
+        .Include(m => m.Team1)
+        .Include(m => m.Team2)
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.MatchNumber)
+        .ToListAsync();
+
+    if (!playoffMatches.Any())
+    {
+        return Json(new
         {
-            // Get playoff matches only (RoundNumber >= 2)
-            var playoffMatches = await _context.Matches
-                .Where(m => m.ScheduleId == scheduleId && m.RoundNumber >= 2)
-                .Include(m => m.Team1)
-                .Include(m => m.Team2)
-                .OrderBy(m => m.RoundNumber)
-                .ThenBy(m => m.MatchNumber)
-                .ToListAsync();
+            bracketData = new { teams = new string[0][], results = new object[0][] },
+            roundHeaders = new string[0],
+            hasThirdPlaceMatch = false,
+            thirdPlace = (object)null!
+        });
+    }
 
-            if (!playoffMatches.Any())
-            {
-                return Json(new
-                {
-                    bracketData = new { teams = new string[0][], results = new object[0][] },
-                    roundHeaders = new string[0],
-                    hasThirdPlaceMatch = false,
-                    thirdPlace = (object)null!
-                });
-            }
+    var roundGroups = playoffMatches
+        .Where(m => !m.IsThirdPlaceMatch)
+        .GroupBy(m => m.RoundNumber)
+        .OrderBy(g => g.Key)
+        .ToList();
 
-            // Group matches by round (excluding third place)
-            var roundGroups = playoffMatches
-                .Where(m => !m.IsThirdPlaceMatch)
-                .GroupBy(m => m.RoundNumber)
-                .OrderBy(g => g.Key)
-                .ToList();
+    var teamLookup = await _context.Teams
+        .Where(t => t.ScheduleId == scheduleId)
+        .ToDictionaryAsync(t => t.TeamId, t => t.TeamName);
 
-            // Build team pairs from first playoff round
-            var firstRound = roundGroups.FirstOrDefault()?.ToList() ?? new List<Match>();
-            var teamPairs = firstRound.Select(m => new[]
-            {
-        m.Team1?.TeamName ?? "TBD",
-        m.Team2?.TeamName ?? "TBD"
-    }).ToList();
+    var (teamPairs, allResults) = BuildBracketMatrix(roundGroups, teamLookup);
 
-            // Build results for all rounds
-            var allResults = new List<List<int[]>>();
-            foreach (var round in roundGroups)
-            {
-                var roundResults = round.Select(m =>
-                {
-                    if (m.Status == MatchStatus.Done && m.WinnerId.HasValue)
-                    {
-                        // Return 1 for winner, 0 for loser
-                        return m.WinnerId == m.Team1Id ? new[] { 1, 0 } : new[] { 0, 1 };
-                    }
-                    return new int[0]; // Empty = match not completed
-                }).ToList();
+    var roundHeaders = roundGroups
+        .Select(g => g.First().RoundName ?? $"Round {g.Key}")
+        .ToList();
 
-                allResults.Add(roundResults);
-            }
+    var bracketData = new
+    {
+        teams = teamPairs,
+        results = allResults
+    };
 
-            // Build round headers
-            var roundHeaders = new List<string>();
-            int totalRounds = roundGroups.Count;
-            for (int i = 0; i < totalRounds; i++)
-            {
-                int teamsInRound = (int)Math.Pow(2, totalRounds - i);
-                if (teamsInRound == 2) roundHeaders.Add("Final");
-                else if (teamsInRound == 4) roundHeaders.Add("Semi-Finals");
-                else if (teamsInRound == 8) roundHeaders.Add("Quarter-Finals");
-                else roundHeaders.Add("Round of " + teamsInRound);
-            }
+    object thirdPlace = null!;
+    var thirdPlaceMatch = playoffMatches.FirstOrDefault(m => m.IsThirdPlaceMatch);
+    if (thirdPlaceMatch != null)
+    {
+        thirdPlace = new
+        {
+            team1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD",
+            team2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD",
+            status = thirdPlaceMatch.WinnerId.HasValue ? "Done" : thirdPlaceMatch.Status.ToString(),
+            winnerIndex = thirdPlaceMatch.WinnerId.HasValue
+                ? (thirdPlaceMatch.WinnerId == thirdPlaceMatch.Team1Id ? 0 : 1)
+                : (int?)null
+        };
+    }
 
-            var bracketData = new
-            {
-                teams = teamPairs,
-                results = allResults
-            };
-
-            // Handle third place match
-            object thirdPlace = null!;
-            var thirdPlaceMatch = playoffMatches.FirstOrDefault(m => m.IsThirdPlaceMatch);
-            if (thirdPlaceMatch != null)
-            {
-                thirdPlace = new
-                {
-                    team1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD",
-                    team2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD",
-                    status = thirdPlaceMatch.Status.ToString(),
-                    winnerIndex = thirdPlaceMatch.WinnerId.HasValue
-                        ? (thirdPlaceMatch.WinnerId == thirdPlaceMatch.Team1Id ? 0 : 1)
-                        : (int?)null
-                };
-            }
-
-            return Json(new
-            {
-                bracketData,
-                roundHeaders,
-                hasThirdPlaceMatch = thirdPlaceMatch != null,
-                thirdPlace
-            });
-        }
+    return Json(new
+    {
+        bracketData,
+        roundHeaders,
+        hasThirdPlaceMatch = thirdPlaceMatch != null,
+        thirdPlace
+    });
+}
 
         // Helper method for dynamic bracket (after competition starts)
-        private async Task<IActionResult> GetDynamicBracketData(int scheduleId, Competition competition)
+       private async Task<IActionResult> GetDynamicBracketData(int scheduleId, Competition competition)
+{
+    var query = _context.Matches
+        .Where(m => m.ScheduleId == scheduleId);
+
+    if (competition.Format == CompetitionFormat.PoolPlay)
+    {
+        query = query.Where(m => m.RoundNumber >= 2);
+    }
+
+    var matches = await query
+        .Include(m => m.Team1)
+        .Include(m => m.Team2)
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.MatchNumber)
+        .ToListAsync();
+
+    if (!matches.Any())
+    {
+        return Json(new
         {
-            // Load all elimination matches
-            var matches = await _context.Matches
-                .Where(m => m.ScheduleId == scheduleId)
-                .Include(m => m.Team1)
-                .Include(m => m.Team2)
-                .OrderBy(m => m.RoundNumber)
-                .ThenBy(m => m.MatchNumber)
-                .ToListAsync();
+            bracketData = new { teams = new string[0][], results = new object[0][] },
+            roundHeaders = new string[0],
+            hasThirdPlaceMatch = competition.ThirdPlaceMatch,
+            thirdPlace = (object)null!
+        });
+    }
 
-            if (!matches.Any())
-            {
-                return Json(new
-                {
-                    bracketData = new { teams = new string[0][], results = new object[0][] },
-                    roundHeaders = new string[0],
-                    hasThirdPlaceMatch = competition.ThirdPlaceMatch,
-                    thirdPlace = (object)null!
-                });
-            }
+    var roundGroups = matches
+        .Where(m => !m.IsThirdPlaceMatch)
+        .GroupBy(m => m.RoundNumber)
+        .OrderBy(g => g.Key)
+        .ToList();
 
-            // Group matches by round
-            var roundGroups = matches
-                .Where(m => !m.IsThirdPlaceMatch)
-                .GroupBy(m => m.RoundNumber)
-                .OrderBy(g => g.Key)
-                .ToList();
+    var teamLookup = await _context.Teams
+        .Where(t => t.ScheduleId == scheduleId)
+        .ToDictionaryAsync(t => t.TeamId, t => t.TeamName);
 
-            // Build team pairs from first round
-            var firstRound = roundGroups.FirstOrDefault()?.ToList() ?? new List<Match>();
-            var teamPairs = firstRound.Select(m => new[]
-            {
-        m.Team1?.TeamName ?? "TBD",
-        m.Team2?.TeamName ?? "TBD"
-    }).ToList();
+    var (teamPairs, allResults) = BuildBracketMatrix(roundGroups, teamLookup);
 
-            // Build results for all rounds
-            var allResults = new List<List<int[]>>();
-            foreach (var round in roundGroups)
-            {
-                var roundResults = round.Select(m =>
-                {
-                    if (m.Status == MatchStatus.Done && m.WinnerId.HasValue)
-                    {
-                        // Parse scores if available
-                        if (!string.IsNullOrEmpty(m.Team1Score) && !string.IsNullOrEmpty(m.Team2Score))
-                        {
-                            var team1Sets = m.Team1Score.Split(',')
-                                .Select(s => int.TryParse(s.Trim(), out var val) ? val : 0)
-                                .ToArray();
-                            var team2Sets = m.Team2Score.Split(',')
-                                .Select(s => int.TryParse(s.Trim(), out var val) ? val : 0)
-                                .ToArray();
+    var roundHeaders = roundGroups
+        .Select(g => g.First().RoundName ?? $"Round {g.Key}")
+        .ToList();
 
-                            // Count set wins for bracket display
-                            int team1Wins = 0;
-                            int team2Wins = 0;
-                            for (int i = 0; i < Math.Min(team1Sets.Length, team2Sets.Length); i++)
-                            {
-                                if (team1Sets[i] > team2Sets[i]) team1Wins++;
-                                else if (team2Sets[i] > team1Sets[i]) team2Wins++;
-                            }
+    var bracketData = new
+    {
+        teams = teamPairs,
+        results = allResults
+    };
 
-                            return new[] { team1Wins, team2Wins };
-                        }
-                        // Or just indicate winner
-                        return m.WinnerId == m.Team1Id ? new[] { 1, 0 } : new[] { 0, 1 };
-                    }
-                    return new int[0]; // Empty = match not completed
-                }).ToList();
+    object thirdPlace = null!;
+    var thirdPlaceMatch = matches.FirstOrDefault(m => m.IsThirdPlaceMatch);
+    if (thirdPlaceMatch != null)
+    {
+        thirdPlace = new
+        {
+            team1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD",
+            team2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD",
+            status = thirdPlaceMatch.WinnerId.HasValue ? "Done" : thirdPlaceMatch.Status.ToString(),
+            winnerIndex = thirdPlaceMatch.WinnerId.HasValue
+                ? (thirdPlaceMatch.WinnerId == thirdPlaceMatch.Team1Id ? 0 : 1)
+                : (int?)null
+        };
+    }
 
-                allResults.Add(roundResults);
-            }
-
-            // Build round headers
-            var roundHeaders = new List<string>();
-            int totalRounds = roundGroups.Count;
-            for (int i = 0; i < totalRounds; i++)
-            {
-                int teamsInRound = (int)Math.Pow(2, totalRounds - i);
-                if (teamsInRound == 2) roundHeaders.Add("Final");
-                else if (teamsInRound == 4) roundHeaders.Add("Semi-Finals");
-                else if (teamsInRound == 8) roundHeaders.Add("Quarter-Finals");
-                else roundHeaders.Add("Round of " + teamsInRound);
-            }
-
-            var bracketData = new
-            {
-                teams = teamPairs,
-                results = allResults
-            };
-
-            // Handle third place match
-            object thirdPlace = null!;
-            if (competition.ThirdPlaceMatch)
-            {
-                var thirdPlaceMatch = matches.FirstOrDefault(m => m.IsThirdPlaceMatch);
-                if (thirdPlaceMatch != null)
-                {
-                    thirdPlace = new
-                    {
-                        team1 = thirdPlaceMatch.Team1?.TeamName ?? "TBD",
-                        team2 = thirdPlaceMatch.Team2?.TeamName ?? "TBD",
-                        status = thirdPlaceMatch.Status.ToString(),
-                        winnerIndex = thirdPlaceMatch.WinnerId.HasValue
-                            ? (thirdPlaceMatch.WinnerId == thirdPlaceMatch.Team1Id ? 0 : 1)
-                            : (int?)null
-                    };
-                }
-                else
-                {
-                    thirdPlace = new
-                    {
-                        team1 = "TBD",
-                        team2 = "TBD",
-                        status = "Pending",
-                        winnerIndex = (int?)null
-                    };
-                }
-            }
-
-            return Json(new
-            {
-                bracketData,
-                roundHeaders,
-                hasThirdPlaceMatch = competition.ThirdPlaceMatch,
-                thirdPlace
-            });
-        }
+    return Json(new
+    {
+        bracketData,
+        roundHeaders,
+        hasThirdPlaceMatch = thirdPlaceMatch != null,
+        thirdPlace
+    });
+}
 
         // ADD this method after GenerateEmptyPlayoffBracket (around line 800+)
 
@@ -1686,10 +1630,10 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
                     Console.WriteLine($"Processing SINGLE BYE match {byeMatch.MatchNumber}, winner: {byeMatch.WinnerId}");
                     await AdvanceWinner(byeMatch);
                 }
-            }
 
-            // *** IMPORTANT: Save all changes AFTER processing all BYEs ***
-            await _context.SaveChangesAsync();
+                // *** IMPORTANT: Save all changes AFTER processing all BYEs ***
+                await _context.SaveChangesAsync();
+            }
         }
 
         Console.WriteLine("=== AdvanceToPlayoff completed successfully ===");
@@ -1703,7 +1647,7 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
     }
 }
 
-        private async Task AdvanceWinner(Match match)
+private async Task AdvanceWinner(Match match)
 {
     Console.WriteLine($"=== AdvanceWinner called for Match {match.MatchId} ===");
 
@@ -1718,28 +1662,17 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
         var nextMatch = await _context.Matches.FindAsync(match.NextMatchId.Value);
         if (nextMatch != null)
         {
-            bool placed = false;
             if (match.MatchPosition == 1)
             {
-                if (!nextMatch.Team1Id.HasValue)
-                {
-                    nextMatch.Team1Id = match.WinnerId;
-                    placed = true;
-                }
+                nextMatch.Team1Id = match.WinnerId;
             }
             else
             {
-                if (!nextMatch.Team2Id.HasValue)
-                {
-                    nextMatch.Team2Id = match.WinnerId;
-                    placed = true;
-                }
+                nextMatch.Team2Id = match.WinnerId;
             }
 
-            if (placed)
-            {
-                await NormalizeMatchAfterFeed(nextMatch, match.MatchId);
-            }
+            _context.Matches.Update(nextMatch);
+            await NormalizeMatchAfterFeed(nextMatch, match.MatchId);
         }
     }
 
@@ -2325,5 +2258,169 @@ private async Task CollectAffectedMatches(Match match, List<Match> affected)
                 return null;
             }
         }
+
+        private (List<string[]>, List<List<int[]>>) BuildBracketMatrix(
+    List<IGrouping<int, Match>> roundGroups,
+    Dictionary<int, string> teamLookup)
+{
+    if (roundGroups == null || roundGroups.Count == 0)
+        return (new List<string[]>(), new List<List<int[]>>());
+
+    var firstRoundMatches = roundGroups[0]
+        .Where(m => m.Team1Id.HasValue || m.Team2Id.HasValue)
+        .OrderBy(m => m.MatchNumber)
+        .ToList();
+
+    int actualSlots = firstRoundMatches.Count;
+    int bracketSlots = NextPowerOfTwo(Math.Max(1, actualSlots));
+
+    var teamPairs = new List<string[]>();
+    for (int i = 0; i < bracketSlots; i++)
+    {
+        if (i < actualSlots)
+        {
+            teamPairs.Add(BuildTeamPair(firstRoundMatches[i], teamLookup));
+        }
+        else
+        {
+            teamPairs.Add(new[] { "BYE", "BYE" });
+        }
+    }
+
+    var results = new List<List<int[]>>();
+    int expectedMatches = bracketSlots;
+
+    for (int roundIndex = 0; roundIndex < roundGroups.Count; roundIndex++)
+    {
+        var roundMatches = roundGroups[roundIndex]
+            .Where(m => m.Team1Id.HasValue || m.Team2Id.HasValue)
+            .OrderBy(m => m.MatchNumber)
+            .ToList();
+
+        var roundScores = new List<int[]>();
+        for (int i = 0; i < expectedMatches; i++)
+        {
+            if (i < roundMatches.Count)
+            {
+                roundScores.Add(BuildScoreTuple(roundMatches[i]));
+            }
+            else
+            {
+                // fill with BYE result so downstream rounds auto-advance
+                roundScores.Add(new[] { 1, 0 });
+            }
+        }
+
+        results.Add(roundScores);
+        expectedMatches = Math.Max(1, expectedMatches / 2);
+    }
+
+    return (teamPairs, results);
+}
+
+        private string[] BuildTeamPair(Match? match, Dictionary<int, string> teamLookup)
+        {
+            string Resolve(int? teamId) =>
+                teamId.HasValue && teamLookup.TryGetValue(teamId.Value, out var name) ? name : "TBD";
+
+            if (match == null)
+            {
+                return new[] { "TBD", "TBD" };
+            }
+
+            var team1Name = match.Team1?.TeamName ?? Resolve(match.Team1Id);
+            var team2Name = match.Team2?.TeamName ?? Resolve(match.Team2Id);
+
+            if (match.IsBye && match.WinnerId.HasValue)
+            {
+                // ensure single-bye matches show the advancing team
+                if (!match.Team1Id.HasValue) team1Name = "BYE";
+                if (!match.Team2Id.HasValue) team2Name = Resolve(match.WinnerId);
+            }
+
+            return new[] { team1Name ?? "TBD", team2Name ?? "TBD" };
+        }
+
+        private int[] BuildScoreTuple(Match? match)
+        {
+            if (match == null)
+            {
+                return Array.Empty<int>(); // ⬅️ CHANGED: Return empty array instead of [0,0]
+            }
+
+            bool completed = match.Status == MatchStatus.Done ||
+                     (match.Status == MatchStatus.Bye && match.WinnerId.HasValue);
+
+            if (!completed)
+            {
+                return Array.Empty<int>(); // ⬅️ CHANGED: Return empty array for pending matches
+            }
+
+            // ⬇️ NEW: Handle BYE matches explicitly
+            if (match.IsBye && match.WinnerId.HasValue)
+            {
+                return match.WinnerId == match.Team1Id ? new[] { 1, 0 } : new[] { 0, 1 };
+            }
+
+            if (!string.IsNullOrEmpty(match.Team1Score) && !string.IsNullOrEmpty(match.Team2Score))
+            {
+                int team1Wins = 0, team2Wins = 0;
+                var team1Sets = match.Team1Score.Split(',').Select(s => int.TryParse(s.Trim(), out var v) ? v : 0).ToArray();
+                var team2Sets = match.Team2Score.Split(',').Select(s => int.TryParse(s.Trim(), out var v) ? v : 0).ToArray();
+
+                for (int i = 0; i < Math.Min(team1Sets.Length, team2Sets.Length); i++)
+                {
+                    if (team1Sets[i] > team2Sets[i]) team1Wins++;
+                    else if (team2Sets[i] > team1Sets[i]) team2Wins++;
+                }
+
+                return new[] { team1Wins, team2Wins };
+            }
+
+            // ⬇️ FALLBACK: If match is marked Done but has no scores, use WinnerId
+            if (match.WinnerId.HasValue)
+            {
+                return match.WinnerId == match.Team1Id ? new[] { 1, 0 } : new[] { 0, 1 };
+            }
+
+            return Array.Empty<int>(); // ⬅️ CHANGED: Return empty array as final fallback
+        }
+
+        private int NextPowerOfTwo(int value)
+        {
+            int power = 1;
+            while (power < value) power <<= 1;
+            return power;
+        }
+
+        [HttpGet]
+public async Task<IActionResult> DebugPlayoffMatches(int scheduleId)
+{
+    var playoffMatches = await _context.Matches
+        .Where(m => m.ScheduleId == scheduleId && m.RoundNumber >= 2)
+        .Include(m => m.Team1)
+        .Include(m => m.Team2)
+        .OrderBy(m => m.RoundNumber)
+        .ThenBy(m => m.MatchNumber)
+        .Select(m => new
+        {
+            m.MatchId,
+            m.MatchNumber,
+            m.RoundName,
+            m.RoundNumber,
+            m.Status,
+            m.IsBye,
+            Team1Id = m.Team1Id,
+            Team1Name = m.Team1 != null ? m.Team1.TeamName : "NULL",
+            Team2Id = m.Team2Id,
+            Team2Name = m.Team2 != null ? m.Team2.TeamName : "NULL",
+            m.WinnerId,
+            m.NextMatchId,
+            m.MatchPosition
+        })
+        .ToListAsync();
+
+    return Json(playoffMatches);
+}
     }
 }
