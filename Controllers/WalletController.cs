@@ -5,6 +5,7 @@ using PicklePlay.Models;
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Data;
 using static PicklePlay.Services.MockPaymentService;
+using PicklePlay.ViewModels;
 
 public class WalletController : Controller
 {
@@ -25,19 +26,57 @@ public class WalletController : Controller
         _logger = logger;
     }
 
-    // GET: /Wallet/Management
-    public IActionResult WalletManagement()
+    public async Task<IActionResult> WalletManagement()
+{
+    if (HttpContext.Session.GetString("UserEmail") == null)
+        return RedirectToAction("Login", "Auth");
+
+    int? userId = HttpContext.Session.GetInt32("UserId");
+    if (userId == null)
+        return RedirectToAction("Login", "Auth");
+
+    // Fetch Wallet
+    var wallet = await _context.Wallets
+        .Include(w => w.Transactions)
+        .FirstOrDefaultAsync(w => w.UserId == userId.Value);
+
+    // Fetch User
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.UserId == userId.Value);
+
+    // Fetch Escrow
+    var escrows = await _context.Escrows
+        .Include(e => e.Transactions)
+        .Include(e => e.EscrowDisputes)
+        .Where(e => e.UserId == userId.Value)
+        .ToListAsync();
+
+    // Fetch Disputes
+    var disputes = await _context.EscrowDisputes
+        .Where(d => d.RaisedByUserId == userId.Value)
+        .ToListAsync();
+
+    // Fetch Escrow Payment Requests  
+    // (If you store them in DB - if not, keep empty)
+    var escrowRequests = new List<EscrowPaymentRequest>(); 
+    // Add your DB fetch here later when implemented 
+
+    var vm = new WalletManagementViewModel
     {
-        if (HttpContext.Session.GetString("UserEmail") == null)
-        {
-            return RedirectToAction("Login", "Auth");
-        }
+        Wallet = wallet ?? new Wallet(),
+        User = user ?? new User(),
+        Transactions = wallet?.Transactions.OrderByDescending(t => t.CreatedAt).ToList() ?? new List<Transaction>(),
+        Escrows = escrows,
+        EscrowDisputes = disputes,
+        EscrowPaymentRequests = escrowRequests
+    };
 
-        ViewData["Title"] = "Wallet Management";
-        ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+    ViewData["Title"] = "Wallet Management";
+    ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
 
-        return View();
-    }
+    return View(vm);
+}
+
 
     // GET: /Wallet/TopUp
     public async Task<IActionResult> TopUp()
