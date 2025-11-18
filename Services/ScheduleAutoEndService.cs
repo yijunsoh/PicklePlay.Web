@@ -29,7 +29,7 @@ namespace PicklePlay.Services
         {
             _logger.LogInformation("Schedule Auto-End Service started");
 
-            // ⬇️ Run immediately on startup
+            // Run immediately on startup
             try
             {
                 _logger.LogInformation("Running initial check for schedules to auto-end...");
@@ -62,99 +62,105 @@ namespace PicklePlay.Services
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                // Get current Malaysia time
-                var nowMalaysia = DateTimeHelper.GetMalaysiaTime();
                 var nowUtc = DateTime.UtcNow;
-                var autoEndThreshold = nowUtc.AddHours(-24); // 24 hours ago in UTC
-
+                var nowMalaysia = DateTimeHelper.GetMalaysiaTime();
+                
                 _logger.LogInformation($"=== Schedule Auto-End Check ===");
-                _logger.LogInformation($"Current Malaysia Time: {nowMalaysia:yyyy-MM-dd HH:mm:ss}");
                 _logger.LogInformation($"Current UTC Time: {nowUtc:yyyy-MM-dd HH:mm:ss}");
-                _logger.LogInformation($"Auto-End Threshold (UTC): {autoEndThreshold:yyyy-MM-dd HH:mm:ss}");
+                _logger.LogInformation($"Current Malaysia Time: {nowMalaysia:yyyy-MM-dd HH:mm:ss}");
 
-                // ===== COMPETITIONS =====
-                var competitionsToEnd = await context.Schedules
+                // ===== COMPETITIONS: InProgress (7) → Completed (8) =====
+                var competitions = await context.Schedules
                     .Where(s => s.ScheduleType == ScheduleType.Competition &&
-                               s.Status == ScheduleStatus.InProgress &&
-                               s.EndTime.HasValue &&
-                               s.EndTime.Value <= autoEndThreshold)
+                               s.Status == ScheduleStatus.InProgress && // Status = 7
+                               s.EndTime.HasValue)
                     .ToListAsync();
 
-                if (competitionsToEnd.Any())
-                {
-                    _logger.LogInformation($"Found {competitionsToEnd.Count} competitions to auto-end (change to Completed)");
+                _logger.LogInformation($"Checking {competitions.Count} competitions with InProgress (7) status");
 
-                    foreach (var competition in competitionsToEnd)
+                int competitionsChanged = 0;
+                foreach (var comp in competitions)
+                {
+                    var endTime = DateTime.SpecifyKind(comp.EndTime!.Value, DateTimeKind.Utc);
+                    var timeSinceEnd = nowUtc - endTime;
+                    
+                    if (timeSinceEnd.TotalHours >= 24)
                     {
-                        competition.Status = ScheduleStatus.Completed;
-                        _logger.LogInformation($"  - Competition {competition.ScheduleId}: {competition.GameName} → Completed");
-                        _logger.LogInformation($"    EndTime (UTC): {competition.EndTime:yyyy-MM-dd HH:mm:ss}");
+                        _logger.LogInformation($"  ✓ Competition {comp.ScheduleId} ({comp.GameName}):");
+                        _logger.LogInformation($"    EndTime: {endTime:yyyy-MM-dd HH:mm:ss} UTC");
+                        _logger.LogInformation($"    Hours since end: {timeSinceEnd.TotalHours:F2}");
+                        _logger.LogInformation($"    Status: InProgress (7) → Completed (8)");
+                        
+                        comp.Status = ScheduleStatus.Completed; // Status = 8
+                        competitionsChanged++;
                     }
+                }
+
+                if (competitionsChanged > 0)
+                {
+                    _logger.LogInformation($"✓ Found {competitionsChanged} competitions to auto-end");
                 }
                 else
                 {
-                    _logger.LogInformation("No competitions need to be auto-ended");
+                    _logger.LogInformation("✓ No competitions need to be auto-ended");
                 }
 
-                // ===== ONE-OFF SCHEDULES =====
-                var oneOffToEnd = await context.Schedules
+                // ===== GAME SCHEDULES: Active (1) → Past (2) =====
+                var oneOffGames = await context.Schedules
                     .Where(s => s.ScheduleType == ScheduleType.OneOff &&
-                               s.Status == ScheduleStatus.Active &&
-                               s.EndTime.HasValue &&
-                               s.EndTime.Value <= autoEndThreshold)
+                               s.Status == ScheduleStatus.Active && // Status = 1
+                               s.StartTime.HasValue &&
+                               s.Duration.HasValue)
                     .ToListAsync();
 
-                if (oneOffToEnd.Any())
-                {
-                    _logger.LogInformation($"Found {oneOffToEnd.Count} one-off schedules to auto-end (change to Past)");
+                _logger.LogInformation($"Checking {oneOffGames.Count} game schedules with Active (1) status");
 
-                    foreach (var schedule in oneOffToEnd)
+                int gamesChanged = 0;
+                foreach (var game in oneOffGames)
+                {
+                    var startTime = DateTime.SpecifyKind(game.StartTime!.Value, DateTimeKind.Utc);
+                    var durationTimeSpan = ScheduleHelper.GetTimeSpan(game.Duration!.Value);
+                    var calculatedEndTime = startTime.Add(durationTimeSpan);
+                    var timeSinceEnd = nowUtc - calculatedEndTime;
+                    
+                    if (timeSinceEnd.TotalHours >= 24)
                     {
-                        schedule.Status = ScheduleStatus.Past;
-                        _logger.LogInformation($"  - OneOff {schedule.ScheduleId}: {schedule.GameName} → Past");
-                        _logger.LogInformation($"    EndTime (UTC): {schedule.EndTime:yyyy-MM-dd HH:mm:ss}");
+                        _logger.LogInformation($"  ✓ Game {game.ScheduleId} ({game.GameName}):");
+                        _logger.LogInformation($"    StartTime: {startTime:yyyy-MM-dd HH:mm:ss} UTC");
+                        _logger.LogInformation($"    Duration: {game.Duration}");
+                        _logger.LogInformation($"    Calculated EndTime: {calculatedEndTime:yyyy-MM-dd HH:mm:ss} UTC");
+                        _logger.LogInformation($"    Hours since end: {timeSinceEnd.TotalHours:F2}");
+                        _logger.LogInformation($"    Status: Active (1) → Past (2)");
+                        
+                        game.Status = ScheduleStatus.Past; // Status = 2
+                        gamesChanged++;
                     }
+                }
+
+                if (gamesChanged > 0)
+                {
+                    _logger.LogInformation($"✓ Found {gamesChanged} games to auto-end");
                 }
                 else
                 {
-                    _logger.LogInformation("No one-off schedules need to be auto-ended");
-                }
-
-                // ===== RECURRING SCHEDULES =====
-                var recurringToEnd = await context.Schedules
-                    .Where(s => s.ScheduleType == ScheduleType.Recurring &&
-                               s.Status == ScheduleStatus.Active &&
-                               s.EndTime.HasValue &&
-                               s.EndTime.Value <= autoEndThreshold)
-                    .ToListAsync();
-
-                if (recurringToEnd.Any())
-                {
-                    _logger.LogInformation($"Found {recurringToEnd.Count} recurring schedules to auto-end (change to Past)");
-
-                    foreach (var schedule in recurringToEnd)
-                    {
-                        schedule.Status = ScheduleStatus.Past;
-                        _logger.LogInformation($"  - Recurring {schedule.ScheduleId}: {schedule.GameName} → Past");
-                        _logger.LogInformation($"    EndTime (UTC): {schedule.EndTime:yyyy-MM-dd HH:mm:ss}");
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation("No recurring schedules need to be auto-ended");
+                    _logger.LogInformation("✓ No games need to be auto-ended");
                 }
 
                 // Save all changes
-                var totalChanges = competitionsToEnd.Count + oneOffToEnd.Count + recurringToEnd.Count;
+                var totalChanges = competitionsChanged + gamesChanged;
                 if (totalChanges > 0)
                 {
-                    await context.SaveChangesAsync();
-                    _logger.LogInformation($"✓ Successfully auto-ended {totalChanges} schedules");
+                    var savedCount = await context.SaveChangesAsync();
+                    _logger.LogInformation($"✅ Successfully saved {savedCount} changes to database");
+                    _logger.LogInformation($"   - {competitionsChanged} competitions: InProgress (7) → Completed (8)");
+                    _logger.LogInformation($"   - {gamesChanged} games: Active (1) → Past (2)");
                 }
                 else
                 {
                     _logger.LogInformation("✓ No schedules need to be auto-ended at this time");
                 }
+
+                _logger.LogInformation($"=== Auto-End Check Complete ===\n");
             }
         }
     }
