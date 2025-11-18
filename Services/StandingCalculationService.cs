@@ -36,8 +36,8 @@ namespace PicklePlay.Application.Services
                 var standing = new TeamStanding
                 {
                     TeamId = team.TeamId,
-                    TeamName = team.TeamName ?? string.Empty, // FIX: Handle null
-                    PoolName = pool.PoolName ?? string.Empty  // FIX: Handle null
+                    TeamName = team.TeamName ?? string.Empty,
+                    PoolName = pool.PoolName ?? string.Empty
                 };
 
                 // Get team's matches
@@ -72,40 +72,65 @@ namespace PicklePlay.Application.Services
                     standing.GamesWon += teamWins;
                     standing.GamesLost += opponentWins;
                     standing.TotalScore += teamTotalPoints;
-                    standing.ScoreDifference += (teamTotalPoints - opponentTotalPoints);
+                    
+                    // Calculate score differential for this match
+                    int matchScoreDifferential = teamTotalPoints - opponentTotalPoints;
+                    standing.ScoreDifference += matchScoreDifferential;
+
+                    // ⬇️ FIX: Determine if this is a tie-break based on SCORE DIFFERENTIAL
+                    // Tie-break = close match (score differential ≤ 3 points)
+                    bool isTieBreak = Math.Abs(matchScoreDifferential) <= 3;
 
                     // Match result
                     if (match.WinnerId == team.TeamId)
                     {
+                        // Team WON this match
                         standing.MatchesWon++;
-                        
-                        // Check if tie-break (decided by fewer total points difference)
-                        bool isTieBreak = Math.Abs(teamWins - opponentWins) == 1;
                         
                         if (competition.StandingCalculation == StandingCalculation.WinLossPoints)
                         {
-                            standing.Points += isTieBreak ? competition.TieBreakWin : competition.StandardWin;
+                            if (isTieBreak)
+                            {
+                                // Tie-Break Win (close match)
+                                standing.TieBreakWins++;
+                                standing.Points += competition.TieBreakWin;
+                            }
+                            else
+                            {
+                                // Standard Win (dominant win)
+                                standing.StandardWins++;
+                                standing.Points += competition.StandardWin;
+                            }
                         }
                     }
                     else if (match.WinnerId != null)
                     {
+                        // Team LOST this match
                         standing.MatchesLost++;
-                        
-                        bool isTieBreak = Math.Abs(teamWins - opponentWins) == 1;
                         
                         if (competition.StandingCalculation == StandingCalculation.WinLossPoints)
                         {
-                            standing.Points += isTieBreak ? competition.TieBreakLoss : competition.StandardLoss;
+                            if (isTieBreak)
+                            {
+                                // Tie-Break Loss (close match)
+                                standing.TieBreakLosses++;
+                                standing.Points += competition.TieBreakLoss;
+                            }
+                            else
+                            {
+                                // Standard Loss (dominant loss)
+                                standing.StandardLosses++;
+                                standing.Points += competition.StandardLoss; // Usually 0 pts
+                            }
                         }
                     }
                     else
                     {
-                        // Draw
+                        // Draw (no winner)
                         standing.Draws++;
                         if (competition.StandingCalculation == StandingCalculation.WinLossPoints)
                         {
-                            // FIX: Change ?? to GetValueOrDefault()
-                            standing.Points += competition.Draw; // FIX: Use ?? 0 instead
+                            standing.Points += competition.Draw;
                         }
                     }
 
@@ -119,7 +144,7 @@ namespace PicklePlay.Application.Services
                         
                         if (!standing.HeadToHeadDifference.ContainsKey(opponentId))
                             standing.HeadToHeadDifference[opponentId] = 0;
-                        standing.HeadToHeadDifference[opponentId] += (teamTotalPoints - opponentTotalPoints);
+                        standing.HeadToHeadDifference[opponentId] += matchScoreDifferential;
                     }
                 }
 
@@ -155,7 +180,6 @@ namespace PicklePlay.Application.Services
                     .ThenByDescending(s => s.ScoreDifference)
                     .ToList(),
 
-                // FIX: Change GameWinPercent to GameWinPercentage
                 StandingCalculation.GameWinPercentage => standings
                     .OrderByDescending(s => s.GameWinPercentage)
                     .ThenByDescending(s => s.GamesWon)
@@ -168,7 +192,6 @@ namespace PicklePlay.Application.Services
                     .ThenByDescending(s => s.ScoreDifference)
                     .ToList(),
 
-                // FIX: Change TotalScore to PointDifferential
                 StandingCalculation.PointDifferential => standings
                     .OrderByDescending(s => s.TotalScore)
                     .ThenByDescending(s => s.MatchesWon)
@@ -197,6 +220,13 @@ namespace PicklePlay.Application.Services
         public int MatchesWon { get; set; }
         public int MatchesLost { get; set; }
         public int Draws { get; set; }
+        
+        // ⬇️ ADD: Separate counters for Standard vs Tie-Break
+        public int StandardWins { get; set; }
+        public int StandardLosses { get; set; }
+        public int TieBreakWins { get; set; }
+        public int TieBreakLosses { get; set; }
+        
         public int GamesWon { get; set; }
         public int GamesLost { get; set; }
         public int TotalScore { get; set; }
