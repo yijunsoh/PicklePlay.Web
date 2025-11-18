@@ -1478,7 +1478,7 @@ private async Task UpdateAwardWinnersForSchedule(int scheduleId)
 
         // ADD this method after GenerateEmptyPlayoffBracket (around line 800+)
 
-        [HttpPost]
+             [HttpPost]
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
 {
@@ -1713,106 +1713,205 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
         return;
     }
 
-    Console.WriteLine($"Winner: Team {match.WinnerId}");
-
-    // *** ADVANCE WINNER TO NEXT MATCH ***
     if (match.NextMatchId.HasValue)
     {
         var nextMatch = await _context.Matches.FindAsync(match.NextMatchId.Value);
         if (nextMatch != null)
         {
-            Console.WriteLine($"Advancing winner to Match {nextMatch.MatchId}");
-
-            if (!nextMatch.Team1Id.HasValue)
+            bool placed = false;
+            if (match.MatchPosition == 1)
             {
-                nextMatch.Team1Id = match.WinnerId;
-                Console.WriteLine($"Set as Team1 in Match {nextMatch.MatchId}");
-            }
-            else if (!nextMatch.Team2Id.HasValue)
-            {
-                nextMatch.Team2Id = match.WinnerId;
-                Console.WriteLine($"Set as Team2 in Match {nextMatch.MatchId}");
+                if (!nextMatch.Team1Id.HasValue)
+                {
+                    nextMatch.Team1Id = match.WinnerId;
+                    placed = true;
+                }
             }
             else
             {
-                Console.WriteLine($"⚠ Both teams already set in Match {nextMatch.MatchId}");
+                if (!nextMatch.Team2Id.HasValue)
+                {
+                    nextMatch.Team2Id = match.WinnerId;
+                    placed = true;
+                }
             }
 
-            // Check if next match is ready to start
-            if (nextMatch.Team1Id.HasValue && nextMatch.Team2Id.HasValue)
+            if (placed)
             {
-                nextMatch.Status = MatchStatus.Active;
-                Console.WriteLine($"Match {nextMatch.MatchId} is now Active (both teams assigned)");
+                await NormalizeMatchAfterFeed(nextMatch, match.MatchId);
             }
-
-            _context.Matches.Update(nextMatch);
         }
     }
 
-    // *** ADVANCE LOSER TO THIRD PLACE MATCH ***
-    if (match.NextLoserMatchId.HasValue)
+   if (match.NextLoserMatchId.HasValue)
     {
         var thirdPlaceMatch = await _context.Matches.FindAsync(match.NextLoserMatchId.Value);
         if (thirdPlaceMatch != null)
         {
-            // *** FIX: Calculate loser correctly ***
             int? loserId = null;
             if (match.Team1Id.HasValue && match.Team2Id.HasValue)
             {
-                loserId = (match.Team1Id == match.WinnerId) ? match.Team2Id : match.Team1Id;
+                loserId = match.Team1Id == match.WinnerId ? match.Team2Id : match.Team1Id;
             }
-
-            Console.WriteLine($"Advancing loser (Team {loserId}) to 3rd Place Match {thirdPlaceMatch.MatchId}");
 
             if (loserId.HasValue)
             {
-                if (!thirdPlaceMatch.Team1Id.HasValue)
-                {
-                    thirdPlaceMatch.Team1Id = loserId;
-                    Console.WriteLine($"Set loser as Team1 in 3rd Place Match");
-                }
-                else if (!thirdPlaceMatch.Team2Id.HasValue)
-                {
-                    thirdPlaceMatch.Team2Id = loserId;
-                    Console.WriteLine($"Set loser as Team2 in 3rd Place Match");
-                }
-                else
-                {
-                    // *** NEW: Replace existing team if it came from this semi-final ***
-                    Console.WriteLine($"⚠ 3rd Place Match already has both teams");
-                    Console.WriteLine($"Current: Team1={thirdPlaceMatch.Team1Id}, Team2={thirdPlaceMatch.Team2Id}");
-                    Console.WriteLine($"Checking if either team came from this semi-final...");
-                    
-                    // Check if Team1 or Team2 was previously in this semi-final
-                    bool team1WasInThisSemi = (match.Team1Id == thirdPlaceMatch.Team1Id || match.Team2Id == thirdPlaceMatch.Team1Id);
-                    bool team2WasInThisSemi = (match.Team1Id == thirdPlaceMatch.Team2Id || match.Team2Id == thirdPlaceMatch.Team2Id);
-                    
-                    if (team1WasInThisSemi)
-                    {
-                        thirdPlaceMatch.Team1Id = loserId;
-                        Console.WriteLine($"Replaced Team1 with new loser {loserId}");
-                    }
-                    else if (team2WasInThisSemi)
-                    {
-                        thirdPlaceMatch.Team2Id = loserId;
-                        Console.WriteLine($"Replaced Team2 with new loser {loserId}");
-                    }
-                }
-
-                // Activate 3rd place match if both teams are ready
-                if (thirdPlaceMatch.Team1Id.HasValue && thirdPlaceMatch.Team2Id.HasValue)
-                {
-                    thirdPlaceMatch.Status = MatchStatus.Active;
-                    Console.WriteLine($"3rd Place Match {thirdPlaceMatch.MatchId} is now Active");
-                }
+                if (!thirdPlaceMatch.Team1Id.HasValue) thirdPlaceMatch.Team1Id = loserId;
+                else if (!thirdPlaceMatch.Team2Id.HasValue) thirdPlaceMatch.Team2Id = loserId;
+                else await ReplaceLoserIfFromSameSemi(match, thirdPlaceMatch, loserId);
             }
 
+            await FinalizeThirdPlaceEntry(thirdPlaceMatch, match);
             _context.Matches.Update(thirdPlaceMatch);
         }
     }
 
     await _context.SaveChangesAsync();
     Console.WriteLine("=== AdvanceWinner completed ===");
+}
+
+private async Task FinalizeThirdPlaceEntry(Match thirdPlaceMatch, Match feederMatch)
+{
+    if (thirdPlaceMatch.Team1Id.HasValue && thirdPlaceMatch.Team2Id.HasValue)
+    {
+        thirdPlaceMatch.Status = MatchStatus.Active;
+        thirdPlaceMatch.IsBye = false;
+        return;
+    }
+
+    var otherSemiIsDead = await IsSiblingPathDead(thirdPlaceMatch.MatchId, feederMatch.MatchId);
+     if (otherSemiIsDead)
+    {
+        var awardedTeamId = thirdPlaceMatch.Team1Id ?? thirdPlaceMatch.Team2Id;
+        if (awardedTeamId.HasValue)
+        {
+            thirdPlaceMatch.Status = MatchStatus.Done;
+            thirdPlaceMatch.IsBye = true;
+            thirdPlaceMatch.WinnerId = awardedTeamId;
+
+            if (!thirdPlaceMatch.Team1Id.HasValue && !thirdPlaceMatch.Team2Id.HasValue)
+            {
+                thirdPlaceMatch.Team1Id = awardedTeamId;
+            }
+        }
+    }
+}
+private async Task<bool> IsSiblingPathDead(int thirdPlaceMatchId, int feederMatchId)
+{
+    var siblingLoserFeeds = await _context.Matches
+        .Where(m => m.NextLoserMatchId == thirdPlaceMatchId && m.MatchId != feederMatchId)
+        .ToListAsync();
+
+    if (!siblingLoserFeeds.Any()) return true;
+
+    foreach (var semi in siblingLoserFeeds)
+    {
+        if (semi.Status != MatchStatus.Bye) return false;
+        if (!IsDeadBye(semi)) return false;
+    }
+
+    return true;
+}
+
+private async Task NormalizeMatchAfterFeed(Match nextMatch, int feederMatchId)
+{
+    Console.WriteLine($"NormalizeMatchAfterFeed for Match {nextMatch.MatchId}");
+
+    var pairedMatchId = await GetSiblingFeederMatchId(nextMatch.MatchId, feederMatchId);
+    bool pairedDead = pairedMatchId == null;
+
+    if (!pairedDead)
+    {
+        var pairedMatch = await _context.Matches.FindAsync(pairedMatchId!.Value);
+        pairedDead = pairedMatch == null ||
+                     IsDeadBye(pairedMatch) ||
+                     (!pairedMatch.Team1Id.HasValue && !pairedMatch.Team2Id.HasValue);
+    }
+    
+    if (nextMatch.Team1Id.HasValue && nextMatch.Team2Id.HasValue)
+    {
+        nextMatch.Status = MatchStatus.Active;
+        nextMatch.IsBye = false;
+        nextMatch.WinnerId = null;
+        _context.Matches.Update(nextMatch);
+        await _context.SaveChangesAsync();
+        return;
+    }
+
+    if (!pairedDead)
+    {
+        nextMatch.Status = MatchStatus.Pending;
+        nextMatch.IsBye = false;
+        nextMatch.WinnerId = null;
+        _context.Matches.Update(nextMatch);
+        await _context.SaveChangesAsync();
+        return;
+    }
+
+    Console.WriteLine($"Match {nextMatch.MatchId} became orphan -> resolving as BYE");
+    nextMatch.Status = MatchStatus.Bye;
+    nextMatch.IsBye = true;
+    nextMatch.WinnerId = nextMatch.Team1Id ?? nextMatch.Team2Id;
+
+    _context.Matches.Update(nextMatch);
+    await _context.SaveChangesAsync();
+
+    if (nextMatch.WinnerId.HasValue)
+    {
+        await AdvanceWinner(nextMatch);
+    }
+    else
+    {
+        await AdvanceDoubleByeRecursive(nextMatch);
+    }
+}
+
+private async Task<int?> GetSiblingFeederMatchId(int parentMatchId, int feederMatchId)
+{
+    return await _context.Matches
+        .Where(m => m.NextMatchId == parentMatchId && m.MatchId != feederMatchId)
+        .Select(m => (int?)m.MatchId)
+        .FirstOrDefaultAsync();
+}
+
+
+private static bool IsDeadBye(Match match)
+{
+    if (!match.IsBye) return false;
+
+    bool noTeams = !match.Team1Id.HasValue && !match.Team2Id.HasValue;
+    bool singleTeam = match.Team1Id.HasValue ^ match.Team2Id.HasValue;
+
+    return (match.Status == MatchStatus.Bye || match.WinnerId == null) &&
+           (noTeams || singleTeam);
+}
+
+
+private async Task ReplaceLoserIfFromSameSemi(Match semi, Match thirdPlace, int? loserId)
+{
+    if (!loserId.HasValue) return;
+
+    if (thirdPlace.Team1Id == semi.Team1Id || thirdPlace.Team1Id == semi.Team2Id)
+    {
+        thirdPlace.Team1Id = loserId;
+    }
+    else if (thirdPlace.Team2Id == semi.Team1Id || thirdPlace.Team2Id == semi.Team2Id)
+    {
+        thirdPlace.Team2Id = loserId;
+    }
+    else
+    {
+        return;
+    }
+
+    if (thirdPlace.Team1Id.HasValue && thirdPlace.Team2Id.HasValue)
+    {
+        thirdPlace.Status = MatchStatus.Active;
+        thirdPlace.IsBye = false;
+    }
+
+    _context.Matches.Update(thirdPlace);
+    await _context.SaveChangesAsync();
 }
 private async Task RecalculateBracketProgression(Match editedMatch)
 {
