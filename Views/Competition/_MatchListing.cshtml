@@ -81,6 +81,10 @@
     }
 </style>
 
+@{
+    string activeRoundId = "";
+}
+
 @if (!Model.Matches!.Any())
 {
     <div class="alert alert-info mt-3">
@@ -95,7 +99,12 @@ else
         .OrderBy(g => g.First().RoundNumber)
         .ToList();
     
-    var firstRoundName = roundGroups.First().Key;
+    var progressingRound = roundGroups
+        .FirstOrDefault(g => g.Any(m => m.Status == MatchStatus.Progressing));
+
+    var activeRoundGroup = progressingRound ?? roundGroups.First();
+    var activeRoundName = activeRoundGroup.Key;
+    activeRoundId = $"round-{activeRoundGroup.First().RoundNumber}";
 
     @* Round Sub-Tabs Navigation *@
     <ul class="nav nav-pills round-tab-pills mb-3" id="roundTabs" role="tablist">
@@ -103,18 +112,18 @@ else
         {
             var roundName = roundGroup.Key;
             var roundId = $"round-{roundGroup.First().RoundNumber}";
-            var isFirst = roundName == firstRoundName;
+            var isActive = roundName == activeRoundName;
             var isComplete = roundGroup.All(m => m.Status == MatchStatus.Done);
             
             <li class="nav-item" role="presentation">
-                <button class="nav-link @(isFirst ? "active" : "")" 
-                        id="@roundId-tab" 
-                        data-bs-toggle="pill" 
-                        data-bs-target="#@roundId-content" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="@roundId-content" 
-                        aria-selected="@(isFirst ? "true" : "false")">
+                <button class="nav-link @(isActive ? "active" : "")"
+                        id="@roundId-tab"
+                        data-bs-toggle="pill"
+                        data-bs-target="#@roundId-content"
+                        type="button"
+                        role="tab"
+                        aria-controls="@roundId-content"
+                        aria-selected="@(isActive ? "true" : "false")">
                     @roundName
                     @if (isComplete)
                     {
@@ -131,11 +140,11 @@ else
         {
             var roundName = roundGroup.Key;
             var roundId = $"round-{roundGroup.First().RoundNumber}";
-            var isFirst = roundName == firstRoundName;
+            var isActive = roundName == activeRoundName;
             
-            <div class="tab-pane fade @(isFirst ? "show active" : "")" 
-                 id="@roundId-content" 
-                 role="tabpanel" 
+            <div class="tab-pane fade @(isActive ? "show active" : "")"
+                 id="@roundId-content"
+                 role="tabpanel"
                  aria-labelledby="@roundId-tab">
                 
                 <div class="card shadow-sm">
@@ -148,14 +157,75 @@ else
                         </span>
                     </div>
                     <div class="card-body">
+                        @{
+                            ViewData["IsOrganizer"] = Model.IsOrganizer;
+                        }
                         @foreach (var match in roundGroup.OrderBy(m => m.MatchNumber))
                         {
-                            ViewData["IsOrganizer"] = Model.IsOrganizer;
-                            <partial name="_MatchCard" model="match" />
+                            var isProgressing = match.Status == MatchStatus.Progressing;
+                            <div id="match-@match.MatchId"
+                                 class="match-wrapper"
+                                 data-progressing="@(isProgressing.ToString().ToLower())">
+                                <partial name="_MatchCard" model="match" />
+                            </div>
                         }
                     </div>
                 </div>
             </div>
         }
     </div>
+}
+
+@section Scripts {
+    <script>
+        const focusMatchId = sessionStorage.getItem('focusMatchId');
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const defaultTabId = '@activeRoundId-tab';
+            let tabTrigger = document.getElementById(defaultTabId);
+
+            if (tabTrigger) {
+                new bootstrap.Tab(tabTrigger).show();
+            }
+
+            if (focusMatchId) {
+                const matchEl = document.getElementById(`match-${focusMatchId}`);
+                if (matchEl) {
+                    const pane = matchEl.closest('.tab-pane');
+                    if (pane) {
+                        const tabId = pane.getAttribute('aria-labelledby');
+                        if (tabId) {
+                            const focusTabTrigger = document.getElementById(tabId);
+                            if (focusTabTrigger) {
+                                new bootstrap.Tab(focusTabTrigger).show();
+                            }
+                        }
+                    }
+                    setTimeout(() => matchEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+                }
+                sessionStorage.removeItem('focusMatchId');
+                return; // skip generic progressing scroll
+            }
+
+            const progressingMatch = document.querySelector('.match-wrapper[data-progressing="true"]');
+            if (progressingMatch) {
+                progressingMatch.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+
+        $(document).on('submit', '.match-form', function () {
+            sessionStorage.setItem('focusMatchId', $(this).data('match-id'));
+            // ...existing logic...
+            return true;
+        });
+
+        $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function (e) {
+            e.preventDefault();
+            const matchId = $(this).data('match-id');
+            sessionStorage.setItem('focusMatchId', matchId);
+            // ...existing code...
+            this.submit();
+            return true;
+        });
+    </script>
 }
