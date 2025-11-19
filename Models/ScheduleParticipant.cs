@@ -32,5 +32,7 @@ namespace PicklePlay.Models
 
         // ⬇️ ADD THIS PROPERTY (optional but useful)
         public DateTime? ResponseDate { get; set; }
+
+         public int ReservedSlots { get; set; } = 0; // 0 = normal, 1+ = reserved for non-user
     }
 }

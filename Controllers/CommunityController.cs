@@ -130,10 +130,10 @@ namespace PicklePlay.Controllers
         }
 
         [HttpGet]
-public IActionResult CreateGameSchedule()
-{
-    return View(new ScheduleUnifiedViewModel());
-}
+        public IActionResult CreateGameSchedule()
+        {
+            return View(new ScheduleUnifiedViewModel());
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -484,6 +484,49 @@ public IActionResult CreateGameSchedule()
                 TempData["ErrorMessage"] = "You are already in this game.";
             }
 
+            return RedirectToAction("Details", "Schedule", new { id = scheduleId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReserveSlot(int scheduleId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized();
+
+            var schedule = await _context.Schedules
+                .Include(s => s.Participants)
+                .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+            if (schedule == null)
+                return NotFound();
+
+            // Find or create participant for current user
+            var participant = schedule.Participants
+                .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+
+            if (participant == null)
+            {
+                participant = new ScheduleParticipant
+                {
+                    ScheduleId = scheduleId,
+                    UserId = currentUserId.Value,
+                    Role = ParticipantRole.Player,
+                    Status = ParticipantStatus.OnHold,
+                    ReservedSlots = 1
+                };
+                _context.ScheduleParticipants.Add(participant);
+            }
+            else
+            {
+                participant.ReservedSlots += 1;
+                participant.Status = ParticipantStatus.OnHold;
+                _context.ScheduleParticipants.Update(participant);
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Slot reserved! Organizer will review your request.";
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
 
