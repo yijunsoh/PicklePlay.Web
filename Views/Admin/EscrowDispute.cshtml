@@ -1,0 +1,194 @@
+@model IEnumerable<PicklePlay.Models.EscrowDispute>
+
+@{
+    ViewData["Title"] = "Escrow Disputes";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+
+    // Malaysia Timezone (UTC+8)
+    var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+
+    // Track which schedule ID already showed actions
+    var shownActions = new HashSet<int>();
+}
+
+<div class="page-wrapper">
+    <div class="page-content">
+
+        <h3 class="mb-4">Escrow Dispute Management</h3>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Schedule</th>
+                            <th>User</th>
+                            <th>Reason</th>
+                            <th>Admin Review Note</th>
+                            <th>Status</th>
+                            <th>Created (MYT)</th>
+                            <th width="200">Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var d in Model)
+                        {
+                            <tr id="row-@d.DisputeId">
+                                <td>@d.DisputeId</td>
+
+                                <td>
+                                    <strong>@d.Schedule.GameName</strong><br />
+                                    <small>#@d.ScheduleId</small>
+                                </td>
+
+                                <td>@d.RaisedByUser.Username</td>
+
+                                <td>@d.DisputeReason</td>
+
+                                <td>
+                                    @if (string.IsNullOrEmpty(d.AdminReviewNote))
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                    else
+                                    {
+                                        @d.AdminReviewNote
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (d.AdminDecision == "Pending")
+                                    {
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@d.AdminDecision</span>
+                                    }
+                                </td>
+
+                                <!-- Malaysia Time -->
+                                <td>
+                                    @d.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+                                </td>
+
+                                <!-- ======================= -->
+                                <!-- SHOW ACTION BUTTONS ONCE -->
+                                <!-- ======================= -->
+                                <td>
+                                    @if (!shownActions.Contains(d.ScheduleId))
+                                    {
+                                        shownActions.Add(d.ScheduleId);
+
+                                        if (d.AdminDecision == "Pending")
+                                        {
+                                            <div class="btn-group">
+                                                <button class="btn btn-success btn-sm" onclick="releaseEscrow(@d.ScheduleId)">Release</button>
+                                                <button class="btn btn-danger btn-sm" onclick="refundEscrow(@d.ScheduleId)">Refund</button>
+                                                <button class="btn btn-secondary btn-sm" onclick="openReviewModal(@d.DisputeId)">Reviewed</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Completed</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Admin Review Note</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <textarea id="adminNote" class="form-control" rows="4" placeholder="Enter reason why no refund/release action"></textarea>
+                <input type="hidden" id="reviewDisputeId" />
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReview()">Submit</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+
+    function openReviewModal(id) {
+        document.getElementById("reviewDisputeId").value = id;
+        var modal = new bootstrap.Modal(document.getElementById('reviewModal'));
+        modal.show();
+    }
+
+    function submitReview() {
+        let id = document.getElementById("reviewDisputeId").value;
+        let note = document.getElementById("adminNote").value;
+
+        if (!note.trim()) {
+            alert("Please enter review note.");
+            return;
+        }
+
+        fetch("/EscrowAdmin/MarkDisputeReviewed", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `disputeId=${id}&adminNote=${encodeURIComponent(note)}`
+        })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.message);
+            location.reload();
+        });
+    }
+
+    function releaseEscrow(id) {
+        if (!confirm("Release funds?")) return;
+
+        fetch(`/EscrowAdmin/ReleaseEscrow?scheduleId=${id}`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.message);
+            location.reload();
+        });
+    }
+
+    function refundEscrow(id) {
+        if (!confirm("Refund all players?")) return;
+
+        fetch(`/EscrowAdmin/RefundEscrow?scheduleId=${id}`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.message);
+            location.reload();
+        });
+    }
+
+</script>
+}

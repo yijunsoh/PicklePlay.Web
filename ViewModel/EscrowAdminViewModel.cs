@@ -10,6 +10,7 @@ namespace PicklePlay.Models.ViewModels
         public int ScheduleId { get; set; }
         public string GameTitle { get; set; } = string.Empty;
         public DateTime? GameEndTime { get; set; }
+        public decimal TotalEscrowAmount { get; set; }
 
         // Host Info
         public int? HostUserId { get; set; }

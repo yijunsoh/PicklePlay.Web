@@ -47,11 +47,11 @@ public class WalletController : Controller
     // Fetch Escrow
     var escrows = await _context.Escrows
         .Include(e => e.Transactions)
-        .Include(e => e.EscrowDisputes)
         .Where(e => e.UserId == userId.Value)
         .ToListAsync();
 
-    // Fetch Disputes
+    // Fetch Disputes (by schedule ID from escrows)
+    var escrowScheduleIds = escrows.Select(e => e.ScheduleId).ToList();
     var disputes = await _context.EscrowDisputes
         .Where(d => d.RaisedByUserId == userId.Value)
         .ToListAsync();

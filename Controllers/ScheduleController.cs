@@ -75,6 +75,16 @@ namespace PicklePlay.Controllers
             ViewBag.IsBookmarked = isBookmarked;
             // --- END OF FIX ---
 
+            // --- Set Escrow Status ---
+            var escrow = await _context.Escrows
+                .FirstOrDefaultAsync(e => e.ScheduleId == id);
+            
+            if (escrow != null)
+            {
+                ViewData["EscrowStatus"] = escrow.Status;
+            }
+            // --- END: Set Escrow Status ---
+
             return View(schedule);
         }
 

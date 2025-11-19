@@ -165,7 +165,142 @@ namespace PicklePlay.Controllers
             }
         }
 
+        // POST: /Escrow/RaiseDispute
+        [HttpPost]
+        public async Task<IActionResult> RaiseDispute([FromBody] RaiseDisputeRequest request)
+        {
+            try
+            {
+                if (request == null || request.ScheduleId <= 0 || string.IsNullOrWhiteSpace(request.DisputeReason))
+                {
+                    return Json(new { success = false, message = "Invalid request. Schedule ID and dispute reason are required." });
+                }
+
+                var currentUserId = GetCurrentUserId();
+
+                // Verify user is a participant in the schedule
+                var isParticipant = await _context.ScheduleParticipants
+                    .AnyAsync(p => p.ScheduleId == request.ScheduleId &&
+                                 p.UserId == currentUserId &&
+                                 p.Status == ParticipantStatus.Confirmed);
+
+                if (!isParticipant)
+                {
+                    return Json(new { success = false, message = "You must be a confirmed participant in this game to raise a dispute." });
+                }
+
+                // Check if a dispute already exists for this schedule by this user
+                var existingDispute = await _context.EscrowDisputes
+                    .FirstOrDefaultAsync(d => d.ScheduleId == request.ScheduleId &&
+                                            d.RaisedByUserId == currentUserId &&
+                                            d.AdminDecision == "Pending");
+
+                if (existingDispute != null)
+                {
+                    return Json(new { success = false, message = "You already have a pending dispute for this game." });
+                }
+
+                // Create new dispute
+                var dispute = new EscrowDispute
+                {
+                    ScheduleId = request.ScheduleId,
+                    RaisedByUserId = currentUserId,
+                    DisputeReason = request.DisputeReason.Trim(),
+                    AdminDecision = "Pending",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.EscrowDisputes.Add(dispute);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Dispute raised by user {UserId} for schedule {ScheduleId}", currentUserId, request.ScheduleId);
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Dispute submitted successfully. Our admin team will review it shortly.",
+                    disputeId = dispute.DisputeId
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Server error",
+                    detail = ex.Message,
+                    inner = ex.InnerException?.Message
+                });
+            }
+
+        }
+
+       [HttpPost]
+public async Task<IActionResult> SubmitRefundRequest(int scheduleId, string reason)
+{
+    try
+    {
+        // Malaysia time
+        var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+        var nowMYT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
+
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Json(new { success = false, message = "User not logged in." });
+
+        if (string.IsNullOrWhiteSpace(reason))
+            return Json(new { success = false, message = "Please provide a refund reason." });
+
+        // get user's escrow for this schedule
+        var escrow = await _context.Escrows
+            .FirstOrDefaultAsync(e => e.ScheduleId == scheduleId && e.UserId == userId);
+
+        if (escrow == null)
+            return Json(new { success = false, message = "No escrow payment found for this schedule." });
+
+        // ✔ Block only pending refund requests, NOT previous ones
+        var hasPending = await _context.RefundRequests
+            .AnyAsync(r => r.EscrowId == escrow.EscrowId && r.AdminDecision == "Pending");
+
+        if (hasPending)
+            return Json(new { success = false, message = "You already have a refund request pending review." });
+
+        // ✔ allow submitting again (new row)
+        var request = new RefundRequest
+        {
+            EscrowId = escrow.EscrowId,
+            UserId = userId.Value,       // FK to User
+            ReportedBy = userId.Value,   // For your logic
+            RefundReason = reason.Trim(),
+            AdminDecision = "Pending",
+            CreatedAt = nowMYT,
+            UpdatedAt = nowMYT
+        };
+
+        _context.RefundRequests.Add(request);
+        await _context.SaveChangesAsync();
+
+        return Json(new { success = true, message = "Refund request submitted successfully." });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Server error submitting refund request.",
+            detail = ex.Message
+        });
+    }
+}
+
+
     }
 
-
+    // Request model for raising dispute
+    public class RaiseDisputeRequest
+    {
+        public int ScheduleId { get; set; }
+        public string? DisputeReason { get; set; }
+    }
 }

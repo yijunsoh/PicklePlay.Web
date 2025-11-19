@@ -1,0 +1,43 @@
+@{
+    var loggedInUser = Context.Session.GetInt32("UserId") ?? 0;
+}
+
+<div class="modal fade" id="disputeModal" tabindex="-1" aria-labelledby="disputeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-octagon-fill"></i> Raise Dispute
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <p class="text-muted">
+                    If something went wrong with this game, please describe the issue.
+                    Our admin team will review it.
+                </p>
+
+                <textarea id="disputeReason"
+                          class="form-control"
+                          placeholder="Explain the issue..."
+                          rows="4"></textarea>
+
+                <div class="alert alert-danger mt-2 d-none" id="disputeError"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+
+                <button type="button"
+                        class="btn btn-danger"
+                        id="submitDisputeBtn"
+                        onclick="submitDispute()">
+                    <i class="bi bi-send"></i> Submit Dispute
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

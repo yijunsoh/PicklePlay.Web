@@ -396,14 +396,38 @@ public class AdminController : Controller
         }
         return RedirectToAction("Index", "EscrowAdmin");
     }
-
-    public IActionResult Refund()
+    public async Task<IActionResult> EscrowDispute()
     {
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin")
         {
             return RedirectToAction("Login", "Auth");
         }
-        return View();
+
+        var disputes = await _context.EscrowDisputes
+            .Include(d => d.RaisedByUser)
+            .Include(d => d.Schedule)
+            .OrderByDescending(d => d.CreatedAt)
+            .ToListAsync();
+
+        return View("~/Views/Admin/EscrowDispute.cshtml", disputes);
     }
+    public async Task<IActionResult> Refund()
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var refundRequests = await _context.RefundRequests
+            .Include(r => r.User)           // user who reported
+            .Include(r => r.Escrow)         // include escrow details
+            .ThenInclude(e => e!.Schedule)   // include schedule info
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return View("~/Views/Admin/Refund.cshtml", refundRequests);
+    }
+
 }

@@ -1,73 +1,148 @@
-@model List<PicklePlay.Models.ViewModels.EscrowAdminViewModel>
+@model IEnumerable<PicklePlay.Models.ViewModels.EscrowAdminViewModel>
 
 @{
-    ViewData["Title"] = "Escrow Transactions";
+    ViewData["Title"] = "Escrow Management";
     Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+
+    // Summary calculations — DIRECT FROM SCHEDULE TABLE
+    decimal totalHeld = Model
+        .Where(x => x.Status == "Held")
+        .Sum(x => x.TotalEscrowAmount);
+
+    decimal totalReleased = Model
+        .Where(x => x.Status == "Released")
+        .Sum(x => x.TotalEscrowAmount);
 }
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">@TempData["Success"]</div>
-}
 
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger">@TempData["Error"]</div>
-}
-<div class="p-4">
-    <h3 class="mb-3">Escrow Management</h3>
+<div class="page-wrapper">
+    <div class="page-content">
 
-    <table class="table table-bordered table-striped">
-        <thead class="table-dark">
-            <tr>
-                <th>Game ID</th>
-                <th>Game Title</th>
-                <th>Host</th>
-                <th>Players</th>
-                <th>Total Escrow Amount</th>
-                <th>Status</th>
-                <th>Game End Time</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
+        <h3 class="mb-4">Escrow Management</h3>
 
-        <tbody>
-            @foreach (var e in Model)
-            {
-                <tr>
-                    <td>@e.ScheduleId</td>
+        <!-- ========================= -->
+        <!--     SUMMARY DASHBOARD     -->
+        <!-- ========================= -->
+        <div class="row mb-4">
 
-                    <td>@e.GameTitle</td>
+            <!-- HELD -->
+            <div class="col-md-6">
+                <div class="card shadow-sm" style="background:#0d6efd; color:white;">
+                    <div class="card-body">
+                        <h5>Funds in Escrow</h5>
+                        <h2>RM @totalHeld</h2>
+                        <small>Currently held games</small>
+                    </div>
+                </div>
+            </div>
 
-                    <td>@e.HostName</td>
+            <!-- RELEASED -->
+            <div class="col-md-6">
+                <div class="card shadow-sm" style="background:#198754; color:white;">
+                    <div class="card-body">
+                        <h5>Released</h5>
+                        <h2>RM @totalReleased</h2>
+                        <small>Funds successfully paid out</small>
+                    </div>
+                </div>
+            </div>
 
-                    <td>@e.PlayerCount player(s)</td>
+        </div>
 
-                    <td>RM @e.Amount.ToString("0.00")</td>
+        <!-- ========================= -->
+        <!--       ESCROW TABLE        -->
+        <!-- ========================= -->
 
-                    <td>
-                        <span class="badge bg-primary">@e.Status</span>
-                    </td>
+        <div class="card shadow-sm">
+            <div class="card-body">
 
-                    <td>@e.GameEndTime?.ToString("yyyy-MM-dd HH:mm")</td>
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Game ID</th>
+                            <th>Game Title</th>
+                            <th>Host</th>
+                            <th>Players</th>
+                            <th>Total Escrow Amount</th>
+                            <th>Status</th>
+                            <th>Game End Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
 
-                    <td>
-                        @if (e.Status == "Pending" || e.Status == "Held")
+                    <tbody>
+                        @foreach (var e in Model)
                         {
-                            <form method="post" asp-action="ReleaseEscrow" asp-route-scheduleId="@e.ScheduleId" style="display:inline-block">
-                                <button class="btn btn-sm btn-success">Release</button>
-                            </form>
+                            <tr>
+                                <td>@e.ScheduleId</td>
+                                <td>@e.GameTitle</td>
+                                <td>@e.HostName</td>
+                                <td>@e.PlayerCount player(s)</td>
 
-                            <form method="post" asp-action="RefundEscrow" asp-route-scheduleId="@e.ScheduleId" style="display:inline-block">
-                                <button class="btn btn-sm btn-danger">Refund</button>
-                            </form>
+                                <!-- DIRECTLY FROM SCHEDULE -->
+                                <td>RM @e.TotalEscrowAmount</td>
+
+                                <td>
+                                    @if (e.Status == "Held")
+                                    {
+                                        <span class="badge bg-primary">Held</span>
+                                    }
+                                    else if (e.Status == "Released")
+                                    {
+                                        <span class="badge bg-success">Released</span>
+                                    }
+                                    else if (e.Status == "Refunded")
+                                    {
+                                        <span class="badge bg-info">Refunded</span>
+                                    }
+                                </td>
+
+                                <td>@e.GameEndTime?.ToString("yyyy-MM-dd HH:mm")</td>
+
+                                <td>
+                                    @if (e.Status == "Held")
+                                    {
+                                        <button class="btn btn-success btn-sm" onclick="releaseEscrow(@e.ScheduleId)">Release</button>
+                                        <button class="btn btn-danger btn-sm" onclick="refundEscrow(@e.ScheduleId)">Refund</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                            </tr>
                         }
-                        else
-                        {
-                            <span>-</span>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+
+    </div>
 </div>
+
+
+@section Scripts {
+<script>
+    function releaseEscrow(id) {
+        if (!confirm("Release escrow funds for this schedule?")) return;
+
+        fetch(`/EscrowAdmin/ReleaseEscrow?scheduleId=${id}`, { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                alert(d.message);
+                location.reload();
+            });
+    }
+
+    function refundEscrow(id) {
+        if (!confirm("Refund all players for this schedule?")) return;
+
+        fetch(`/EscrowAdmin/RefundEscrow?scheduleId=${id}`, { method: "POST" })
+            .then(r => r.json())
+            .then(d => {
+                alert(d.message);
+                location.reload();
+            });
+    }
+</script>
+}

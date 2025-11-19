@@ -9,12 +9,11 @@ namespace PicklePlay.Models
     {
         [Key]
         [Column("dispute_id")]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int DisputeId { get; set; }
 
         [Required]
-        [Column("escrow_id")]
-        public int EscrowId { get; set; }
+        [Column("schedule_id")]
+        public int ScheduleId { get; set; }
 
         [Required]
         [Column("raisedByUserId")]
@@ -32,10 +31,6 @@ namespace PicklePlay.Models
         [Column("decision_date")]
         public DateTime? DecisionDate { get; set; }
 
-        [MaxLength(50)]
-        [Column("refund_process")]
-        public string? RefundProcess { get; set; }
-
         [Required]
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -44,11 +39,17 @@ namespace PicklePlay.Models
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation properties
-        [ForeignKey("EscrowId")]
-        public virtual Escrow Escrow { get; set; } = null!;
+        // NEW COLUMN (remove refund_process)
+        [Column("admin_review_note", TypeName = "text")]
+        public string? AdminReviewNote { get; set; }
+
+        // Navigation
+        [ForeignKey("ScheduleId")]
+        public virtual Schedule Schedule { get; set; } = null!;
 
         [ForeignKey("RaisedByUserId")]
         public virtual User RaisedByUser { get; set; } = null!;
     }
+
+
 }

@@ -11,10 +11,12 @@
     ViewData["FeeAmount"] = Model.FeeAmount;
     ViewData["GameName"] = Model.GameName ?? "Game";
 
+
     // --- 1. SETUP BLOCK ---
     var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
     var currentUserParticipation = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId && p.Role ==
     ParticipantRole.Player);
+    var escrowStatus = ViewData["EscrowStatus"]?.ToString();
 
     // --- Requirement 1: Check if any restrictions exist ---
     bool hasRestrictions = Model.AgeGroupRestriction != AgeGroupRestriction.None ||
@@ -440,6 +442,18 @@
                                 <i class="bi bi-check-circle-fill"></i> Joined
                             </button>
 
+                            @if (ViewData["EscrowStatus"]?.ToString() == "Held")
+                            {
+                                <button class="btn btn-danger btn-sm mt-2" onclick="openDisputeModal(@Model.ScheduleId)">
+                                    <i class="bi bi-exclamation-octagon"></i> Raise Dispute
+                                </button>
+                                <button class="btn btn-warning btn-sm mt-2" onclick="openRefundModal(@Model.ScheduleId)" id="refundBtn">
+                                    Request Refund
+                                </button>
+                            }
+
+
+
                             <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
                                 onsubmit="return confirm('Are you sure you want to leave this game?');">
                                 @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
@@ -735,18 +749,18 @@
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 // Using a light blue style for user search item (you can customize)
                 var userHtml = `
-                        <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background-color: #f8f9fa; margin-bottom: 5px;">
-                            <div class="d-flex align-items-center">
-                                <img src="${profilePic}" alt="${user.username}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px;" />
-                                <strong>${user.username}</strong>
-                            </div>
-                            <button class="btn btn-sm btn-primary add-organizer-btn" 
-                                    data-schedule-id="${scheduleId}" 
-                                    data-user-id="${user.userId}"
-                                    data-token="${token}">
-                                Add Organizer
-                            </button>
-                        </div>`;
+                                                                            <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background-color: #f8f9fa; margin-bottom: 5px;">
+                                                                                <div class="d-flex align-items-center">
+                                                                                    <img src="${profilePic}" alt="${user.username}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px;" />
+                                                                                    <strong>${user.username}</strong>
+                                                                                </div>
+                                                                                <button class="btn btn-sm btn-primary add-organizer-btn" 
+                                                                                        data-schedule-id="${scheduleId}" 
+                                                                                        data-user-id="${user.userId}"
+                                                                                        data-token="${token}">
+                                                                                    Add Organizer
+                                                                                </button>
+                                                                            </div>`;
                 organizerSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -798,5 +812,120 @@
                     alert('Error: ' + error.message);
                 });
         }
+
+        // *** DISPUTE MODAL SCRIPTS ***
+        let disputeScheduleId = 0;
+
+        function openDisputeModal(scheduleId) {
+            disputeScheduleId = scheduleId;
+            console.log("Dispute ScheduleId = ", scheduleId);
+
+            // Clear previous values and errors
+            document.getElementById('disputeReason').value = '';
+            document.getElementById('disputeError').classList.add('d-none');
+
+            var modal = new bootstrap.Modal(document.getElementById('disputeModal'));
+            modal.show();
+        }
+
+        function submitDispute() {
+            const reason = document.getElementById("disputeReason").value.trim();
+            const errorDiv = document.getElementById('disputeError');
+            const submitBtn = document.getElementById('submitDisputeBtn');
+
+            if (!reason) {
+                errorDiv.textContent = "Please enter a reason for the dispute.";
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            if (reason.length < 10) {
+                errorDiv.textContent = "Please provide at least 10 characters explaining the issue.";
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            console.log("Submitting dispute for schedule:", disputeScheduleId);
+
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting...';
+
+            fetch("/Escrow/RaiseDispute", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    scheduleId: disputeScheduleId,
+                    disputeReason: reason
+                })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+
+                    if (data.success) {
+                        // Show success message
+                        const successDiv = document.createElement('div');
+                        successDiv.className = 'alert alert-success';
+                        successDiv.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message;
+                        document.querySelector('#disputeModal .modal-body').prepend(successDiv);
+
+                        // Close modal after 2 seconds
+                        setTimeout(() => {
+                            bootstrap.Modal.getInstance(document.getElementById('disputeModal')).hide();
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        errorDiv.textContent = data.message;
+                        errorDiv.classList.remove('d-none');
+                    }
+                })
+                .catch(error => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    console.error('Error:', error);
+                    errorDiv.textContent = "An error occurred while submitting the dispute. Please try again.";
+                    errorDiv.classList.remove('d-none');
+                });
+        }
+
+        function openRefundModal(scheduleId) {
+            document.getElementById("refundScheduleId").value = scheduleId;
+            var m = new bootstrap.Modal(document.getElementById("refundModal"));
+            m.show();
+        }
+
+        function submitRefundRequest() {
+            let scheduleId = document.getElementById("refundScheduleId").value;
+            let reason = document.getElementById("refundReason").value;
+
+            if (!reason.trim()) {
+                alert("Please enter refund reason.");
+                return;
+            }
+
+            fetch("/Escrow/SubmitRefundRequest", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `scheduleId=${scheduleId}&reason=${encodeURIComponent(reason)}`
+            })
+                .then(r => r.json())
+                .then(d => {
+                    alert(d.message);
+                    location.reload();
+                })
+                .catch(err => {
+                    console.error("Refund error:", err);
+                    alert("Error submitting refund request.");
+                });
+        }
+
+
+
     </script>
+    @await Html.PartialAsync("_DisputeModal")
+    @await Html.PartialAsync("_RefundModal")
+
 }

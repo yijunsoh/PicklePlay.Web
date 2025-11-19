@@ -13,6 +13,8 @@ namespace PicklePlay.Data
         public DbSet<Escrow> Escrows { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<EscrowDispute> EscrowDisputes { get; set; }
+        public DbSet<RefundRequest> RefundRequests { get; set; }
+
         public DbSet<Community> Communities { get; set; }
         public DbSet<CommunityRequest> CommunityRequests { get; set; }
         public DbSet<CommunityMember> CommunityMembers { get; set; }
