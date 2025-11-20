@@ -3688,10 +3688,19 @@
             }
         });
     // ==================== COMPETITION TEAM PAYMENT FUNCTIONALITY ====================
- let compTeamId = 0;
-    let compAmount = 0;
 
+    // ================================
+    // 1. Variables
+    // ================================
+    let teamIdForPayment = 0;
+    let compScheduleId = 0;
+    let compPaymentAmount = 0;
+
+    // ================================
+    // 2. Open Competition Payment Modal
+    // ================================
     function openCompetitionPaymentModal(teamId, scheduleId, amount) {
+
         teamIdForPayment = teamId;
         compScheduleId = scheduleId;
         compPaymentAmount = amount;
@@ -3702,32 +3711,41 @@
         document.getElementById("paymentAmount").innerText = amount.toFixed(2);
         document.getElementById("totalAmount").innerText = amount.toFixed(2);
 
-        // Reuse variables already used by payment modal
+        // Reuse existing globals from payment modal
         paymentAmount = amount;
         currentScheduleId = scheduleId;
 
-        // Open modal
-        let modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        // Override executeEscrowPayment ONLY for this modal instance
+        window.executeEscrowPayment = executeCompetitionPayment;
+
+        // Show modal
+        let modal = new bootstrap.Modal(document.getElementById("paymentModal"));
         modal.show();
 
-        // Trigger balance check
+        // Payment modal itself will call checkBalance() automatically
     }
 
+    // ================================
+    // 3. Execute Team Payment
+    // ================================
     async function executeCompetitionPayment(btn) {
+
         const password = document.getElementById("userPassword").value.trim();
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+        btn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span> Processing...
+        `;
 
         const payload = {
             teamId: teamIdForPayment,
             scheduleId: compScheduleId,
             amount: compPaymentAmount,
-            password: password
+            userId: @Context.Session.GetInt32("UserId")
         };
 
         const response = await fetch('/Competition/PayTeamEscrow', {
-            method: 'POST',
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
@@ -3744,14 +3762,8 @@
         showPaymentSuccess("Team payment successful!");
     }
 
-   document.addEventListener("DOMContentLoaded", function () {
-    const confirmBtn = document.getElementById("processPaymentBtn");
-    if (confirmBtn) {
-        confirmBtn.addEventListener("click", function () {
-            executeCompetitionPayment(this);
-        });
-    }
-});
+
+
 
     </script>
 }
