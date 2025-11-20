@@ -32,27 +32,27 @@
     bool isCompetitionDone = Model.Status == ScheduleStatus.Completed;
     bool canManage = (isCompetitionOpen || setupPending) && organizers.Any(o => o.UserId == currentUserId);
 
-     bool isScheduleOrganizer = currentUserId.HasValue && 
-        organizers.Any(o => o.UserId == currentUserId.Value);
+    bool isScheduleOrganizer = currentUserId.HasValue &&
+    organizers.Any(o => o.UserId == currentUserId.Value);
 
     // ⬇️ FIXED: Check if user is in a CONFIRMED team
-    bool isInConfirmedTeam = currentUserId.HasValue && 
-        Model.Teams.Any(team => 
-            team.Status == TeamStatus.Confirmed && 
-            team.TeamMembers.Any(member => 
-                member.UserId == currentUserId.Value && 
-                member.Status == TeamMemberStatus.Joined
-            )
-        );
+    bool isInConfirmedTeam = currentUserId.HasValue &&
+    Model.Teams.Any(team =>
+    team.Status == TeamStatus.Confirmed &&
+    team.TeamMembers.Any(member =>
+    member.UserId == currentUserId.Value &&
+    member.Status == TeamMemberStatus.Joined
+    )
+    );
 
     // ⬇️ User can access chat if they are organizer OR in confirmed team
     bool isConfirmedParticipant = isScheduleOrganizer || isInConfirmedTeam;
-    
+
     Console.WriteLine($"User {currentUserId} - IsScheduleOrganizer: {isScheduleOrganizer}, IsInConfirmedTeam: {isInConfirmedTeam}, CanAccessChat: {isConfirmedParticipant}");
-    
+
     Console.WriteLine($"User {currentUserId} - IsConfirmedParticipant (from Team table): {isConfirmedParticipant}");
-    
-    
+
+
 
 }
 
@@ -208,171 +208,174 @@
         font-size: 1.1rem;
         color: #333;
     }
+
     .chat-message {
-    margin-bottom: 15px;
-    display: flex;
-    align-items: flex-start;
-}
+        margin-bottom: 15px;
+        display: flex;
+        align-items: flex-start;
+    }
 
-.chat-message.own-message {
-    flex-direction: row-reverse;
-}
+    .chat-message.own-message {
+        flex-direction: row-reverse;
+    }
 
-.chat-message-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin: 0 10px;
-    flex-shrink: 0;
-    border: 2px solid #dee2e6;
-}
+    .chat-message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 10px;
+        flex-shrink: 0;
+        border: 2px solid #dee2e6;
+    }
 
-.chat-message-content {
-    max-width: 70%;
-}
+    .chat-message-content {
+        max-width: 70%;
+    }
 
-.chat-message-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-    gap: 8px;
-}
+    .chat-message-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        gap: 8px;
+    }
 
-.chat-message-avatar:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    border-color: #2E8B57;
-}
+    .chat-message-avatar:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border-color: #2E8B57;
+    }
 
-.chat-message-sender {
-    font-weight: 600;
-    font-size: 14px;
-    color: #2E8B57;
-    cursor: pointer; /* ⬅️ ADD THIS */
-    transition: color 0.2s ease; /* ⬅️ ADD THIS */
-}
+    .chat-message-sender {
+        font-weight: 600;
+        font-size: 14px;
+        color: #2E8B57;
+        cursor: pointer;
+        /* ⬅️ ADD THIS */
+        transition: color 0.2s ease;
+        /* ⬅️ ADD THIS */
+    }
 
-/* ⬇️ ADD THIS: Hover effect for sender name */
-.chat-message-sender:hover {
-    color: #1E5B32;
-    text-decoration: underline;
-}
+    /* ⬇️ ADD THIS: Hover effect for sender name */
+    .chat-message-sender:hover {
+        color: #1E5B32;
+        text-decoration: underline;
+    }
 
-.chat-message-role {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    background-color: #ffc107;
-    color: #000;
-}
+    .chat-message-role {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background-color: #ffc107;
+        color: #000;
+    }
 
-.chat-message-role.organizer {
-    background-color: #dc3545;
-    color: #fff;
-}
+    .chat-message-role.organizer {
+        background-color: #dc3545;
+        color: #fff;
+    }
 
-.chat-message-time {
-    font-size: 11px;
-    color: #6c757d;
-}
+    .chat-message-time {
+        font-size: 11px;
+        color: #6c757d;
+    }
 
-.chat-message-bubble {
-    padding: 10px 15px;
-    border-radius: 18px;
-    background-color: #e9ecef;
-    word-wrap: break-word;
-    position: relative;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
+    .chat-message-bubble {
+        padding: 10px 15px;
+        border-radius: 18px;
+        background-color: #e9ecef;
+        word-wrap: break-word;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
 
-.chat-message.own-message .chat-message-bubble {
-    background-color: #2E8B57;
-    color: white;
-}
+    .chat-message.own-message .chat-message-bubble {
+        background-color: #2E8B57;
+        color: white;
+    }
 
-.chat-message.own-message .chat-message-header {
-    flex-direction: row-reverse;
-}
+    .chat-message.own-message .chat-message-header {
+        flex-direction: row-reverse;
+    }
 
-.chat-message.own-message .chat-message-sender {
-    color: #2E8B57;
-}
+    .chat-message.own-message .chat-message-sender {
+        color: #2E8B57;
+    }
 
-.chat-message-delete {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
-    font-weight: bold;
-    display: none;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-    z-index: 10;
-}
+    .chat-message-delete {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+        font-weight: bold;
+        display: none;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
 
-.chat-message:hover .chat-message-delete {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    .chat-message:hover .chat-message-delete {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.chat-message-delete:hover {
-    background: #bb2d3b;
-    transform: scale(1.15);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
+    .chat-message-delete:hover {
+        background: #bb2d3b;
+        transform: scale(1.15);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
 
-.chat-message-delete:active {
-    transform: scale(0.95);
-}
+    .chat-message-delete:active {
+        transform: scale(0.95);
+    }
 
-.system-message {
-    text-align: center;
-    color: #6c757d;
-    font-size: 12px;
-    margin: 10px 0;
-    font-style: italic;
-}
+    .system-message {
+        text-align: center;
+        color: #6c757d;
+        font-size: 12px;
+        margin: 10px 0;
+        font-style: italic;
+    }
 
-#chatMessages {
-    scroll-behavior: smooth;
-}
+    #chatMessages {
+        scroll-behavior: smooth;
+    }
 
-#chatMessages::-webkit-scrollbar {
-    width: 8px;
-}
+    #chatMessages::-webkit-scrollbar {
+        width: 8px;
+    }
 
-#chatMessages::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
+    #chatMessages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
 
-#chatMessages::-webkit-scrollbar-thumb {
-    background: #2E8B57;
-    border-radius: 10px;
-}
+    #chatMessages::-webkit-scrollbar-thumb {
+        background: #2E8B57;
+        border-radius: 10px;
+    }
 
-#chatMessages::-webkit-scrollbar-thumb:hover {
-    background: #1E5B32;
-}
+    #chatMessages::-webkit-scrollbar-thumb:hover {
+        background: #1E5B32;
+    }
 
-#chatInput {
-    border: 2px solid #dee2e6;
-    transition: border-color 0.2s ease;
-}
+    #chatInput {
+        border: 2px solid #dee2e6;
+        transition: border-color 0.2s ease;
+    }
 
-#chatInput:focus {
-    border-color: #2E8B57;
-    box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
-}
+    #chatInput:focus {
+        border-color: #2E8B57;
+        box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
+    }
 </style>
 
 <div class="container mt-4">
@@ -450,43 +453,41 @@
                 }
 
                 @if (Model.Status == ScheduleStatus.InProgress)
-            {
+                {
                     var canEnd = Model.EndTime.HasValue && DateTime.UtcNow >= Model.EndTime.Value;
                     var timeUntilEnd = Model.EndTime.HasValue ? Model.EndTime.Value - DateTime.UtcNow : TimeSpan.Zero;
-                
-                <button class="btn btn-danger" 
-                        id="endCompetitionBtn"
-                        @(canEnd ? "" : "disabled")
+
+                    <button class="btn btn-danger" id="endCompetitionBtn" @(canEnd ? "" : "disabled")
                         title="@(canEnd ? "End Competition" : $"Competition can be ended after {Model.EndTime:MMM dd, yyyy hh:mm tt}")">
-                    <i class="bi bi-stop-fill"></i> End Competition
-                </button>
-            }
+                        <i class="bi bi-stop-fill"></i> End Competition
+                    </button>
+                }
 
-            @* Submit Result to RANK button (only for completed competitions) *@
-            @if (Model.Status == ScheduleStatus.Completed)
-            {
-                   <div id="rankSubmitContainer" class="d-flex gap-2">
-        <!-- Submit Button -->
-        <button type="button" class="btn btn-primary" id="submitRankBtn">
-            <i class="bi bi-graph-up-arrow"></i> Submit to RANK
-        </button>
-        
+                @* Submit Result to RANK button (only for completed competitions) *@
+                @if (Model.Status == ScheduleStatus.Completed)
+                {
+                    <div id="rankSubmitContainer" class="d-flex gap-2">
+                        <!-- Submit Button -->
+                        <button type="button" class="btn btn-primary" id="submitRankBtn">
+                            <i class="bi bi-graph-up-arrow"></i> Submit to RANK
+                        </button>
 
-        
-        <!-- Submitted Status -->
-        <div id="rankSubmittedStatus" style="display: none;">
-            <button type="button" class="btn btn-success" disabled>
-                <i class="bi bi-check-circle-fill me-2"></i>Submitted to RANK
-            </button>
-            <small class="text-muted d-block mt-2">
-                <i class="bi bi-info-circle me-1"></i>
-                <span id="rankSubmissionInfo"></span>
-            </small>
-        </div>
-    </div>
-            }
-            
-               @if (canManage && Model.Status != ScheduleStatus.Completed)
+
+
+                        <!-- Submitted Status -->
+                        <div id="rankSubmittedStatus" style="display: none;">
+                            <button type="button" class="btn btn-success" disabled>
+                                <i class="bi bi-check-circle-fill me-2"></i>Submitted to RANK
+                            </button>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <span id="rankSubmissionInfo"></span>
+                            </small>
+                        </div>
+                    </div>
+                }
+
+                @if (canManage && Model.Status != ScheduleStatus.Completed)
                 {
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-secondary dropdown-toggle" type="button" id="compActionsDropdown"
@@ -605,45 +606,41 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-    @* Only show chat if competition is active/in-progress AND user is confirmed participant *@
-    @if ((Model.Status == ScheduleStatus.Active || 
-          Model.Status == ScheduleStatus.InProgress || 
-          Model.Status == ScheduleStatus.Completed) && 
-         isConfirmedParticipant)
-    {
-        <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane"
-            type="button" role="tab" aria-controls="chat-tab-pane" aria-selected="false">
-            <i class="bi bi-chat-dots"></i> Chat
-            <span class="badge bg-danger ms-2" id="unreadChatCount" style="display: none;">0</span>
-        </button>
-    }
-    else if (!isConfirmedParticipant && currentUserId.HasValue)
-    {
-        <button class="nav-link disabled" id="chat-tab" 
-            type="button" 
-            title="Only confirmed participants can access chat">
-            <i class="bi bi-chat-dots"></i> Chat
-            <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
-        </button>
-    }
-    else if (!currentUserId.HasValue)
-    {
-        <button class="nav-link disabled" id="chat-tab" 
-            type="button" 
-            title="Login to access chat">
-            <i class="bi bi-chat-dots"></i> Chat
-            <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
-        </button>
-    }
-    else
-    {
-        <button class="nav-link disabled" id="chat-tab" 
-            type="button" 
-            title="Chat available after competition starts">
-            <i class="bi bi-chat-dots"></i> Chat
-        </button>
-    }
-</li>
+            @* Only show chat if competition is active/in-progress AND user is confirmed participant *@
+    @if ((Model.Status == ScheduleStatus.Active ||
+                        Model.Status == ScheduleStatus.InProgress ||
+                        Model.Status == ScheduleStatus.Completed) &&
+                        isConfirmedParticipant)
+            {
+                <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-tab-pane" type="button"
+                    role="tab" aria-controls="chat-tab-pane" aria-selected="false">
+                    <i class="bi bi-chat-dots"></i> Chat
+                    <span class="badge bg-danger ms-2" id="unreadChatCount" style="display: none;">0</span>
+                </button>
+            }
+            else if (!isConfirmedParticipant && currentUserId.HasValue)
+            {
+                <button class="nav-link disabled" id="chat-tab" type="button"
+                    title="Only confirmed participants can access chat">
+                    <i class="bi bi-chat-dots"></i> Chat
+                    <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
+                </button>
+            }
+            else if (!currentUserId.HasValue)
+            {
+                <button class="nav-link disabled" id="chat-tab" type="button" title="Login to access chat">
+                    <i class="bi bi-chat-dots"></i> Chat
+                    <i class="bi bi-lock-fill ms-1" style="font-size: 0.8rem;"></i>
+                </button>
+            }
+            else
+            {
+                <button class="nav-link disabled" id="chat-tab" type="button"
+                    title="Chat available after competition starts">
+                    <i class="bi bi-chat-dots"></i> Chat
+                </button>
+            }
+        </li>
     </ul>
 
     @* --- Main Tab Content --- *@
@@ -904,14 +901,16 @@
                                             </div>
 
                                             <div class="btn-group">
-                                                @if (currentUserId == team.CreatedByUserId && team.PaymentStatusForSchedule
-                                                                                            == PaymentStatusForSchedule.Unpaid)
+                                                @if (currentUserId == team.CreatedByUserId &&
+                                                                                            team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
                                                 {
-                                                    <a asp-action="MakePayment" asp-controller="Competition"
-                                                        asp-route-teamId="@team.TeamId" class="btn btn-sm btn-primary">
-                                                        <i class="bi bi-credit-card"></i> Make Payment
-                                                    </a>
+                                                    <button
+                                                        onclick="openCompetitionPaymentModal(@team.TeamId, @Model.ScheduleId, @Model.FeeAmount)"
+                                                        class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-credit-card"></i> Pay Entry Fee
+                                                    </button>
                                                 }
+
                                                 @if (team.CreatedByUserId == currentUserId)
                                                 {
                                                     <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
@@ -967,20 +966,20 @@
                                                 }
                                             }
                                             @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) @* Assuming 2 players max *@
-                                        {
-                                        <div class="player-slot-wrapper">
-                                            <div class="empty-slot" data-bs-toggle="modal"
-                                                data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
-                                                title="Invite Player">
-                                                <i class="bi bi-person-plus"></i>
-                                            </div>
-                                            <span class="player-name text-muted">Invite</span>
+                                                    {
+                                                <div class="player-slot-wrapper">
+                                                    <div class="empty-slot" data-bs-toggle="modal"
+                                                        data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
+                                                        title="Invite Player">
+                                                        <i class="bi bi-person-plus"></i>
+                                                    </div>
+                                                    <span class="player-name text-muted">Invite</span>
+                                                </div>
+                                            }
                                         </div>
-                                        }
-                                    </div>
 
                                     </div>
-                                                                }
+                                }
                             </div>
                         </div>
                         <div class="tab-pane fade show active" id="confirmed-teams-pane" role="tabpanel"
@@ -1068,7 +1067,7 @@
                 bool canViewDraw = isDrawPublished && !isRoundRobin;
 
                 @* --- Nested Match Tabs (MODIFIED) --- *@
-                         <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
+                                     <ul class="nav nav-pills mb-3" id="matchSubTabs" role="tablist">
 
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="format-subtab" data-bs-toggle="tab"
@@ -1111,7 +1110,7 @@
 
                 <div class="tab-content" id="matchSubTabsContent">
                     @* --- Format Sub-Tab Pane --- *@
-                            <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel"
+                                        <div class="tab-pane fade show active" id="format-subtab-pane" role="tabpanel"
                         aria-labelledby="format-subtab" tabindex="0">
                         <h5>Format & Rules</h5>
                         <div class="row">
@@ -1153,8 +1152,8 @@
                         </div>
                     </div> @* End Format Sub-Tab Pane *@
                         
-                             @* Draw Sub-Tab Pane *@
-                            <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
+                                         @* Draw Sub-Tab Pane *@
+                                        <div class="tab-pane fade" id="draw-subtab-pane" role="tabpanel" aria-labelledby="draw-subtab"
                         tabindex="0">
                         @if (canViewDraw)
                         {
@@ -1176,7 +1175,7 @@
                     </div>
 
                     @* --- Listing Sub-Tab Pane --- *@
-        <div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" id="listing-subtab-pane"
+                    <div class="tab-pane fade @(activeSubTab == "listing" ? "show active" : "")" id="listing-subtab-pane"
                         role="tabpanel" aria-labelledby="listing-subtab" tabindex="0">
                         <div id="listing-container">
                             <div class="text-center p-3">
@@ -1188,7 +1187,7 @@
                     </div>
 
                     @* --- Standing Sub-Tab Pane --- *@
-                             <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" id="standing-subtab-pane"
+                                         <div class="tab-pane fade @(activeSubTab == "standing" ? "show active" : "")" id="standing-subtab-pane"
                         role="tabpanel" aria-labelledby="standing-subtab" tabindex="0">
                         <div id="standing-container">
                             <div class="text-center p-3">
@@ -1217,74 +1216,70 @@
         <div class="tab-pane fade p-3" id="result-tab-pane" role="tabpanel" aria-labelledby="result-tab" tabindex="0">
             ... Result content coming soon ...</div>
         <div class="tab-pane fade p-3" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-    @if (!isConfirmedParticipant)
-    {
-        <div class="alert alert-warning">
-            <i class="bi bi-info-circle me-2"></i>
-            Only confirmed participants can access the chat room.
-        </div>
-    }
-    else if (Model.Status == ScheduleStatus.PendingSetup || Model.Status == ScheduleStatus.Cancelled)
-    {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            Chat room will be available once the competition starts.
-        </div>
-    }
-    else
-    {
-        <div class="card shadow-sm" style="height: 600px; display: flex; flex-direction: column;">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-chat-dots"></i> Competition Chat Room
-                </h5>
-                <small id="onlineParticipantsStatus">
-                    <i class="bi bi-circle-fill text-light"></i> 
-                    <span id="onlineCount">0</span> participants online
-                </small>
-            </div>
-            
-            <!-- Chat Messages Area -->
-            <div class="card-body overflow-auto" id="chatMessages" style="flex: 1; background-color: #f8f9fa;">
-                <div class="text-center py-5 text-muted">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Loading chat history...</p>
+            @if (!isConfirmedParticipant)
+            {
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Only confirmed participants can access the chat room.
                 </div>
-            </div>
+            }
+            else if (Model.Status == ScheduleStatus.PendingSetup || Model.Status == ScheduleStatus.Cancelled)
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Chat room will be available once the competition starts.
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm" style="height: 600px; display: flex; flex-direction: column;">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-dots"></i> Competition Chat Room
+                        </h5>
+                        <small id="onlineParticipantsStatus">
+                            <i class="bi bi-circle-fill text-light"></i>
+                            <span id="onlineCount">0</span> participants online
+                        </small>
+                    </div>
 
-            <!-- Chat Input Area -->
-            <div class="card-footer bg-white">
-    @if (Model.Status == ScheduleStatus.Completed)
-    {
-        <div class="alert alert-info mb-0">
-            <i class="bi bi-info-circle me-2"></i>
-            This competition has ended. You can still view messages but cannot send new ones.
+                    <!-- Chat Messages Area -->
+                    <div class="card-body overflow-auto" id="chatMessages" style="flex: 1; background-color: #f8f9fa;">
+                        <div class="text-center py-5 text-muted">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading chat history...</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input Area -->
+                    <div class="card-footer bg-white">
+                        @if (Model.Status == ScheduleStatus.Completed)
+                        {
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                This competition has ended. You can still view messages but cannot send new ones.
+                            </div>
+                        }
+                        else
+                        {
+                            <form id="chatForm" onsubmit="sendScheduleMessage(event); return false;">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="chatInput" placeholder="Type your message..."
+                                        maxlength="2000" required>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-send-fill"></i> Send
+                                    </button>
+                                </div>
+                                <small class="text-muted">Press Enter to send • Max 2000 characters</small>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
         </div>
-    }
-    else
-    {
-        <form id="chatForm" onsubmit="sendScheduleMessage(event); return false;">
-            @Html.AntiForgeryToken()
-            <div class="input-group">
-                <input type="text" 
-                       class="form-control" 
-                       id="chatInput" 
-                       placeholder="Type your message..." 
-                       maxlength="2000"
-                       required>
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-send-fill"></i> Send
-                </button>
-            </div>
-            <small class="text-muted">Press Enter to send • Max 2000 characters</small>
-        </form>
-    }
-</div>
-        </div>
-    }
-</div>
 
     </div> @* End Main Tab Content *@
 
@@ -1634,12 +1629,14 @@
                 <h5 class="modal-title" id="submitRankModalLabel">
                     <i class="bi bi-graph-up-arrow"></i> Submit Competition Results to RANK
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>About RANK System:</strong> This will automatically process all completed matches from this competition and update participant ratings using our DUPR-like algorithm.
+                    <strong>About RANK System:</strong> This will automatically process all completed matches from this
+                    competition and update participant ratings using our DUPR-like algorithm.
                 </div>
 
                 <div id="rankSubmissionSummary" class="mb-3" style="display: none;">
@@ -1677,7 +1674,7 @@
 
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Important:</strong> 
+                    <strong>Important:</strong>
                     <ul class="mb-0 mt-2">
                         <li>All completed matches will be submitted to RANK</li>
                         <li>Player ratings will be updated based on match results</li>
@@ -1695,10 +1692,17 @@
         </div>
     </div>
 </div>
-
+@await Html.PartialAsync(
+    "~/Views/Shared/_PaymentModal.cshtml",
+    new ViewDataDictionary(ViewData) {
+        ["ScheduleId"] = Model.ScheduleId,
+        ["FeeAmount"] = Model.FeeAmount,      // fee per team (competition)
+        ["GameName"]   = Model.GameName
+    }
+)
 @section Scripts {
     @* Make sure these scripts are loaded FIRST *@
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-bracket@0.11.0/dist/jquery.bracket.min.css" />
@@ -1827,17 +1831,17 @@
             users.forEach(user => {
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 var userHtml = `
-                        <div class="user-search-item">
-                            <div class="d-flex align-items-center">
-                                <img src="${profilePic}" alt="${user.username}" />
-                                <strong>${user.username}</strong>
-                            </div>
-                            <button class="btn btn-sm btn-primary send-invite-btn" 
-                                    data-team-id="${teamId}" 
-                                    data-invitee-id="${user.userId}">
-                                Invite
-                            </button>
-                        </div>`;
+                                    <div class="user-search-item">
+                                        <div class="d-flex align-items-center">
+                                            <img src="${profilePic}" alt="${user.username}" />
+                                            <strong>${user.username}</strong>
+                                        </div>
+                                        <button class="btn btn-sm btn-primary send-invite-btn" 
+                                                data-team-id="${teamId}" 
+                                                data-invitee-id="${user.userId}">
+                                            Invite
+                                        </button>
+                                    </div>`;
                 searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -1936,17 +1940,17 @@
             users.forEach(user => {
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
                 var userHtml = `
-                        <div class="user-search-item">
-                            <div class="d-flex align-items-center">
-                                <img src="${profilePic}" alt="${user.username}" />
-                                <strong>${user.username}</strong>
-                            </div>
-                            <button class="btn btn-sm btn-primary add-staff-btn" 
-                                    data-schedule-id="${scheduleId}" 
-                                    data-user-id="${user.userId}">
-                                Add Staff
-                            </button>
-                        </div>`;
+                                    <div class="user-search-item">
+                                        <div class="d-flex align-items-center">
+                                            <img src="${profilePic}" alt="${user.username}" />
+                                            <strong>${user.username}</strong>
+                                        </div>
+                                        <button class="btn btn-sm btn-primary add-staff-btn" 
+                                                data-schedule-id="${scheduleId}" 
+                                                data-user-id="${user.userId}">
+                                            Add Staff
+                                        </button>
+                                    </div>`;
                 staffSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
@@ -2041,11 +2045,11 @@
 
                         // If all checks pass, show the confirmation modal
                         startModalBody.innerHTML = `
-                        <div class="text-center p-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading Details...</span>
-                            </div>
-                        </div>`;
+                                    <div class="text-center p-5">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading Details...</span>
+                                        </div>
+                                    </div>`;
                         startModal.show();
 
                         fetch(`/Match/GetConfirmationDetails/${COMP_DATA.scheduleId}`)
@@ -2081,12 +2085,12 @@
 
                 console.log('Loading listing for schedule:', COMP_DATA.scheduleId);
                 container.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading Matches...</span>
-                        </div>
-                        <p class="mt-2">Loading Matches...</p>
-                    </div>`;
+                                <div class="text-center p-5">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading Matches...</span>
+                                    </div>
+                                    <p class="mt-2">Loading Matches...</p>
+                                </div>`;
 
                 fetch('/Match/GetMatchListing?id=' + COMP_DATA.scheduleId)
                     .then(response => {
@@ -2288,11 +2292,11 @@
 
                 console.log('Loading standing for schedule:', COMP_DATA.scheduleId);
                 container.innerHTML = `
-                        <div class="text-center p-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading Standings...</span>
-                            </div>
-                        </div>`;
+                                    <div class="text-center p-5">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading Standings...</span>
+                                        </div>
+                                    </div>`;
 
                 fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
                     .then(response => {
@@ -2328,13 +2332,13 @@
                     console.log('Loading draw visual...');
 
                     drawContainer.innerHTML = `
-                            <div class="text-center p-5">
-                                <div class="spinner-border" role="status">
-                                    <span class="visually-hidden">Loading Draw...</span>
-                                </div>
-                                <p class="mt-2">Loading Draw...</p>
-                            </div>
-                        `;
+                                        <div class="text-center p-5">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading Draw...</span>
+                                            </div>
+                                            <p class="mt-2">Loading Draw...</p>
+                                        </div>
+                                    `;
 
                     var competitionFormat = COMP_DATA.format;
                     console.log('Competition Format:', competitionFormat);
@@ -2360,19 +2364,19 @@
                             .catch(error => {
                                 console.error('Failed to load Pool Play draw:', error);
                                 drawContainer.innerHTML = `
-                                        <div class="alert alert-danger">
-                                            <strong>Error:</strong> Could not load the draw.
-                                            <br><small>${error.message}</small>
-                                        </div>
-                                    `;
+                                                    <div class="alert alert-danger">
+                                                        <strong>Error:</strong> Could not load the draw.
+                                                        <br><small>${error.message}</small>
+                                                    </div>
+                                                `;
                             });
                     } else if (competitionFormat === 'Elimination') {
                         // Load Bracket for Elimination
                         drawContainer.innerHTML = `
-                                <h5 class="mb-3">Tournament Bracket</h5>
-                                <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
-                                <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
-                            `;
+                                            <h5 class="mb-3">Tournament Bracket</h5>
+                                            <div id="bracketVisual_Published" style="width: 100%; overflow: auto; min-height: 600px; border: 1px solid #ddd; background-color: #fcfcfc;"></div>
+                                            <div id="thirdPlaceContainer" class="mt-3" style="min-height: 56px;"></div>
+                                        `;
 
                         function fetchAndRenderBracket() {
                             fetch('/Match/GetBracketData?scheduleId=' + COMP_DATA.scheduleId)
@@ -2394,13 +2398,13 @@
                                 .catch(error => {
                                     console.error('Failed to load bracket:', error);
                                     drawContainer.innerHTML = `
-                                            <div class="alert alert-danger">
-                                                <strong>Error:</strong> Could not load the bracket.
-                                                <br><small>${error.message}</small>
-                                                <br><br>
-                                                <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
-                                            </div>
-                                        `;
+                                                        <div class="alert alert-danger">
+                                                            <strong>Error:</strong> Could not load the bracket.
+                                                            <br><small>${error.message}</small>
+                                                            <br><br>
+                                                            <button class="btn btn-sm btn-primary" onclick="location.reload()">Reload Page</button>
+                                                        </div>
+                                                    `;
                                 });
                         }
 
@@ -2456,11 +2460,11 @@
                             } catch (e) {
                                 console.error('Error rendering bracket:', e);
                                 drawContainer.innerHTML = `
-                                        <div class="alert alert-danger">
-                                            <strong>Error:</strong> Could not render bracket.
-                                            <br><small>${e.message}</small>
-                                        </div>
-                                    `;
+                                                    <div class="alert alert-danger">
+                                                        <strong>Error:</strong> Could not render bracket.
+                                                        <br><small>${e.message}</small>
+                                                    </div>
+                                                `;
                             }
                         }
 
@@ -3019,669 +3023,735 @@
         });
 
         // ==================== SCHEDULE CHAT FUNCTIONALITY ====================
-(function() {
-    'use strict';
-    
-    console.log('🔵 Schedule Chat module loaded');
+        (function () {
+            'use strict';
 
-    const scheduleId = @Model.ScheduleId;
-    const currentUserId = @(currentUserId ?? 0);
-     // ⬇️ UPDATED: Check if user is confirmed participant (from view)
-    // ⬇️ FIXED: Check from view
-    const isConfirmedParticipant = @(isConfirmedParticipant.ToString().ToLower());
-    
-    // ⬇️ FIXED: isOrganizer checks ScheduleParticipants, NOT team captain
-    const isOrganizer = @(isScheduleOrganizer.ToString().ToLower());
-    
-    let scheduleChatConnection = null;
-    let isConnected = false;
-    let isChatInitialized = false;
-    let hasLoadedHistory = false;
+            console.log('🔵 Schedule Chat module loaded');
 
-    // Check if user is a confirmed participant
-    const isParticipant = @((Model.Teams.Any(t => t.Status == TeamStatus.Confirmed && t.TeamMembers.Any(m => m.UserId == currentUserId))).ToString().ToLower());
-    
-    console.log('Chat Config:', { scheduleId, currentUserId, isOrganizer, isParticipant });
+            const scheduleId = @Model.ScheduleId;
+            const currentUserId = @(currentUserId ?? 0);
+            // ⬇️ UPDATED: Check if user is confirmed participant (from view)
+            // ⬇️ FIXED: Check from view
+            const isConfirmedParticipant = @(isConfirmedParticipant.ToString().ToLower());
 
-    // Only initialize chat if user is confirmed participant
-    if (!isConfirmedParticipant) {
-        console.log('❌ User is not a confirmed participant, chat disabled');
-        return;
-    }
+            // ⬇️ FIXED: isOrganizer checks ScheduleParticipants, NOT team captain
+            const isOrganizer = @(isScheduleOrganizer.ToString().ToLower());
 
-    // Initialize SignalR Connection
-    async function initializeScheduleChatHub() {
-        if (scheduleChatConnection && scheduleChatConnection.state === signalR.HubConnectionState.Connected) {
-            console.log('✓ Schedule Chat already connected');
-            return;
-        }
+            let scheduleChatConnection = null;
+            let isConnected = false;
+            let isChatInitialized = false;
+            let hasLoadedHistory = false;
 
-        try {
-            scheduleChatConnection = new signalR.HubConnectionBuilder()
-                .withUrl("/scheduleChatHub")
-                .withAutomaticReconnect()
-                .build();
+            // Check if user is a confirmed participant
+            const isParticipant = @((Model.Teams.Any(t => t.Status == TeamStatus.Confirmed && t.TeamMembers.Any(m => m.UserId == currentUserId))).ToString().ToLower());
 
-            scheduleChatConnection.on("ReceiveScheduleMessage", (data) => {
-                console.log("Schedule message received:", data);
-                appendChatMessage(data);
-                
-                const chatTab = document.getElementById('chat-tab');
-                if (chatTab && !chatTab.classList.contains('active')) {
-                    showChatNotification();
+            console.log('Chat Config:', { scheduleId, currentUserId, isOrganizer, isParticipant });
+
+            // Only initialize chat if user is confirmed participant
+            if (!isConfirmedParticipant) {
+                console.log('❌ User is not a confirmed participant, chat disabled');
+                return;
+            }
+
+            // Initialize SignalR Connection
+            async function initializeScheduleChatHub() {
+                if (scheduleChatConnection && scheduleChatConnection.state === signalR.HubConnectionState.Connected) {
+                    console.log('✓ Schedule Chat already connected');
+                    return;
                 }
-            });
 
-            scheduleChatConnection.on("UserJoinedChat", (data) => {
-                console.log("User joined chat:", data);
-                appendSystemMessage(`${data.username} joined the chat`);
-                updateOnlineCount();
-            });
+                try {
+                    scheduleChatConnection = new signalR.HubConnectionBuilder()
+                        .withUrl("/scheduleChatHub")
+                        .withAutomaticReconnect()
+                        .build();
 
-            scheduleChatConnection.on("UserLeftChat", (data) => {
-                console.log("User left chat:", data);
-                updateOnlineCount();
-            });
+                    scheduleChatConnection.on("ReceiveScheduleMessage", (data) => {
+                        console.log("Schedule message received:", data);
+                        appendChatMessage(data);
 
-            scheduleChatConnection.on("JoinedScheduleChat", (data) => {
-                console.log("Successfully joined schedule chat:", data);
-                isConnected = true;
-            });
+                        const chatTab = document.getElementById('chat-tab');
+                        if (chatTab && !chatTab.classList.contains('active')) {
+                            showChatNotification();
+                        }
+                    });
 
-            scheduleChatConnection.on("OnlineParticipantsCount", (data) => {
-                console.log("Online participants count:", data);
-                updateOnlineCountDisplay(data.count);
-            });
+                    scheduleChatConnection.on("UserJoinedChat", (data) => {
+                        console.log("User joined chat:", data);
+                        appendSystemMessage(`${data.username} joined the chat`);
+                        updateOnlineCount();
+                    });
 
-            scheduleChatConnection.on("Error", (message) => {
-                console.error("SignalR Error:", message);
-                alert(message);
-            });
+                    scheduleChatConnection.on("UserLeftChat", (data) => {
+                        console.log("User left chat:", data);
+                        updateOnlineCount();
+                    });
 
-            await scheduleChatConnection.start();
-            console.log("✓ Schedule Chat SignalR Connected");
+                    scheduleChatConnection.on("JoinedScheduleChat", (data) => {
+                        console.log("Successfully joined schedule chat:", data);
+                        isConnected = true;
+                    });
 
-        } catch (error) {
-            console.error("Schedule Chat SignalR Connection Error:", error);
-        }
-    }
+                    scheduleChatConnection.on("OnlineParticipantsCount", (data) => {
+                        console.log("Online participants count:", data);
+                        updateOnlineCountDisplay(data.count);
+                    });
 
-    async function joinScheduleChatRoom() {
-        if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
-            await initializeScheduleChatHub();
-        }
+                    scheduleChatConnection.on("Error", (message) => {
+                        console.error("SignalR Error:", message);
+                        alert(message);
+                    });
 
-        try {
-            await scheduleChatConnection.invoke("JoinScheduleChat", scheduleId);
-            console.log(`Joined schedule chat room: ${scheduleId}`);
-            await scheduleChatConnection.invoke("GetOnlineParticipants", scheduleId);
-        } catch (error) {
-            console.error("Error joining schedule chat:", error);
-        }
-    }
+                    await scheduleChatConnection.start();
+                    console.log("✓ Schedule Chat SignalR Connected");
 
-    async function leaveScheduleChatRoom() {
-        if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
-            return;
-        }
+                } catch (error) {
+                    console.error("Schedule Chat SignalR Connection Error:", error);
+                }
+            }
 
-        try {
-            await scheduleChatConnection.invoke("LeaveScheduleChat", scheduleId);
-            console.log(`Left schedule chat room: ${scheduleId}`);
-        } catch (error) {
-            console.error("Error leaving schedule chat:", error);
-        }
-    }
+            async function joinScheduleChatRoom() {
+                if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    await initializeScheduleChatHub();
+                }
 
-    async function loadChatHistory() {
-        if (hasLoadedHistory) return;
+                try {
+                    await scheduleChatConnection.invoke("JoinScheduleChat", scheduleId);
+                    console.log(`Joined schedule chat room: ${scheduleId}`);
+                    await scheduleChatConnection.invoke("GetOnlineParticipants", scheduleId);
+                } catch (error) {
+                    console.error("Error joining schedule chat:", error);
+                }
+            }
 
-        try {
-            const response = await fetch(`/Schedule/GetScheduleChatHistory?scheduleId=${scheduleId}&skip=0&take=50`);
-            const result = await response.json();
+            async function leaveScheduleChatRoom() {
+                if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    return;
+                }
 
-            if (result.success) {
+                try {
+                    await scheduleChatConnection.invoke("LeaveScheduleChat", scheduleId);
+                    console.log(`Left schedule chat room: ${scheduleId}`);
+                } catch (error) {
+                    console.error("Error leaving schedule chat:", error);
+                }
+            }
+
+            async function loadChatHistory() {
+                if (hasLoadedHistory) return;
+
+                try {
+                    const response = await fetch(`/Schedule/GetScheduleChatHistory?scheduleId=${scheduleId}&skip=0&take=50`);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const messagesContainer = document.getElementById('chatMessages');
+                        if (!messagesContainer) return;
+
+                        messagesContainer.innerHTML = '';
+
+                        if (result.data.messages.length === 0) {
+                            messagesContainer.innerHTML = `
+                                    <div class="text-center py-5 text-muted">
+                                        <i class="bi bi-chat-dots fs-1"></i>
+                                        <p class="mt-2">No messages yet. Start the conversation!</p>
+                                    </div>
+                                `;
+                        } else {
+                            result.data.messages.forEach(msg => {
+                                appendChatMessage(msg, false);
+                            });
+                            scrollToBottom();
+                        }
+
+                        hasLoadedHistory = true;
+                    }
+                } catch (error) {
+                    console.error('Error loading chat history:', error);
+                    const messagesContainer = document.getElementById('chatMessages');
+                    if (messagesContainer) {
+                        messagesContainer.innerHTML = `
+                                <div class="text-center py-5 text-danger">
+                                    <i class="bi bi-exclamation-circle fs-1"></i>
+                                    <p class="mt-2">Failed to load chat history.</p>
+                                </div>
+                            `;
+                    }
+                }
+            }
+
+            window.sendScheduleMessage = async function (event) {
+                event.preventDefault();
+
+                const input = document.getElementById('chatInput');
+                if (!input) return;
+
+                const message = input.value.trim();
+                if (!message) return;
+
+                // ⬇️ ADD THIS CHECK
+                const competitionStatus = '@Model.Status';
+                if (competitionStatus === '@ScheduleStatus.Completed.ToString()') {
+                    alert('This competition has ended. You cannot send new messages.');
+                    return false;
+                }
+
+                if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    alert('Not connected to chat. Please refresh the page.');
+                    return;
+                }
+
+                try {
+                    await scheduleChatConnection.invoke("SendScheduleMessage", scheduleId, message);
+                    input.value = '';
+                } catch (error) {
+                    console.error("Error sending message:", error);
+                    alert("Failed to send message. Please try again.");
+                }
+
+                return false;
+            };
+
+            function appendChatMessage(data, shouldScroll = true) {
                 const messagesContainer = document.getElementById('chatMessages');
                 if (!messagesContainer) return;
-                
-                messagesContainer.innerHTML = '';
 
-                if (result.data.messages.length === 0) {
-                    messagesContainer.innerHTML = `
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-chat-dots fs-1"></i>
-                            <p class="mt-2">No messages yet. Start the conversation!</p>
-                        </div>
-                    `;
-                } else {
-                    result.data.messages.forEach(msg => {
-                        appendChatMessage(msg, false);
-                    });
-                    scrollToBottom();
-                }
+                const placeholder = messagesContainer.querySelector('.text-center.py-5');
+                if (placeholder) placeholder.remove();
 
-                hasLoadedHistory = true;
-            }
-        } catch (error) {
-            console.error('Error loading chat history:', error);
-            const messagesContainer = document.getElementById('chatMessages');
-            if (messagesContainer) {
-                messagesContainer.innerHTML = `
-                    <div class="text-center py-5 text-danger">
-                        <i class="bi bi-exclamation-circle fs-1"></i>
-                        <p class="mt-2">Failed to load chat history.</p>
-                    </div>
-                `;
-            }
-        }
-    }
+                const isMine = data.senderId === currentUserId;
 
-    window.sendScheduleMessage = async function(event) {
-    event.preventDefault();
+                const roleBadge = data.isOrganizer
+                    ? '<span class="chat-message-role organizer">ORGANIZER</span>'
+                    : '';
 
-    const input = document.getElementById('chatInput');
-    if (!input) return;
+                const canDelete = isMine || isOrganizer;
+                const deleteButton = canDelete
+                    ? `<button class="chat-message-delete" onclick="deleteScheduleMessage(${data.messageId})" title="Delete message">×</button>`
+                    : '';
 
-    const message = input.value.trim();
-    if (!message) return;
-
-    // ⬇️ ADD THIS CHECK
-    const competitionStatus = '@Model.Status';
-    if (competitionStatus === '@ScheduleStatus.Completed.ToString()') {
-        alert('This competition has ended. You cannot send new messages.');
-        return false;
-    }
-
-    if (!scheduleChatConnection || scheduleChatConnection.state !== signalR.HubConnectionState.Connected) {
-        alert('Not connected to chat. Please refresh the page.');
-        return;
-    }
-
-    try {
-        await scheduleChatConnection.invoke("SendScheduleMessage", scheduleId, message);
-        input.value = '';
-    } catch (error) {
-        console.error("Error sending message:", error);
-        alert("Failed to send message. Please try again.");
-    }
-
-    return false;
-};
-
-    function appendChatMessage(data, shouldScroll = true) {
-    const messagesContainer = document.getElementById('chatMessages');
-    if (!messagesContainer) return;
-
-    const placeholder = messagesContainer.querySelector('.text-center.py-5');
-    if (placeholder) placeholder.remove();
-
-    const isMine = data.senderId === currentUserId;
-    
-    const roleBadge = data.isOrganizer 
-        ? '<span class="chat-message-role organizer">ORGANIZER</span>' 
-        : '';
-
-    const canDelete = isMine || isOrganizer;
-    const deleteButton = canDelete
-        ? `<button class="chat-message-delete" onclick="deleteScheduleMessage(${data.messageId})" title="Delete message">×</button>`
-        : '';
-
-    const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-
-    const messageHtml = `
-        <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
-            <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
-                 class="chat-message-avatar" 
-                 alt="${data.senderName}"
-                 onclick="showUserProfilePreview(${data.senderId})"
-                 style="cursor: pointer;"
-                 title="View ${data.senderName}'s profile"
-                 onerror="this.src='/images/profile_image.jpg'">
-            <div class="chat-message-content">
-                <div class="chat-message-header">
-                    <span class="chat-message-sender" 
-                          onclick="showUserProfilePreview(${data.senderId})" 
-                          style="cursor: pointer;"
-                          title="View profile">
-                        ${escapeHtml(data.senderName)}
-                    </span>
-                    ${roleBadge}
-                    <span class="chat-message-time">${messageTime}</span>
-                </div>
-                <div class="chat-message-bubble">
-                    ${escapeHtml(data.content)}
-                    ${deleteButton}
-                </div>
-            </div>
-        </div>
-    `;
-
-    messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
-    if (shouldScroll) scrollToBottom();
-}
-
-    function appendSystemMessage(message) {
-        const messagesContainer = document.getElementById('chatMessages');
-        if (!messagesContainer) return;
-
-        messagesContainer.insertAdjacentHTML('beforeend', `
-            <div class="system-message">
-                <i class="bi bi-info-circle"></i> ${escapeHtml(message)}
-            </div>
-        `);
-        scrollToBottom();
-    }
-
-    window.deleteScheduleMessage = async function(messageId) {
-        if (!confirm('Are you sure you want to delete this message?')) return;
-
-        try {
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            
-            const response = await fetch('/Schedule/DeleteScheduleMessage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    messageId: messageId,
-                    scheduleId: scheduleId,
-                    __RequestVerificationToken: token
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-                if (messageElement) {
-                    messageElement.style.transition = 'opacity 0.3s ease';
-                    messageElement.style.opacity = '0';
-                    setTimeout(() => {
-                        messageElement.remove();
-                        if (isOrganizer) {
-                            appendSystemMessage('A message was removed by the organizer');
-                        }
-                    }, 300);
-                }
-            } else {
-                alert(result.message || 'Failed to delete message');
-            }
-        } catch (error) {
-            console.error('Error deleting message:', error);
-            alert('An error occurred while deleting the message');
-        }
-    };
-
-    async function updateOnlineCount() {
-        if (scheduleChatConnection && scheduleChatConnection.state === signalR.HubConnectionState.Connected) {
-            try {
-                await scheduleChatConnection.invoke("GetOnlineParticipants", scheduleId);
-            } catch (error) {
-                console.error('Error getting online count:', error);
-            }
-        }
-    }
-
-    function updateOnlineCountDisplay(count) {
-        const onlineCountEl = document.getElementById('onlineCount');
-        if (onlineCountEl) onlineCountEl.textContent = count;
-    }
-
-    function showChatNotification() {
-        const badge = document.getElementById('unreadChatCount');
-        if (badge) {
-            let count = parseInt(badge.textContent) || 0;
-            count++;
-            badge.textContent = count;
-            badge.style.display = 'inline-block';
-        }
-    }
-
-    function clearChatNotifications() {
-        const badge = document.getElementById('unreadChatCount');
-        if (badge) {
-            badge.textContent = '0';
-            badge.style.display = 'none';
-        }
-    }
-
-    function scrollToBottom() {
-        const messagesContainer = document.getElementById('chatMessages');
-        if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    const chatTabButton = document.getElementById('chat-tab');
-    if (chatTabButton && !chatTabButton.classList.contains('disabled')) {
-        chatTabButton.addEventListener('shown.bs.tab', async function() {
-            if (!isChatInitialized && scheduleId > 0) {
-                console.log('🚀 Initializing schedule chat...');
-                
-                await initializeScheduleChatHub();
-                await loadChatHistory();
-                await joinScheduleChatRoom();
-                
-                isChatInitialized = true;
-            }
-            
-            clearChatNotifications();
-            scrollToBottom();
-        });
-    }
-
-    window.addEventListener('beforeunload', function() {
-        if (isConnected) leaveScheduleChatRoom();
-    });
-
-    console.log('✓ Schedule Chat module ready');
-})();
-
-// ==================== END COMPETITION FUNCTIONALITY ====================
-var endCompBtn = document.getElementById('endCompetitionBtn');
-if (endCompBtn && !endCompBtn.disabled) {
-    endCompBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        if (!confirm('Are you sure you want to end this competition?\n\nThis will:\n• Mark the competition as completed\n• Disable team registration\n• Lock chat messages\n• Move competition to "Ended" list')) {
-            return;
-        }
-        
-        const scheduleId = COMP_DATA.scheduleId;
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        
-        endCompBtn.disabled = true;
-        endCompBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ending...';
-        
-        fetch('/Competition/EndCompetition', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                scheduleId: scheduleId,
-                __RequestVerificationToken: token
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Competition ended successfully!\n\nRedirecting to competition listing...');
-                window.location.href = '/Competition/Listing';
-            } else {
-                alert('Error: ' + data.message);
-                endCompBtn.disabled = false;
-                endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while ending the competition');
-            endCompBtn.disabled = false;
-            endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
-        });
-    });
-}
-
-
-
-// Show reset button if already submitted
-(function checkRankSubmissionStatus() {
-    const scheduleId = COMP_DATA.scheduleId;
-    const submitBtn = document.getElementById('submitRankBtn');
-    const resetBtn = document.getElementById('resetRankBtn');
-    const submittedStatus = document.getElementById('rankSubmittedStatus');
-    
-    if (!submitBtn) return;
-    
-    fetch(`/Rank/CheckCompetitionRankStatus?scheduleId=${scheduleId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.isSubmitted) {
-                submitBtn.style.display = 'none';
-                resetBtn.style.display = 'inline-block';
-                submittedStatus.style.display = 'block';
-                
-                const submissionDate = new Date(data.submissionDate);
-                const formattedDate = submissionDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
+                const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                
-                document.getElementById('rankSubmissionInfo').textContent = 
-                    `${data.matchesProcessed} match(es) submitted on ${formattedDate}`;
-            }
-        })
-        .catch(error => console.error('Error checking RANK status:', error));
-})();
 
-// Reset button handler
-document.getElementById('resetRankBtn')?.addEventListener('click', async function(e) {
-    e.preventDefault();
-    
-    if (!confirm('Reset and reprocess all RANK data for this competition?\n\nThis will:\n• Delete existing RANK results\n• Reset all player ratings\n• Reprocess with updated algorithm\n\nContinue?')) {
-        return;
-    }
-    
-    const scheduleId = COMP_DATA.scheduleId;
-    const btn = e.target;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Resetting...';
-    
-    try {
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        
-        const response = await fetch('/Rank/ResetAndReprocess', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                scheduleId: scheduleId,
-                __RequestVerificationToken: token
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('✅ Successfully reset and reprocessed!\n\n' + data.message);
-            location.reload();
-        } else {
-            alert('❌ Error: ' + data.message);
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('❌ An error occurred: ' + error.message);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
-    }
-});
-
-// ==================== SUBMIT TO RANK FUNCTIONALITY (AUTO-PROCESS) ====================
-var submitRankBtn = document.getElementById('submitRankBtn');
-if (submitRankBtn) {
-    submitRankBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Show the modal and load match summary
-        var modal = new bootstrap.Modal(document.getElementById('submitRankModal'));
-        modal.show();
-        
-        // Load match summary
-        loadMatchSummaryForRank();
-    });
-}
-
-async function loadMatchSummaryForRank() {
-    const scheduleId = COMP_DATA.scheduleId;
-    const summaryDiv = document.getElementById('rankSubmissionSummary');
-    const loadingDiv = document.getElementById('rankLoadingSpinner');
-    const confirmBtn = document.getElementById('confirmAutoSubmitRank');
-    
-    try {
-        const response = await fetch(`/Rank/GetCompetitionMatchSummary?scheduleId=${scheduleId}`);
-        const data = await response.json();
-        
-        loadingDiv.style.display = 'none';
-        
-        if (data.success) {
-            summaryDiv.style.display = 'block';
-            confirmBtn.style.display = 'inline-block';
-            
-            document.getElementById('totalMatchesCount').textContent = data.summary.totalMatches;
-            document.getElementById('singlesMatchesCount').textContent = data.summary.singlesMatches;
-            document.getElementById('doublesMatchesCount').textContent = data.summary.doublesMatches;
-            
-            if (data.summary.totalMatches === 0) {
-                summaryDiv.innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        No completed matches found in this competition.
+                const messageHtml = `
+                    <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
+                        <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
+                             class="chat-message-avatar" 
+                             alt="${data.senderName}"
+                             onclick="showUserProfilePreview(${data.senderId})"
+                             style="cursor: pointer;"
+                             title="View ${data.senderName}'s profile"
+                             onerror="this.src='/images/profile_image.jpg'">
+                        <div class="chat-message-content">
+                            <div class="chat-message-header">
+                                <span class="chat-message-sender" 
+                                      onclick="showUserProfilePreview(${data.senderId})" 
+                                      style="cursor: pointer;"
+                                      title="View profile">
+                                    ${escapeHtml(data.senderName)}
+                                </span>
+                                ${roleBadge}
+                                <span class="chat-message-time">${messageTime}</span>
+                            </div>
+                            <div class="chat-message-bubble">
+                                ${escapeHtml(data.content)}
+                                ${deleteButton}
+                            </div>
+                        </div>
                     </div>
                 `;
-                confirmBtn.style.display = 'none';
-            }
-        } else {
-            summaryDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-x-circle me-2"></i>
-                    ${data.message}
-                </div>
-            `;
-            summaryDiv.style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error loading match summary:', error);
-        loadingDiv.style.display = 'none';
-        summaryDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-x-circle me-2"></i>
-                Failed to load match data. Please try again.
-            </div>
-        `;
-        summaryDiv.style.display = 'block';
-    }
-}
 
-document.getElementById('confirmAutoSubmitRank')?.addEventListener('click', async function(e) {
-    e.preventDefault();
-    
-    const scheduleId = COMP_DATA.scheduleId;
-    const confirmBtn = e.target;
-    const statusDiv = document.getElementById('rankProcessingStatus');
-    
-    if (!confirm('Confirm submission to RANK?\n\nThis will process all completed matches and update player ratings.\n\nThis action cannot be undone.')) {
-        return;
-    }
-    
-    // Disable button and show processing
-    confirmBtn.disabled = true;
-    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
-    
-    statusDiv.style.display = 'block';
-    statusDiv.innerHTML = `
-        <div class="alert alert-info">
-            <div class="d-flex align-items-center">
-                <div class="spinner-border spinner-border-sm me-2" role="status">
-                    <span class="visually-hidden">Processing...</span>
-                </div>
-                <span>Processing competition results...</span>
-            </div>
-        </div>
-    `;
-    
-    try {
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        
-        const response = await fetch('/Rank/AutoSubmitCompetitionResults', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                scheduleId: scheduleId,
-                __RequestVerificationToken: token
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-    statusDiv.innerHTML = `
-        <div class="alert alert-success">
-            <h6><i class="bi bi-check-circle-fill me-2"></i>Successfully Submitted to RANK!</h6>
-            <p class="mb-2">${data.message}</p>
-            ${data.details ? `
-                <hr>
-                <small>
-                    <strong>Details:</strong><br>
-                    • Total Matches: ${data.details.totalMatches}<br>
-                    • Successfully Processed: ${data.details.processed}<br>
-                    • Skipped: ${data.details.skipped}
-                    ${data.details.errors && data.details.errors.length > 0 ? `
-                        <br><br><strong>Errors:</strong>
-                        <ul class="mb-0 mt-1">
-                            ${data.details.errors.map(err => `<li>${err}</li>`).join('')}
-                        </ul>
-                    ` : ''}
-                </small>
-            ` : ''}
-            <div class="mt-3 text-center">
-                <strong>All player ratings have been updated!</strong>
-            </div>
-        </div>
-    `;
-    
-    // Update button to show completion
-    confirmBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Submission Complete';
-    confirmBtn.classList.remove('btn-primary');
-    confirmBtn.classList.add('btn-success');
-    
-    // Close modal and reload after 2 seconds
-    setTimeout(() => {
-        bootstrap.Modal.getInstance(document.getElementById('submitRankModal'))?.hide();
-        location.reload(); // This will show the "Done Submit" button
-    }, 2000);
-}else {
-            statusDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-x-circle-fill me-2"></i>
-                    <strong>Error:</strong> ${data.message}
-                    ${data.error ? `<br><small>${data.error}</small>` : ''}
-                </div>
-            `;
-            
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+                messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+                if (shouldScroll) scrollToBottom();
+            }
+
+            function appendSystemMessage(message) {
+                const messagesContainer = document.getElementById('chatMessages');
+                if (!messagesContainer) return;
+
+                messagesContainer.insertAdjacentHTML('beforeend', `
+                        <div class="system-message">
+                            <i class="bi bi-info-circle"></i> ${escapeHtml(message)}
+                        </div>
+                    `);
+                scrollToBottom();
+            }
+
+            window.deleteScheduleMessage = async function (messageId) {
+                if (!confirm('Are you sure you want to delete this message?')) return;
+
+                try {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+                    const response = await fetch('/Schedule/DeleteScheduleMessage', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            messageId: messageId,
+                            scheduleId: scheduleId,
+                            __RequestVerificationToken: token
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+                        if (messageElement) {
+                            messageElement.style.transition = 'opacity 0.3s ease';
+                            messageElement.style.opacity = '0';
+                            setTimeout(() => {
+                                messageElement.remove();
+                                if (isOrganizer) {
+                                    appendSystemMessage('A message was removed by the organizer');
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        alert(result.message || 'Failed to delete message');
+                    }
+                } catch (error) {
+                    console.error('Error deleting message:', error);
+                    alert('An error occurred while deleting the message');
+                }
+            };
+
+            async function updateOnlineCount() {
+                if (scheduleChatConnection && scheduleChatConnection.state === signalR.HubConnectionState.Connected) {
+                    try {
+                        await scheduleChatConnection.invoke("GetOnlineParticipants", scheduleId);
+                    } catch (error) {
+                        console.error('Error getting online count:', error);
+                    }
+                }
+            }
+
+            function updateOnlineCountDisplay(count) {
+                const onlineCountEl = document.getElementById('onlineCount');
+                if (onlineCountEl) onlineCountEl.textContent = count;
+            }
+
+            function showChatNotification() {
+                const badge = document.getElementById('unreadChatCount');
+                if (badge) {
+                    let count = parseInt(badge.textContent) || 0;
+                    count++;
+                    badge.textContent = count;
+                    badge.style.display = 'inline-block';
+                }
+            }
+
+            function clearChatNotifications() {
+                const badge = document.getElementById('unreadChatCount');
+                if (badge) {
+                    badge.textContent = '0';
+                    badge.style.display = 'none';
+                }
+            }
+
+            function scrollToBottom() {
+                const messagesContainer = document.getElementById('chatMessages');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            const chatTabButton = document.getElementById('chat-tab');
+            if (chatTabButton && !chatTabButton.classList.contains('disabled')) {
+                chatTabButton.addEventListener('shown.bs.tab', async function () {
+                    if (!isChatInitialized && scheduleId > 0) {
+                        console.log('🚀 Initializing schedule chat...');
+
+                        await initializeScheduleChatHub();
+                        await loadChatHistory();
+                        await joinScheduleChatRoom();
+
+                        isChatInitialized = true;
+                    }
+
+                    clearChatNotifications();
+                    scrollToBottom();
+                });
+            }
+
+            window.addEventListener('beforeunload', function () {
+                if (isConnected) leaveScheduleChatRoom();
+            });
+
+            console.log('✓ Schedule Chat module ready');
+        })();
+
+        // ==================== END COMPETITION FUNCTIONALITY ====================
+        var endCompBtn = document.getElementById('endCompetitionBtn');
+        if (endCompBtn && !endCompBtn.disabled) {
+            endCompBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                if (!confirm('Are you sure you want to end this competition?\n\nThis will:\n• Mark the competition as completed\n• Disable team registration\n• Lock chat messages\n• Move competition to "Ended" list')) {
+                    return;
+                }
+
+                const scheduleId = COMP_DATA.scheduleId;
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                endCompBtn.disabled = true;
+                endCompBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ending...';
+
+                fetch('/Competition/EndCompetition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        scheduleId: scheduleId,
+                        __RequestVerificationToken: token
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Competition ended successfully!\n\nRedirecting to competition listing...');
+                            window.location.href = '/Competition/Listing';
+                        } else {
+                            alert('Error: ' + data.message);
+                            endCompBtn.disabled = false;
+                            endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while ending the competition');
+                        endCompBtn.disabled = false;
+                        endCompBtn.innerHTML = '<i class="bi bi-stop-fill"></i> End Competition';
+                    });
+            });
         }
-    } catch (error) {
-        console.error('Error:', error);
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-x-circle-fill me-2"></i>
-                <strong>Error:</strong> An unexpected error occurred while processing results.
-                <br><small>${error.message}</small>
-            </div>
-        `;
-        
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+
+
+
+        // Show reset button if already submitted
+        (function checkRankSubmissionStatus() {
+            const scheduleId = COMP_DATA.scheduleId;
+            const submitBtn = document.getElementById('submitRankBtn');
+            const resetBtn = document.getElementById('resetRankBtn');
+            const submittedStatus = document.getElementById('rankSubmittedStatus');
+
+            if (!submitBtn) return;
+
+            fetch(`/Rank/CheckCompetitionRankStatus?scheduleId=${scheduleId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.isSubmitted) {
+                        submitBtn.style.display = 'none';
+                        resetBtn.style.display = 'inline-block';
+                        submittedStatus.style.display = 'block';
+
+                        const submissionDate = new Date(data.submissionDate);
+                        const formattedDate = submissionDate.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                        document.getElementById('rankSubmissionInfo').textContent =
+                            `${data.matchesProcessed} match(es) submitted on ${formattedDate}`;
+                    }
+                })
+                .catch(error => console.error('Error checking RANK status:', error));
+        })();
+
+        // Reset button handler
+        document.getElementById('resetRankBtn')?.addEventListener('click', async function (e) {
+            e.preventDefault();
+
+            if (!confirm('Reset and reprocess all RANK data for this competition?\n\nThis will:\n• Delete existing RANK results\n• Reset all player ratings\n• Reprocess with updated algorithm\n\nContinue?')) {
+                return;
+            }
+
+            const scheduleId = COMP_DATA.scheduleId;
+            const btn = e.target;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Resetting...';
+
+            try {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                const response = await fetch('/Rank/ResetAndReprocess', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        scheduleId: scheduleId,
+                        __RequestVerificationToken: token
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Successfully reset and reprocessed!\n\n' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ An error occurred: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset & Reprocess';
+            }
+        });
+
+        // ==================== SUBMIT TO RANK FUNCTIONALITY (AUTO-PROCESS) ====================
+        var submitRankBtn = document.getElementById('submitRankBtn');
+        if (submitRankBtn) {
+            submitRankBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                // Show the modal and load match summary
+                var modal = new bootstrap.Modal(document.getElementById('submitRankModal'));
+                modal.show();
+
+                // Load match summary
+                loadMatchSummaryForRank();
+            });
+        }
+
+        async function loadMatchSummaryForRank() {
+            const scheduleId = COMP_DATA.scheduleId;
+            const summaryDiv = document.getElementById('rankSubmissionSummary');
+            const loadingDiv = document.getElementById('rankLoadingSpinner');
+            const confirmBtn = document.getElementById('confirmAutoSubmitRank');
+
+            try {
+                const response = await fetch(`/Rank/GetCompetitionMatchSummary?scheduleId=${scheduleId}`);
+                const data = await response.json();
+
+                loadingDiv.style.display = 'none';
+
+                if (data.success) {
+                    summaryDiv.style.display = 'block';
+                    confirmBtn.style.display = 'inline-block';
+
+                    document.getElementById('totalMatchesCount').textContent = data.summary.totalMatches;
+                    document.getElementById('singlesMatchesCount').textContent = data.summary.singlesMatches;
+                    document.getElementById('doublesMatchesCount').textContent = data.summary.doublesMatches;
+
+                    if (data.summary.totalMatches === 0) {
+                        summaryDiv.innerHTML = `
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    No completed matches found in this competition.
+                                </div>
+                            `;
+                        confirmBtn.style.display = 'none';
+                    }
+                } else {
+                    summaryDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle me-2"></i>
+                                ${data.message}
+                            </div>
+                        `;
+                    summaryDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading match summary:', error);
+                loadingDiv.style.display = 'none';
+                summaryDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-x-circle me-2"></i>
+                            Failed to load match data. Please try again.
+                        </div>
+                    `;
+                summaryDiv.style.display = 'block';
+            }
+        }
+
+        document.getElementById('confirmAutoSubmitRank')?.addEventListener('click', async function (e) {
+            e.preventDefault();
+
+            const scheduleId = COMP_DATA.scheduleId;
+            const confirmBtn = e.target;
+            const statusDiv = document.getElementById('rankProcessingStatus');
+
+            if (!confirm('Confirm submission to RANK?\n\nThis will process all completed matches and update player ratings.\n\nThis action cannot be undone.')) {
+                return;
+            }
+
+            // Disable button and show processing
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Processing...</span>
+                            </div>
+                            <span>Processing competition results...</span>
+                        </div>
+                    </div>
+                `;
+
+            try {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                const response = await fetch('/Rank/AutoSubmitCompetitionResults', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        scheduleId: scheduleId,
+                        __RequestVerificationToken: token
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle-fill me-2"></i>Successfully Submitted to RANK!</h6>
+                        <p class="mb-2">${data.message}</p>
+                        ${data.details ? `
+                            <hr>
+                            <small>
+                                <strong>Details:</strong><br>
+                                • Total Matches: ${data.details.totalMatches}<br>
+                                • Successfully Processed: ${data.details.processed}<br>
+                                • Skipped: ${data.details.skipped}
+                                ${data.details.errors && data.details.errors.length > 0 ? `
+                                    <br><br><strong>Errors:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        ${data.details.errors.map(err => `<li>${err}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            </small>
+                        ` : ''}
+                        <div class="mt-3 text-center">
+                            <strong>All player ratings have been updated!</strong>
+                        </div>
+                    </div>
+                `;
+
+                    // Update button to show completion
+                    confirmBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Submission Complete';
+                    confirmBtn.classList.remove('btn-primary');
+                    confirmBtn.classList.add('btn-success');
+
+                    // Close modal and reload after 2 seconds
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('submitRankModal'))?.hide();
+                        location.reload(); // This will show the "Done Submit" button
+                    }, 2000);
+                } else {
+                    statusDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle-fill me-2"></i>
+                                <strong>Error:</strong> ${data.message}
+                                ${data.error ? `<br><small>${data.error}</small>` : ''}
+                            </div>
+                        `;
+
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-x-circle-fill me-2"></i>
+                            <strong>Error:</strong> An unexpected error occurred while processing results.
+                            <br><small>${error.message}</small>
+                        </div>
+                    `;
+
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-graph-up-arrow me-2"></i>Retry Submission';
+            }
+        });
+    // ==================== COMPETITION TEAM PAYMENT FUNCTIONALITY ====================
+ let compTeamId = 0;
+    let compAmount = 0;
+
+    function openCompetitionPaymentModal(teamId, scheduleId, amount) {
+        teamIdForPayment = teamId;
+        compScheduleId = scheduleId;
+        compPaymentAmount = amount;
+
+        console.log("OPEN COMP MODAL =>", { teamId, scheduleId, amount });
+
+        // Update modal UI
+        document.getElementById("paymentAmount").innerText = amount.toFixed(2);
+        document.getElementById("totalAmount").innerText = amount.toFixed(2);
+
+        // Reuse variables already used by payment modal
+        paymentAmount = amount;
+        currentScheduleId = scheduleId;
+
+        // Open modal
+        let modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+
+        // Trigger balance check
+    }
+
+    async function executeCompetitionPayment(btn) {
+        const password = document.getElementById("userPassword").value.trim();
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+
+        const payload = {
+            teamId: teamIdForPayment,
+            scheduleId: compScheduleId,
+            amount: compPaymentAmount,
+            password: password
+        };
+
+        const response = await fetch('/Competition/PayTeamEscrow', {
+            method: 'POST',
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            showPaymentError(data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lock-fill"></i> Confirm Payment';
+            return;
+        }
+
+        showPaymentSuccess("Team payment successful!");
+    }
+
+   document.addEventListener("DOMContentLoaded", function () {
+    const confirmBtn = document.getElementById("processPaymentBtn");
+    if (confirmBtn) {
+        confirmBtn.addEventListener("click", function () {
+            executeCompetitionPayment(this);
+        });
     }
 });
+
     </script>
 }

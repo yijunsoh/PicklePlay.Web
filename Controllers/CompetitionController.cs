@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using PicklePlay.Models.ViewModels; // Make sure this is included for enums
 using System.Security.Claims;
 using PicklePlay.Helpers;
+using PicklePlay.Services;
 
 namespace PicklePlay.Controllers
 {
@@ -15,12 +16,13 @@ namespace PicklePlay.Controllers
         private readonly IScheduleRepository _scheduleRepository;
         private readonly ApplicationDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public CompetitionController(IScheduleRepository scheduleRepository, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
+        private readonly IEscrowService _escrowService;
+        public CompetitionController(IScheduleRepository scheduleRepository, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, IEscrowService escrowService)
         {
             _scheduleRepository = scheduleRepository;
             _context = context;
             _httpContextAccessor = httpContextAccessor;
+            _escrowService = escrowService;
         }
 
         private int? GetCurrentUserId()
@@ -53,9 +55,9 @@ namespace PicklePlay.Controllers
                             s.Status != ScheduleStatus.PendingSetup &&
                             s.Status != ScheduleStatus.Null &&
                             s.Status != ScheduleStatus.Cancelled &&
-                            s.Status != ScheduleStatus.Past && 
+                            s.Status != ScheduleStatus.Past &&
                             s.Status != ScheduleStatus.Quit)
-                .ToList(); 
+                .ToList();
 
             // Pass the complete list to the view
             return View(allCompetitions);
@@ -74,9 +76,9 @@ namespace PicklePlay.Controllers
                                       .ThenInclude(t => t.TeamMembers)
                                           .ThenInclude(tm => tm.User)
                                   .Include(s => s.Teams)
-                                      .ThenInclude(t => t.Captain) 
+                                      .ThenInclude(t => t.Captain)
                                   .FirstOrDefault(s => s.ScheduleId == id
-                                                   && s.ScheduleType == ScheduleType.Competition); 
+                                                   && s.ScheduleType == ScheduleType.Competition);
 
             if (schedule == null)
             {
@@ -90,7 +92,7 @@ namespace PicklePlay.Controllers
 
             if (currentUserId.HasValue)
             {
-                ViewBag.HasUserRegisteredTeam = schedule.Teams.Any(t => 
+                ViewBag.HasUserRegisteredTeam = schedule.Teams.Any(t =>
                     t.TeamMembers.Any(tm => tm.UserId == currentUserId.Value)
                 );
             }
@@ -98,9 +100,9 @@ namespace PicklePlay.Controllers
             {
                 ViewBag.HasUserRegisteredTeam = false;
             }
-            
+
             ViewBag.CurrentUserId = currentUserId;
-            
+
             return View(schedule);
         }
 
@@ -195,12 +197,12 @@ namespace PicklePlay.Controllers
             // Only the captain can remove members
             if (team.CreatedByUserId != currentUserId)
                 return Forbid();
-                
+
             // Captain cannot remove themself
             if (team.CreatedByUserId == userId)
             {
-                 TempData["ErrorMessage"] = "You cannot remove yourself. Make another member captain first.";
-                 return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
+                TempData["ErrorMessage"] = "You cannot remove yourself. Make another member captain first.";
+                return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
             }
 
             var member = await _context.TeamMembers
@@ -228,7 +230,7 @@ namespace PicklePlay.Controllers
             // Only the current captain can do this
             if (team.CreatedByUserId != currentUserId)
                 return Forbid();
-                
+
             // Check if the new captain is actually in the team
             bool isMember = await _context.TeamMembers
                 .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == newCaptainUserId);
@@ -246,24 +248,24 @@ namespace PicklePlay.Controllers
             TempData["SuccessMessage"] = "Captain updated successfully.";
             return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
         }
-        
+
         // GET: /Competition/MakePayment
         [HttpGet]
         public async Task<IActionResult> MakePayment(int teamId)
         {
             var team = await _context.Teams.FindAsync(teamId);
             if (team == null) return NotFound();
-            
+
             // --- PAYMENT GATEWAY LOGIC ---
             // This is where you would redirect to your payment provider
             // For now, we'll just simulate a successful payment and redirect
             // back to the organizer's manage team page.
-            
+
             // In a real app, this logic would be in a webhook or callback
             team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
             _context.Teams.Update(team);
             await _context.SaveChangesAsync();
-            
+
             TempData["SuccessMessage"] = "Payment successful!";
             return RedirectToAction("CompDetails", new { id = team.ScheduleId, tab = "registration-tab" });
         }
@@ -292,8 +294,8 @@ namespace PicklePlay.Controllers
                 }
 
                 // Check if user is organizer
-                bool isOrganizer = schedule.Participants.Any(p => 
-                    p.UserId == currentUserId.Value && 
+                bool isOrganizer = schedule.Participants.Any(p =>
+                    p.UserId == currentUserId.Value &&
                     p.Role == ParticipantRole.Organizer);
 
                 if (!isOrganizer)
@@ -312,9 +314,10 @@ namespace PicklePlay.Controllers
                 if (schedule.EndTime.HasValue && nowUtc < schedule.EndTime.Value)
                 {
                     var malaysiaEndTime = DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value);
-                    return BadRequest(new { 
-                        success = false, 
-                        message = $"Competition cannot be ended before the scheduled end time ({malaysiaEndTime:MMM dd, yyyy hh:mm tt} MYT)" 
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Competition cannot be ended before the scheduled end time ({malaysiaEndTime:MMM dd, yyyy hh:mm tt} MYT)"
                     });
                 }
 
@@ -326,17 +329,19 @@ namespace PicklePlay.Controllers
 
                 Console.WriteLine($"Competition {scheduleId} ended by user {currentUserId}");
 
-                return Ok(new { 
-                    success = true, 
-                    message = "Competition ended successfully" 
+                return Ok(new
+                {
+                    success = true,
+                    message = "Competition ended successfully"
                 });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error ending competition: {ex.Message}");
-                return StatusCode(500, new { 
-                    success = false, 
-                    message = "An error occurred while ending the competition" 
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while ending the competition"
                 });
             }
         }
@@ -398,13 +403,13 @@ namespace PicklePlay.Controllers
                 foreach (var comp in competitionsToEnd)
                 {
                     comp.Status = ScheduleStatus.Completed;
-                    var endTimeMalaysia = comp.EndTime.HasValue 
-                        ? DateTimeHelper.ConvertToMalaysiaTime(comp.EndTime.Value) 
+                    var endTimeMalaysia = comp.EndTime.HasValue
+                        ? DateTimeHelper.ConvertToMalaysiaTime(comp.EndTime.Value)
                         : DateTime.MinValue;
-                    
+
                     Console.WriteLine($"  ✓ Competition {comp.ScheduleId}: {comp.GameName}");
                     Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
-                    
+
                     results.Add(new
                     {
                         scheduleId = comp.ScheduleId,
@@ -419,13 +424,13 @@ namespace PicklePlay.Controllers
                 foreach (var schedule in oneOffToEnd)
                 {
                     schedule.Status = ScheduleStatus.Past;
-                    var endTimeMalaysia = schedule.EndTime.HasValue 
-                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+                    var endTimeMalaysia = schedule.EndTime.HasValue
+                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value)
                         : DateTime.MinValue;
-                    
+
                     Console.WriteLine($"  ✓ OneOff {schedule.ScheduleId}: {schedule.GameName}");
                     Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
-                    
+
                     results.Add(new
                     {
                         scheduleId = schedule.ScheduleId,
@@ -440,13 +445,13 @@ namespace PicklePlay.Controllers
                 foreach (var schedule in recurringToEnd)
                 {
                     schedule.Status = ScheduleStatus.Past;
-                    var endTimeMalaysia = schedule.EndTime.HasValue 
-                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+                    var endTimeMalaysia = schedule.EndTime.HasValue
+                        ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value)
                         : DateTime.MinValue;
-                    
+
                     Console.WriteLine($"  ✓ Recurring {schedule.ScheduleId}: {schedule.GameName}");
                     Console.WriteLine($"    EndTime: {endTimeMalaysia:yyyy-MM-dd HH:mm:ss} MYT");
-                    
+
                     results.Add(new
                     {
                         scheduleId = schedule.ScheduleId,
@@ -511,12 +516,12 @@ namespace PicklePlay.Controllers
             var nowMalaysia = DateTimeHelper.GetMalaysiaTime();
             var autoEndThreshold = nowUtc.AddHours(-24);
 
-            var endTimeMalaysia = schedule.EndTime.HasValue 
-                ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value) 
+            var endTimeMalaysia = schedule.EndTime.HasValue
+                ? DateTimeHelper.ConvertToMalaysiaTime(schedule.EndTime.Value)
                 : (DateTime?)null;
 
-            var expectedNewStatus = schedule.ScheduleType == ScheduleType.Competition 
-                ? "Completed" 
+            var expectedNewStatus = schedule.ScheduleType == ScheduleType.Competition
+                ? "Completed"
                 : "Past";
 
             var shouldAutoEnd = false;
@@ -555,5 +560,104 @@ namespace PicklePlay.Controllers
                 expectedNewStatus = shouldAutoEnd ? expectedNewStatus : schedule.Status.ToString()
             });
         }
+
+        // [HttpPost]
+        // public async Task<IActionResult> MakeTeamPayment([FromBody] TeamPaymentDto dto)
+        // {
+        //     var userId = HttpContext.Session.GetInt32("UserId") ?? 0;
+
+        //     var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+        //     if (wallet == null || wallet.WalletBalance < dto.Amount)
+        //         return Json(new { success = false, message = "Insufficient wallet balance." });
+
+        //     // Deduct wallet
+        //     wallet.WalletBalance -= dto.Amount;
+
+        //     // Set team as paid
+        //     var team = await _context.Teams.FirstOrDefaultAsync(t => t.TeamId == dto.TeamId);
+        //     if (team == null)
+        //         return Json(new { success = false, message = "Team not found." });
+
+        //     team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
+
+        //     // Insert escrow transaction (same as game)
+        //     var escrow = new Escrow
+        //     {
+        //         ScheduleId = dto.ScheduleId,
+        //         UserId = userId,
+        //         Status = "Held"
+        //     };
+        //     _context.Escrows.Add(escrow);
+        //     await _context.SaveChangesAsync();
+
+        //     // Insert transaction
+        //     var transaction = new Transaction
+        //     {
+        //         EscrowId = escrow.EscrowId,
+        //         Amount = dto.Amount,
+        //         TransactionType = "CompetitionFee",
+        //         CreatedAt = DateTime.UtcNow
+        //     };
+        //     _context.Transactions.Add(transaction);
+
+        //     await _context.SaveChangesAsync();
+
+        //     return Json(new { success = true });
+        // }
+
+        public class TeamPaymentDto
+        {
+            public int TeamId { get; set; }
+            public int ScheduleId { get; set; }
+            public decimal Amount { get; set; }
+            public string Password { get; set; } = "";
+        }
+
+        [HttpPost]
+public async Task<IActionResult> PayTeamEscrow([FromBody] TeamPaymentDto dto)
+{
+    var captainUserId = HttpContext.Session.GetInt32("UserId");
+    if (captainUserId == null)
+        return Json(new { success = false, message = "User not logged in." });
+
+    // Validate Team
+    var team = await _context.Teams
+        .Include(t => t.Schedule)
+        .FirstOrDefaultAsync(t => t.TeamId == dto.TeamId);
+
+    if (team == null)
+        return Json(new { success = false, message = "Team not found." });
+
+    if (team.CreatedByUserId != captainUserId)
+        return Json(new { success = false, message = "Only the team captain can pay." });
+
+    var schedule = team.Schedule;
+    if (schedule == null)
+        return Json(new { success = false, message = "Schedule not found." });
+
+    // Call EscrowService same as game payment
+    var result = await _escrowService.ProcessPaymentAsync(
+        schedule.ScheduleId,
+        captainUserId.Value,
+        dto.Amount,
+        "CompetitionFee"
+    );
+
+    if (!result.Success)
+        return Json(new { success = false, message = result.Message });
+
+    // Update team paid status
+    team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
+    team.Status = (TeamStatus)1; 
+    await _context.SaveChangesAsync();
+
+    return Json(new
+    {
+        success = true,
+        message = "Team payment successful!",
+        escrowId = result.EscrowId
+    });
+}
+
     }
 }
