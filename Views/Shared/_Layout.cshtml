@@ -96,7 +96,7 @@
 
         .dropdown-menu-custom {
             border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             border: none;
         }
 
@@ -110,43 +110,43 @@
         }
 
         .rank-modal-display {
-    padding: 15px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 12px;
-    border: 2px solid #dee2e6;
-}
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            border: 2px solid #dee2e6;
+        }
 
-.rank-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
+        .rank-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
 
-.rank-modal-rating {
-    font-size: 2.5rem;
-    font-weight: bold;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
+        .rank-modal-rating {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-.rank-stat-mini {
-    padding: 8px;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-}
+        .rank-stat-mini {
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
 
-.rank-stat-mini .fw-bold {
-    font-size: 1.1rem;
-    color: #667eea;
-}
+        .rank-stat-mini .fw-bold {
+            font-size: 1.1rem;
+            color: #667eea;
+        }
 
-.rank-stat-mini .text-muted {
-    font-size: 0.75rem;
-}
+        .rank-stat-mini .text-muted {
+            font-size: 0.75rem;
+        }
     </style>
 
     @await RenderSectionAsync("Styles", required: false)
@@ -172,90 +172,110 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link" href="@Url.Action("Index", "Home")"><i class="fas fa-home me-1"></i> Home</a>
+                            <a class="nav-link" href="@Url.Action("Index", "Home")"><i class="fas fa-home me-1"></i>
+                                Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="@Url.Action("Community", "Home")"><i class="fas fa-users me-1"></i> Community</a>
+                            <a class="nav-link" href="@Url.Action("Community", "Home")"><i class="fas fa-users me-1"></i>
+                                Community</a>
                         </li>
                         @* <li class="nav-item">
                             <a class="nav-link" href="@Url.Action("Activity", "Community")"><i class="fas fa-users me-1"></i> Community Profile</a>
                         </li> *@
                         <li class="nav-item">
-                            <a class="nav-link" href="@Url.Action("Search", "Search")"><i class="fas fa-search me-1"></i> Search</a>
+                            <a class="nav-link" href="@Url.Action("Search", "Search")"><i class="fas fa-search me-1"></i>
+                                Search</a>
                         </li>
 
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="scheduleDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="scheduleDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-calendar-alt me-1"></i> Schedule
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="scheduleDropdown">
-                                <li><a class="dropdown-item" href="@Url.Action("GameListing", "Schedule")"><i class="fas fa-table-tennis-paddle-ball"></i> Game Schedule</a></li>
-                                <li><a class="dropdown-item" href="@Url.Action("MyGame", "MyGame")"><i class="bi bi-person-video"></i> My Games</a></li>
-                                
+                                <li><a class="dropdown-item" href="@Url.Action("GameListing", "Schedule")"><i
+                                            class="fas fa-table-tennis-paddle-ball"></i> Game Schedule</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("MyGame", "MyGame")"><i
+                                            class="bi bi-person-video"></i> My Games</a></li>
+
                             </ul>
                         </li>
 
-                         <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="competitionDropdown" role="button" 
-           data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-trophy me-1"></i> Competition
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="competitionDropdown">
-            <li>
-                <a class="dropdown-item" href="@Url.Action("Listing", "Competition")">
-                    <i class="fas fa-list me-2"></i>Competition Schedule
-                </a>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-                <a class="dropdown-item" href="@Url.Action("Leaderboard", "Rank")">
-                    <i class="bi bi-trophy-fill me-2"></i>RANK Leaderboard
-                </a>
-            </li>
-            <li>
-                <a class="dropdown-item" href="@Url.Action("MatchHistory", "Rank")">
-                    <i class="bi bi-clock-history me-2"></i>My Match History
-                </a>
-            </li>
-        </ul>
-    </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="competitionDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-trophy me-1"></i> Competition
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="competitionDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="@Url.Action("Listing", "Competition")">
+                                        <i class="fas fa-list me-2"></i>Competition Schedule
+                                    </a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="@Url.Action("Leaderboard", "Rank")">
+                                        <i class="bi bi-trophy-fill me-2"></i>RANK Leaderboard
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="@Url.Action("MatchHistory", "Rank")">
+                                        <i class="bi bi-clock-history me-2"></i>My Match History
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="@Url.Action("Index", "AiPartner")">
+                                        <i class="fas fa-robot me-2"></i>AI Suggest Partner
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="@Url.Action("Index", "Communication")"><i class="bi bi-envelope-fill me-1"></i> Communications</a>
+                            <a class="nav-link" href="@Url.Action("Index", "Communication")"><i
+                                    class="bi bi-envelope-fill me-1"></i> Communications</a>
                         </li>
                     </ul>
 
                     <div class="d-flex align-items-center">
                         <span class="text-white fw-bold me-2">@(Context.Session.GetString("UserName") ?? "User")</span>
-                        
+
                         <!-- Profile Dropdown -->
                         <div class="dropdown">
-                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" 
-                               id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
+                                id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 @{
                                     var profileImagePath = Context.Session.GetString("ProfileImagePath");
                                     var defaultImagePath = "/images/user (1).png";
-                                    var userProfileImage = !string.IsNullOrEmpty(profileImagePath) ? profileImagePath : defaultImagePath;
+                                    var userProfileImage = !string.IsNullOrEmpty(profileImagePath) ? profileImagePath :
+                                    defaultImagePath;
                                 }
-                                <img src="@userProfileImage" alt="Profile" class="profile-img-navbar" 
-                                     onerror="this.src='@defaultImagePath'">
+                                <img src="@userProfileImage" alt="Profile" class="profile-img-navbar"
+                                    onerror="this.src='@defaultImagePath'">
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom" aria-labelledby="profileDropdown">
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom"
+                                aria-labelledby="profileDropdown">
                                 <li>
                                     <a class="dropdown-item dropdown-item-custom" href="@Url.Action("EditProfile", "Home")">
                                         <i class="fas fa-user-edit me-2"></i>Edit Profile
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item dropdown-item-custom" href="@Url.Action("WalletManagement", "Wallet")">
+                                    <a class="dropdown-item dropdown-item-custom"
+                                        href="@Url.Action("WalletManagement", "Wallet")">
                                         <i class="fas fa-wallet me-2"></i>Wallet
                                     </a>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li>
                                     <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="dropdown-item dropdown-item-custom text-danger w-100 text-start">
+                                        <button type="submit"
+                                            class="dropdown-item dropdown-item-custom text-danger w-100 text-start">
                                             <i class="fas fa-sign-out-alt me-2"></i>Logout
                                         </button>
                                     </form>
@@ -293,21 +313,21 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-     @* SignalR Client Library *@
+    @* SignalR Client Library *@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
-    
-    @await RenderSectionAsync("Scripts", required: false)
-     @await Html.PartialAsync("_UserProfilePreviewModal")
 
-      <script>
+    @await RenderSectionAsync("Scripts", required: false)
+    @await Html.PartialAsync("_UserProfilePreviewModal")
+
+    <script>
         // Global function to show user profile preview
-        window.showUserProfilePreview = async function(userId) {
+        window.showUserProfilePreview = async function (userId) {
             console.log('=== showUserProfilePreview called ===');
             console.log('UserId:', userId);
-            
+
             const modal = new bootstrap.Modal(document.getElementById('userProfilePreviewModal'));
             const contentDiv = document.getElementById('userPreviewContent');
-            
+
             // Show loading
             contentDiv.innerHTML = `
                 <div class="loading-spinner">
@@ -317,24 +337,24 @@
                     <p class="mt-3 text-muted">Loading user profile...</p>
                 </div>
             `;
-            
+
             modal.show();
-            
+
             try {
                 const url = `/Home/GetUserProfilePreview?userId=${userId}`;
                 console.log('Fetching URL:', url);
-                
+
                 const response = await fetch(url);
                 console.log('Response status:', response.status);
                 console.log('Response ok:', response.ok);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const result = await response.json();
                 console.log('Result:', result);
-                
+
                 if (!result.success) {
                     console.error('API returned error:', result.message);
                     contentDiv.innerHTML = `
@@ -345,22 +365,22 @@
                     `;
                     return;
                 }
-                
+
                 const user = result.data;
                 console.log('User data:', user);
-                
+
                 // Render profile content
                 contentDiv.innerHTML = renderUserProfile(user);
                 console.log('Profile rendered successfully');
 
-                 loadModalRankData(user.userId);
-                
+                loadModalRankData(user.userId);
+
             } catch (error) {
                 console.error('=== Error in showUserProfilePreview ===');
                 console.error('Error type:', error.name);
                 console.error('Error message:', error.message);
                 console.error('Stack trace:', error.stack);
-                
+
                 contentDiv.innerHTML = `
                     <div class="empty-state">
                         <i class="bi bi-exclamation-circle"></i>
@@ -371,14 +391,14 @@
                 `;
             }
         };
-        
+
         function renderUserProfile(user) {
             const profileImage = user.profileImagePath || '/images/profile_image.jpg';
             const genderIcon = user.gender === 'male' ? 'mars' : user.gender === 'female' ? 'venus' : 'genderless';
-            
+
             // Action buttons based on status
             let actionButtons = '';
-            
+
             if (user.isCurrentUser) {
                 actionButtons = `
                     <a href="/Home/EditProfile" class="btn btn-add-friend">
@@ -405,7 +425,7 @@
                         </button>
                     `;
                 }
-                
+
                 actionButtons += `
                     <button class="btn btn-favorite" onclick="toggleFavorite(${user.userId})" title="Coming Soon">
         <i class="bi bi-star"></i>
@@ -416,7 +436,7 @@
     </button>
                 `;
             }
-            
+
             return `
                 <!-- Header -->
                 <div class="user-preview-header text-center">
@@ -476,8 +496,8 @@
                 <!-- Recent Endorsements -->
                 <div class="user-preview-section">
                     <h6><i class="bi bi-hand-thumbs-up me-2"></i>Recent Endorsements</h6>
-                    ${user.recentEndorsements.length > 0 ? 
-                        user.recentEndorsements.map(e => `
+                    ${user.recentEndorsements.length > 0 ?
+                    user.recentEndorsements.map(e => `
                             <div class="endorsement-item">
                                 <img src="${e.endorserImage || '/images/profile_image.jpg'}" 
                                      alt="${e.endorserName}" class="endorsement-avatar">
@@ -487,10 +507,10 @@
                                     <div class="endorsement-date">${formatDate(e.createdAt)}</div>
                                 </div>
                             </div>
-                        `).join('') 
-                        : 
-                        '<p class="text-muted text-center">No endorsements yet</p>'
-                    }
+                        `).join('')
+                    :
+                    '<p class="text-muted text-center">No endorsements yet</p>'
+                }
                     ${user.endorsementCount > 3 ? `
                         <div class="text-center mt-2">
                             <a href="/Schedule/SeeEndorsement?userId=${user.userId}" class="btn btn-sm btn-outline-primary">
@@ -503,8 +523,8 @@
                 <!-- Recent Achievements -->
                 <div class="user-preview-section">
                     <h6><i class="bi bi-trophy me-2"></i>Recent Achievements</h6>
-                    ${user.recentAchievements.length > 0 ? 
-                        user.recentAchievements.map(a => `
+                    ${user.recentAchievements.length > 0 ?
+                    user.recentAchievements.map(a => `
                             <div class="achievement-badge-small">
                                 <div class="achievement-icon-small">${getAwardIcon(a.awardType)}</div>
                                 <div class="achievement-details-small">
@@ -519,40 +539,40 @@
                                     </div>
                                 </div>
                             </div>
-                        `).join('') 
-                        : 
-                        '<p class="text-muted text-center">No achievements yet</p>'
-                    }
+                        `).join('')
+                    :
+                    '<p class="text-muted text-center">No achievements yet</p>'
+                }
                 </div>
             `;
         }
 
         function loadModalRankData(userId) {
-    fetch(`/Rank/GetPlayerRank?userId=${userId}`)
-        .then(response => response.json())
-        .then(data => {
-            const loadingDiv = document.getElementById(`rankLoading-${userId}`);
-            const dataDiv = document.getElementById(`rankData-${userId}`);
-            
-            if (loadingDiv) loadingDiv.style.display = 'none';
-            if (!dataDiv) return;
-            
-            if (data.success) {
-                const rank = data.rank;
-                dataDiv.style.display = 'block';
-                
-                // Get status color
-                let statusColor = 'secondary';
-                if (rank.status === 'Reliable') statusColor = 'success';
-                else if (rank.status === 'Provisional') statusColor = 'warning';
-                
-                // Get reliability color
-                let reliabilityColor = 'danger';
-                if (rank.reliabilityScore >= 80) reliabilityColor = 'success';
-                else if (rank.reliabilityScore >= 60) reliabilityColor = 'info';
-                else if (rank.reliabilityScore >= 40) reliabilityColor = 'warning';
-                
-                dataDiv.innerHTML = `
+            fetch(`/Rank/GetPlayerRank?userId=${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const loadingDiv = document.getElementById(`rankLoading-${userId}`);
+                    const dataDiv = document.getElementById(`rankData-${userId}`);
+
+                    if (loadingDiv) loadingDiv.style.display = 'none';
+                    if (!dataDiv) return;
+
+                    if (data.success) {
+                        const rank = data.rank;
+                        dataDiv.style.display = 'block';
+
+                        // Get status color
+                        let statusColor = 'secondary';
+                        if (rank.status === 'Reliable') statusColor = 'success';
+                        else if (rank.status === 'Provisional') statusColor = 'warning';
+
+                        // Get reliability color
+                        let reliabilityColor = 'danger';
+                        if (rank.reliabilityScore >= 80) reliabilityColor = 'success';
+                        else if (rank.reliabilityScore >= 60) reliabilityColor = 'info';
+                        else if (rank.reliabilityScore >= 40) reliabilityColor = 'warning';
+
+                        dataDiv.innerHTML = `
                     <div class="rank-modal-display">
                         <div class="rank-modal-header">
                             <div class="rank-modal-rating">
@@ -604,22 +624,22 @@
                         ` : ''}
                     </div>
                 `;
-            } else {
-                dataDiv.innerHTML = '<p class="text-muted text-center mb-0">No rating data available</p>';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading rank:', error);
-            const loadingDiv = document.getElementById(`rankLoading-${userId}`);
-            const dataDiv = document.getElementById(`rankData-${userId}`);
-            if (loadingDiv) loadingDiv.style.display = 'none';
-            if (dataDiv) {
-                dataDiv.style.display = 'block';
-                dataDiv.innerHTML = '<p class="text-danger text-center mb-0 small">Failed to load rating</p>';
-            }
-        });
-}
-        
+                    } else {
+                        dataDiv.innerHTML = '<p class="text-muted text-center mb-0">No rating data available</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading rank:', error);
+                    const loadingDiv = document.getElementById(`rankLoading-${userId}`);
+                    const dataDiv = document.getElementById(`rankData-${userId}`);
+                    if (loadingDiv) loadingDiv.style.display = 'none';
+                    if (dataDiv) {
+                        dataDiv.style.display = 'block';
+                        dataDiv.innerHTML = '<p class="text-danger text-center mb-0 small">Failed to load rating</p>';
+                    }
+                });
+        }
+
         function getAwardIcon(type) {
             const icons = {
                 0: '🏆', // Trophy
@@ -633,13 +653,13 @@
             };
             return icons[type] || '🏆';
         }
-        
+
         function formatDate(dateString) {
             const date = new Date(dateString);
             const now = new Date();
             const diffTime = Math.abs(now - date);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays === 0) return 'Today';
             if (diffDays === 1) return 'Yesterday';
             if (diffDays < 7) return `${diffDays} days ago`;
@@ -647,54 +667,54 @@
             if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
             return `${Math.floor(diffDays / 365)} years ago`;
         }
-        
-        // Placeholder functions for future features
-async function sendFriendRequest(userId) {
-    try {
-        const response = await fetch('/Friendship/SendFriendRequest', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userId)
-        });
 
-        const result = await response.json();
-        
-        if (result.success) {
-            alert(result.message);
-            // Reload the modal to show updated status
-            showUserProfilePreview(userId);
-        } else {
-            alert(result.message || 'Failed to send friend request');
+        // Placeholder functions for future features
+        async function sendFriendRequest(userId) {
+            try {
+                const response = await fetch('/Friendship/SendFriendRequest', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userId)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    // Reload the modal to show updated status
+                    showUserProfilePreview(userId);
+                } else {
+                    alert(result.message || 'Failed to send friend request');
+                }
+            } catch (error) {
+                console.error('Error sending friend request:', error);
+                alert('An error occurred while sending the friend request');
+            }
         }
-    } catch (error) {
-        console.error('Error sending friend request:', error);
-        alert('An error occurred while sending the friend request');
-    }
-}
-        
+
         function toggleFavorite(userId) {
             alert('Favorite feature coming soon!');
         }
-        
-function openChat(userId) {
-    console.log('🟢 openChat called with userId:', userId);
-    console.log('🟢 Current location:', window.location.href);
-    
-    // Close the modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('userProfilePreviewModal'));
-    if (modal) {
-        modal.hide();
-    }
-    
-    // IMPORTANT: Use window.location.href, NOT window.location.replace()
-    const newUrl = `/Friendship/Communication?tab=friends&chatWith=${userId}`;
-    console.log('🟢 Navigating to:', newUrl);
-    
-    window.location.href = newUrl;
-}
-        
+
+        function openChat(userId) {
+            console.log('🟢 openChat called with userId:', userId);
+            console.log('🟢 Current location:', window.location.href);
+
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('userProfilePreviewModal'));
+            if (modal) {
+                modal.hide();
+            }
+
+            // IMPORTANT: Use window.location.href, NOT window.location.replace()
+            const newUrl = `/Friendship/Communication?tab=friends&chatWith=${userId}`;
+            console.log('🟢 Navigating to:', newUrl);
+
+            window.location.href = newUrl;
+        }
+
         console.log('✓ User Profile Preview Modal loaded globally');
     </script>
 </body>

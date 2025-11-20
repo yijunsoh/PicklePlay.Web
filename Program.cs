@@ -64,6 +64,7 @@ builder.Services.AddHostedService<ScheduleAutoEndService>();
 // Add these lines where you register other services (before builder.Build())
 builder.Services.AddScoped<RankAlgorithmService>();
 builder.Services.AddScoped<RankMatchProcessingService>();
+builder.Services.AddScoped<PicklePlay.Services.IAiPartnerService, PicklePlay.Services.AiPartnerService>();
 
 var app = builder.Build();
 

@@ -50,7 +50,7 @@ namespace PicklePlay.Data
         public DbSet<RankMatch> RankMatches { get; set; }
         public DbSet<RankMatchHistory> RankMatchHistories { get; set; }
 
-
+public DbSet<AiSuggestedPartner> AiSuggestedPartners { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
