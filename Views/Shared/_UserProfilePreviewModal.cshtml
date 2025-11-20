@@ -254,6 +254,116 @@
         color: white;
         transform: none;
     }
+
+    /* Report / boombastic / cat overlay styles */
+    .report-btn {
+        position: absolute;
+        right: 18px;
+        top: 18px;
+        z-index: 30;
+        background: rgba(255,255,255,0.12);
+        border-radius: 8px;
+        padding: 6px 8px;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    .boom-effect {
+        position: fixed;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
+        z-index: 10600;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        animation: boom-pop .9s ease forwards;
+    }
+    
+    
+    @@keyframes boom-pop {
+        0% { transform: translate(-50%, -50%) scale(0.4) rotate(0); opacity: 0; }
+        50% { transform: translate(-50%, -50%) scale(1.12) rotate(6deg); opacity: 1; }
+        100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
+    }
+    .boom-card {
+        background: linear-gradient(45deg,#ffdd57,#ff6b6b);
+        padding: 18px 24px;
+        border-radius: 18px;
+        color:#222;
+        font-weight:800;
+        box-shadow:0 10px 30px rgba(0,0,0,0.25);
+        transform-origin: center;
+    }
+    /* full-screen cat overlay */
+    #catOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 10650;
+    }
+    #catOverlay img { max-width: 90vw; max-height: 75vh; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+    #catOverlay .cat-text { color: #fff; margin-top: 18px; font-size: 1.25rem; font-weight:700; text-align:center; }
+    #catOverlay .cat-close {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        background: rgba(255,255,255,0.95);
+        border: none;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-weight:700;
+        cursor:pointer;
+        z-index: 10660;
+    }
+
+    /* full-page boombastic effect */
+#fullBoomOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    overflow: hidden;
+}
+#fullBoomOverlay .boom-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 40%, rgba(255,220,80,0.95), rgba(255,120,90,0.9) 20%, rgba(140,40,180,0.85) 60%, rgba(0,0,0,0.6) 100%);
+    filter: blur(12px) saturate(140%);
+    animation: boom-pulse 2200ms ease-out forwards;
+}
+#fullBoomOverlay .boom-card {
+    position: relative;
+    z-index: 10710;
+    color: #fff;
+    text-align: center;
+    font-weight: 900;
+    font-size: clamp(28px, 6vw, 72px);
+    transform-origin: center;
+    animation: boom-scale 1200ms ease-out forwards;
+    text-shadow: 0 8px 36px rgba(0,0,0,0.6);
+}
+@@keyframes boom-scale {
+    0% { transform: scale(0.3) rotate(-18deg); opacity: 0; }
+    40% { transform: scale(1.18) rotate(6deg); opacity: 1; }
+    70% { transform: scale(0.98) rotate(-3deg); }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@@keyframes boom-pulse {
+    0% { transform: scale(0.6); opacity: 0.0; }
+    25% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.6); }
+}
 </style>
 
 <!-- User Profile Preview Modal -->
@@ -262,6 +372,8 @@
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+               
             </div>
             
             <div class="modal-body p-0" id="userPreviewContent">
@@ -274,3 +386,96 @@
         </div>
     </div>
 </div>
+
+<!-- Report Modal (blocking) -->
+<div class="modal fade" id="aiReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:14px;">
+            <div class="modal-body text-center p-4">
+                <h5 class="mb-3">Fuck You FYP! Let's Go Play Pickleball</h5>               
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button id="reportContinueBtn" class="btn btn-outline-primary">I want continue do FYP</button>
+                    <button id="reportPlayBtn" class="btn btn-success">Let's go play pickleball</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        // attach report button handler (delegated in case modal inserted late)
+        document.addEventListener('click', function (e) {
+            const el = e.target.closest('#reportUserBtn');
+            if (!el) return;
+
+            // Show blocking modal - static backdrop, no keyboard close
+            const modalEl = document.getElementById('aiReportModal');
+            const bm = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+            bm.show();
+        });
+
+        // "I want continue do FYP" -> boombastic effect then close report modal
+        document.getElementById('reportContinueBtn')?.addEventListener('click', function () {
+            // create overlay
+            if (document.getElementById('fullBoomOverlay')) return; // already showing
+
+            const overlay = document.createElement('div');
+            overlay.id = 'fullBoomOverlay';
+            overlay.innerHTML = '<div class="boom-bg"></div><div class="boom-card">BOOMBASTIC! 💥 Please Try Again!</div>';
+            document.body.appendChild(overlay);
+
+            // prevent interaction with page while effect plays
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+
+            // keep report modal visible and prevent close (backdrop static already). Do NOT hide report modal.
+            // remove overlay after strong effect duration, but keep report modal open.
+            setTimeout(() => {
+                overlay.remove();
+                document.body.style.overflow = prevOverflow || '';
+            }, 2500);
+        });
+
+        // "Let's go play pickleball" -> full-screen cat overlay replacing site (with close button)
+        document.getElementById('reportPlayBtn')?.addEventListener('click', function () {
+            const modalEl = document.getElementById('aiReportModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+
+            // remove site's main content and show cat overlay (we don't actually remove nodes; we overlay full-screen)
+            const overlay = document.createElement('div');
+            overlay.id = 'catOverlay';
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.zIndex = '10800';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.flexDirection = 'column';
+            overlay.style.background = 'rgba(0,0,0,0.98)';
+            overlay.innerHTML = `
+                <button id="catCloseBtn" style="position:absolute;right:18px;top:18px;padding:10px 14px;border-radius:10px;border:none;background:#fff;font-weight:700;cursor:pointer;z-index:10901;">Close</button>
+                <img src="/images/cat.png" alt="Good choice" style="max-width:92vw;max-height:78vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,0.6);" />
+                <div style="color:#fff;margin-top:18px;font-size:1.25rem;font-weight:800;text-align:center;">Good choices FROM your teammate - QS</div>
+            `;
+            document.body.appendChild(overlay);
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+
+            document.getElementById('catCloseBtn')?.addEventListener('click', function () {
+                overlay.remove();
+                document.body.style.overflow = prevOverflow || '';
+            });
+        });
+
+        // If userProfile modal is closed we ensure report modal is hidden too
+        document.getElementById('userProfilePreviewModal')?.addEventListener('hidden.bs.modal', function () {
+            const reportModal = document.getElementById('aiReportModal');
+            const inst = bootstrap.Modal.getInstance(reportModal);
+            if (inst) inst.hide();
+        });
+
+    })();
+</script>

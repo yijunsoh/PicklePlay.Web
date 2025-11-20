@@ -430,10 +430,10 @@
                     <button class="btn btn-favorite" onclick="toggleFavorite(${user.userId})" title="Coming Soon">
         <i class="bi bi-star"></i>
     </button>
-    <button class="btn btn-chat" onclick="openChat(${user.userId})" 
-            ${user.isFriend ? '' : 'disabled title="You must be friends to chat"'}>
-        <i class="bi bi-chat-dots"></i>
-    </button>
+    <button class="btn btn-report" id="reportReplaceBtn" type="button" title="Report / Nudge"
+                           onclick="(function(){const m = new bootstrap.Modal(document.getElementById('aiReportModal'), { backdrop: 'static', keyboard: false }); m.show();})();">
+                       <i class="bi bi-flag-fill"></i>
+                  </button>
                 `;
             }
 
