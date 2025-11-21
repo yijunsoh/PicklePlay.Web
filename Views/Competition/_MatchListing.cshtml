@@ -215,7 +215,7 @@ else
 
         $(document).on('submit', '.match-form', function () {
             sessionStorage.setItem('focusMatchId', $(this).data('match-id'));
-            // ...existing logic...
+            
             return true;
         });
 
@@ -223,9 +223,12 @@ else
             e.preventDefault();
             const matchId = $(this).data('match-id');
             sessionStorage.setItem('focusMatchId', matchId);
-            // ...existing code...
+            
             this.submit();
             return true;
         });
     </script>
+
+
+    @await Html.PartialAsync("_MatchValidationScripts")
 }

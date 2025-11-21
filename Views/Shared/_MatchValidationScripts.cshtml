@@ -1,0 +1,76 @@
+<script>
+/* Shared score validation (0..21), re-used by elimination and pool views */
+(function () {
+    function showFeedback(inputEl, msg) {
+        let fb = inputEl.nextElementSibling;
+        if (!(fb && fb.classList && fb.classList.contains('invalid-feedback'))) {
+            fb = document.createElement('div');
+            fb.className = 'invalid-feedback';
+            inputEl.parentNode.insertBefore(fb, inputEl.nextSibling);
+        }
+        fb.textContent = msg;
+    }
+    function removeFeedback(inputEl) {
+        let fb = inputEl.nextElementSibling;
+        if (fb && fb.classList && fb.classList.contains('invalid-feedback')) fb.remove();
+    }
+    function validateScoreInputEl(el) {
+        if (!el) return true;
+        const raw = (el.value ?? '').toString().trim();
+        if (raw === '') { el.classList.remove('is-invalid'); el.setCustomValidity(''); removeFeedback(el); return true; }
+        const n = Number(raw);
+        if (!Number.isInteger(n) || !Number.isFinite(n) || n < 0 || n > 21) {
+            el.classList.add('is-invalid');
+            const msg = 'invalid score max 21 accept';
+            showFeedback(el, msg);
+            try { el.setCustomValidity(msg); el.reportValidity(); } catch {}
+            return false;
+        }
+        el.classList.remove('is-invalid'); removeFeedback(el);
+        try { el.setCustomValidity(''); } catch {}
+        return true;
+    }
+
+    document.addEventListener('input', function (e) {
+        const el = e.target;
+        if (!el) return;
+        if (el.matches('.score-set-input')) validateScoreInputEl(el);
+    });
+
+    // Intercept submit for forms using .save-score-form
+    (function ($) {
+        $(document).off('submit', '.save-score-form').on('submit', '.save-score-form', function (e) {
+            e.preventDefault();
+            const form = this;
+            const inputs = $(form).find('.score-set-input').toArray();
+            for (const inp of inputs) {
+                if (!validateScoreInputEl(inp)) {
+                    try { inp.focus(); } catch {}
+                    try { inp.reportValidity(); } catch {}
+                    alert('invalid score max 21 accept');
+                    return false;
+                }
+            }
+            // build hidden fields if needed (same logic as before)
+            const team1 = [], team2 = [];
+            for (const el of inputs) {
+                const $el = $(el);
+                const team = $el.data('team-score')?.toString();
+                const val = ($el.val() ?? '').toString().trim();
+                if (team === '1') team1.push(val);
+                else if (team === '2') team2.push(val);
+            }
+            $(form).find('.hidden-team1-score').val(team1.join(','));
+            $(form).find('.hidden-team2-score').val(team2.join(','));
+
+            // submit once
+            $(form).off('submit');
+            form.submit();
+            return true;
+        });
+    })(jQuery);
+
+    // expose for manual calls if needed
+    window.validateScoreInputEl = validateScoreInputEl;
+})();
+</script>

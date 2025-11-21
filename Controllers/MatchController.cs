@@ -878,6 +878,37 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
             return NotFound();
         }
 
+        // Server-side validation: scores must be integers between 0 and 21 (empty allowed)
+        bool ValidateScoreString(string s, out string reason)
+        {
+            reason = string.Empty;
+            if (string.IsNullOrWhiteSpace(s)) return true;
+            var parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim());
+            foreach (var p in parts)
+            {
+                if (!int.TryParse(p, out var v))
+                {
+                    reason = $"Invalid score value '{p}' (must be integer 0..21)";
+                    return false;
+                }
+                if (v < 0 || v > 21)
+                {
+                    reason = $"Score {v} out of allowed range 0..21";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        string r1 = string.Empty, r2 = string.Empty;
+        if (!ValidateScoreString(Team1Score, out r1) || !ValidateScoreString(Team2Score, out r2))
+        {
+            var msg = !string.IsNullOrEmpty(r1) ? r1 : r2;
+            Console.WriteLine($"Score validation failed: {msg}");
+            TempData["ErrorMessage"] = "invalid score max 21 accept";
+            return RedirectToAction("CompDetails", "Competition", new { id = match.ScheduleId, tab = "match-listing" });
+        }
+
         Console.WriteLine($"Match found - Team1Id: {match.Team1Id}, Team2Id: {match.Team2Id}");
         Console.WriteLine($"Current status: {match.Status}, Current winner: {match.WinnerId}");
 
@@ -888,7 +919,7 @@ public async Task<IActionResult> UpdateMatch(int MatchId, string Team1Score, str
         // Update scores
         match.Team1Score = Team1Score;
         match.Team2Score = Team2Score;
-
+        
         // Get current user ID
         var currentUserId = GetCurrentUserId();
         Console.WriteLine($"Current UserId: {currentUserId}");

@@ -113,13 +113,15 @@
                                 @foreach (var score in Model.Team1Score.Split(','))
                                 {
                                     <input type="number" class="form-control form-control-sm score-set-input" 
-                                           data-team-score="1" value="@score.Trim()" min="0" />
+                                           data-team-score="1" value="@score.Trim()" min="0" max="21" step="1"
+                                           inputmode="numeric" pattern="\d*" />
                                 }
                             }
                             else
                             {
                                 <input type="number" class="form-control form-control-sm score-set-input" 
-                                       data-team-score="1" placeholder="e.g. 11" min="0" />
+                                       data-team-score="1" placeholder="e.g. 11" min="0" max="21" step="1"
+                                       inputmode="numeric" pattern="\d*" />
                             }
                         }
                         else if (isDone)
@@ -148,13 +150,15 @@
                                 @foreach (var score in Model.Team2Score.Split(','))
                                 {
                                     <input type="number" class="form-control form-control-sm score-set-input" 
-                                           data-team-score="2" value="@score.Trim()" min="0" />
+                                           data-team-score="2" value="@score.Trim()" min="0" max="21" step="1"
+                                           inputmode="numeric" pattern="\d*" />
                                 }
                             }
                             else
                             {
                                 <input type="number" class="form-control form-control-sm score-set-input" 
-                                       data-team-score="2" placeholder="e.g. 5" min="0" />
+                                       data-team-score="2" placeholder="e.g. 5" min="0" max="21" step="1"
+                                       inputmode="numeric" pattern="\d*" />
                             }
                         }
                         else if (isDone)
