@@ -46,6 +46,8 @@ namespace PicklePlay.Models
         [Display(Name = "Early Bird Deadline (Optional)")]
         public DateTime? EarlyBirdClose { get; set; }
 
+        public decimal? EarlyBirdPrice { get; set; }
+
         [Display(Name = "Number of Teams")]
         [Required]
         [Range(2, 200)]

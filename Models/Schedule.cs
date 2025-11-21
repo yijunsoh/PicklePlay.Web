@@ -104,6 +104,9 @@ namespace PicklePlay.Models
 
         [Column("earlyBirdClose")]
         public DateTime? EarlyBirdClose { get; set; }
+          
+        [Column("earlyBirdPrice", TypeName = "decimal(8,2)")]
+        public decimal? EarlyBirdPrice { get; set; }
 
         [Column("competitionImageUrl")]
         [StringLength(512)] // Max path length

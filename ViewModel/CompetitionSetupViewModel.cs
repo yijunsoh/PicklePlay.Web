@@ -49,5 +49,11 @@ namespace PicklePlay.Models
         [Display(Name = "Match Rules / Details")]
         [StringLength(1000)]
         public string? MatchRule { get; set; } // Default from DB
+
+         [Display(Name = "Number of Teams")]
+        [Required]
+        [Range(2, 200)]
+        public int NumTeam { get; set; } = 16;
+
     }
 }

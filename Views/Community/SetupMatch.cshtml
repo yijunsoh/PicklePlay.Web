@@ -4,201 +4,332 @@
     ViewData["Title"] = "Setup Competition Matches";
 }
 
-<div class="container">
-    @* --- THIS IS THE NEW CODE --- *@
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Setup: @Model.GameName</h3>
-    <div>
-        @{
-            // Define the target URL with the hash
-            var cancelUrl = Url.Action("Activity", "Community") + "#competitions-pane";
-        }
-        
-        <a href="@cancelUrl" class="btn btn-link">Skip for now</a>
-        
-        <a href="@cancelUrl" 
-           class="btn btn-outline-secondary" 
-           onclick="return confirm('Are you sure you want to go back? Any unsaved changes on this page will be lost.')">
-           Back
-        </a>
+<section class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 mb-0">Setup — @Model.GameName</h2>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" href="@Url.Action("Activity", "Community")">Cancel</a>
+        </div>
     </div>
-</div>
 
-    <form asp-action="SetupMatch" asp-route-id="@Model.ScheduleId" method="post">
+    <form id="setupForm" asp-action="SetupMatch" asp-route-id="@Model.ScheduleId" method="post" novalidate>
         @Html.AntiForgeryToken()
-        <input type="hidden" asp-for="ScheduleId" />
-        <input type="hidden" asp-for="GameName" /> @* Pass GameName back if needed *@
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <!-- ensure ScheduleId is posted within the form to avoid route/model mismatch -->
+        <input asp-for="ScheduleId" type="hidden" value="@(Model?.ScheduleId ?? 0)" />
 
-        @* --- Format Selection --- *@
-        <div class="mb-3">
-            <label asp-for="Format" class="form-label"></label>
-            <select asp-for="Format" class="form-select" id="competitionFormatSelect" asp-items="Html.GetEnumSelectList<CompetitionFormat>()"></select>
-            <span asp-validation-for="Format" class="text-danger"></span>
-        </div>
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card mb-3 shadow-sm rounded-3">
+                    <div class="card-body">
+                        <h5 class="mb-3">Competition format</h5>
 
-        <hr />
+                        <div class="row mb-3 g-3">
+                            <div class="col-md-6">
+                                <label asp-for="NumTeam" class="form-label required">Number of teams</label>
+                                <input asp-for="NumTeam" type="number" class="form-control" min="2" required />
+                                <span asp-validation-for="NumTeam" class="text-danger small"></span>
+                            </div>
+                        </div>
 
-        @* --- Pool Play Specific Section --- *@
-        <div id="poolPlayOptions" style="display: none;"> @* Hidden by default *@
-            <h5>Pool Play Settings</h5>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label asp-for="NumPool" class="form-label"></label>
-                    <input asp-for="NumPool" type="number" class="form-control" />
-                    <span asp-validation-for="NumPool" class="text-danger"></span>
+                        <div class="row g-3">
+                            <label asp-for="Format" class="form-label">Format</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary format-btn active"
+                                    data-val="@((int)CompetitionFormat.PoolPlay)">
+                                    <i class="bi bi-grid-1x2-fill"></i> Pool play
+                                </button>
+                                <button type="button" class="btn btn-outline-primary format-btn"
+                                    data-val="@((int)CompetitionFormat.Elimination)">
+                                    <i class="bi bi-diagram-2-fill"></i> Single Elimination
+                                </button>
+                                <button type="button" class="btn btn-outline-primary format-btn"
+                                    data-val="@((int)CompetitionFormat.RoundRobin)">
+                                    <i class="bi bi-arrow-repeat"></i> Round robin
+                                </button>
+                            </div>
+                            <input type="hidden" asp-for="Format" id="FormatHidden" />
+                        </div>
+
+
+                        <div id="poolOptionsCard" class="mt-2" style="display:block;">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="NumPool" class="form-label">Pools</label>
+                                    <input asp-for="NumPool" type="number" class="form-control" min="1" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="WinnersPerPool" class="form-label">Winners per pool</label>
+                                    <input asp-for="WinnersPerPool" type="number" class="form-control" min="1" />
+                                </div>
+                            </div>
+
+                            <div class="mt-3" id="standingBox">
+                                <label asp-for="StandingCalculation" class="form-label">Standing method</label>
+                                <select asp-for="StandingCalculation" id="standingCalculationSelect" class="form-select"
+                                    asp-items="Html.GetEnumSelectList<StandingCalculation>()"></select>
+                            </div>
+
+                            <div class="mt-3">
+                                <label asp-for="MatchRule" class="form-label">Match rules</label>
+                                <textarea asp-for="MatchRule" class="form-control" rows="3"
+                                    placeholder="eg: games to 11, win by 2"></textarea>
+                            </div>
+                        </div>
+
+                        <div id="eliminationCard" class="mt-3" style="display:none;">
+                            <h6>Elimination settings</h6>
+                            <div class="form-check mb-2">
+                                <input asp-for="ThirdPlaceMatch" class="form-check-input" type="checkbox" />
+                                <label asp-for="ThirdPlaceMatch" class="form-check-label">
+                                    Include 3rd-place match
+                                </label>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Match rules</label>
+                                <textarea name="ElimMatchRule" class="form-control match-rule-elim" rows="2"
+                                    placeholder="e.g. best of 3"></textarea>
+                            </div>
+                        </div>
+
+                        <div id="roundRobinCard" class="mt-3" style="display:none;">
+                            <h6>Round robin options</h6>
+                            <div class="form-check mb-2">
+                                <input asp-for="DoublePool" class="form-check-input" type="checkbox" />
+                                <label asp-for="DoublePool" class="form-check-label">Double round-robin</label>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Match rules</label>
+                                <textarea name="RRMatchRule" class="form-control match-rule-rr" rows="2"
+                                    placeholder="e.g. single match each"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label asp-for="WinnersPerPool" class="form-label"></label>
-                    <input asp-for="WinnersPerPool" type="number" class="form-control" />
-                    <span asp-validation-for="WinnersPerPool" class="text-danger"></span>
+
+            </div>
+
+            <div class="col-lg-5">
+                <div class="sticky-top" style="top:88px;">
+
+                    <div id="pointSystemContainer" class="card mb-3 shadow-sm rounded-3" style="display:none;">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0 small fw-bold">Point System Settings</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Win</label>
+                                    <input asp-for="StandardWin" class="form-control form-control-sm" type="number" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Loss</label>
+                                    <input asp-for="StandardLoss" class="form-control form-control-sm" type="number" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">TB Win</label>
+                                    <input asp-for="TieBreakWin" class="form-control form-control-sm" type="number" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">TB Loss</label>
+                                    <input asp-for="TieBreakLoss" class="form-control form-control-sm" type="number" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small">Draw</label>
+                                    <input asp-for="Draw" class="form-control form-control-sm" type="number" />
+                                </div>
+                            </div>
+                            <div class="mt-2 text-muted small">
+                                <i class="bi bi-info-circle"></i> Applies when "Win/Loss Points" standing is selected.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3 shadow-sm rounded-3">
+                        <div class="card-body">
+                            <h6 class="mb-2">Summary</h6>
+                            <dl class="row mb-2">
+                                <dt class="col-6">Teams</dt>
+                                <dd id="summaryNumTeam" class="col-6 text-end">@Model!.NumTeam</dd>
+
+                                <dt class="col-6">Format</dt>
+                                <dd id="summaryFormat" class="col-6 text-end"></dd>
+
+                                <div id="summaryPoolGroup">
+                                    <div class="row">
+                                        <dt class="col-6">Pools</dt>
+                                        <dd id="summaryNumPool" class="col-6 text-end">@Model.NumPool</dd>
+                                    </div>
+                                    <div class="row">
+                                        <dt class="col-6">Winners / pool</dt>
+                                        <dd id="summaryWinnersPerPool" class="col-6 text-end">@Model.WinnersPerPool</dd>
+                                    </div>
+                                </div>
+
+                                <div id="summaryElimGroup" style="display:none;">
+                                    <div class="row">
+                                        <dt class="col-6">3rd place match</dt>
+                                        <dd id="summaryThirdPlace" class="col-6 text-end">No</dd>
+                                    </div>
+                                </div>
+
+                                <div id="summaryRRGroup" style="display:none;">
+                                    <div class="row">
+                                        <dt class="col-6">Double RR</dt>
+                                        <dd id="summaryDoubleRR" class="col-6 text-end">No</dd>
+                                    </div>
+                                </div>
+                            </dl>
+
+                            <div class="d-grid mt-2">
+                                <button type="submit" class="btn btn-success">Save</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="mb-3">
-                <label asp-for="StandingCalculation" class="form-label"></label>
-                <select asp-for="StandingCalculation" id="standingCalculationSelect" class="form-select" asp-items="Html.GetEnumSelectList<StandingCalculation>()"></select>
-                <span asp-validation-for="StandingCalculation" class="text-danger"></span>
-            </div>
-
-            @* Point System (Visible only for WinLossPoints calculation) *@
-            <div id="pointSystemOptions" style="display: none;"> @* Hidden by default *@
-                 <h5>Point System Settings</h5>
-                 <div class="row">
-                     <div class="col-md-6 mb-3">
-                         <label asp-for="StandardWin" class="form-label"></label>
-                         <input asp-for="StandardWin" type="number" class="form-control" />
-                         <span asp-validation-for="StandardWin" class="text-danger"></span>
-                     </div>
-                      <div class="col-md-6 mb-3">
-                         <label asp-for="StandardLoss" class="form-label"></label>
-                         <input asp-for="StandardLoss" type="number" class="form-control" />
-                         <span asp-validation-for="StandardLoss" class="text-danger"></span>
-                     </div>
-                 </div>
-                  <div class="row">
-                     <div class="col-md-6 mb-3">
-                         <label asp-for="TieBreakWin" class="form-label"></label>
-                         <input asp-for="TieBreakWin" type="number" class="form-control" />
-                         <span asp-validation-for="TieBreakWin" class="text-danger"></span>
-                     </div>
-                      <div class="col-md-6 mb-3">
-                         <label asp-for="TieBreakLoss" class="form-label"></label>
-                         <input asp-for="TieBreakLoss" type="number" class="form-control" />
-                         <span asp-validation-for="TieBreakLoss" class="text-danger"></span>
-                     </div>
-                 </div>
-                  <div class="row">
-                       <div class="col-md-6 mb-3">
-                         <label asp-for="Draw" class="form-label"></label>
-                         <input asp-for="Draw" type="number" class="form-control" />
-                         <span asp-validation-for="Draw" class="text-danger"></span>
-                     </div>
-                  </div>
-            </div>
-            <hr />
-            <div class="mb-3">
-        <label asp-for="MatchRule" class="form-label">Match Rules (for Pool Play)</label>
-        <textarea asp-for="MatchRule" class="form-control" rows="3" placeholder="e.g., 'Games to 11, win by 2.'"></textarea>
-        <small class="form-text text-muted">Define the rules for all matches in this stage.</small>
-    </div>
         </div>
-
-        
-
-        @* --- Elimination Specific Section --- *@
-        <div id="eliminationOptions" style="display: none;"> @* Hidden by default *@
-            <h5>Elimination Settings</h5>
-            <div class="form-check mb-3">
-                <input asp-for="ThirdPlaceMatch" class="form-check-input" type="checkbox" />
-                <label asp-for="ThirdPlaceMatch" class="form-check-label"></label>
-                <span asp-validation-for="ThirdPlaceMatch" class="text-danger"></span>
-            </div>
-             <div class="mb-3">
-                <label asp-for="MatchRule" class="form-label"></label>
-                <textarea asp-for="MatchRule" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="MatchRule" class="text-danger"></span>
-            </div>
-             <hr />
-        </div>
-
-        @* --- Round Robin Specific Section --- *@
-         <div id="roundRobinOptions" style="display: none;"> @* Hidden by default *@
-             <h5>Round Robin Settings</h5>
-             <div class="form-check mb-3">
-                <input asp-for="DoublePool" class="form-check-input" type="checkbox" />
-                <label asp-for="DoublePool" class="form-check-label"></label>
-                <span asp-validation-for="DoublePool" class="text-danger"></span>
-            </div>
-             <div class="mb-3">
-                <label asp-for="MatchRule" class="form-label"></label>
-                <textarea asp-for="MatchRule" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="MatchRule" class="text-danger"></span>
-            </div>
-             <hr />
-        </div>
-
-
-        <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Save Setup & Activate</button>
     </form>
-</div>
+</section>
+
+@section Styles {
+    <style>
+        .form-label.required::after {
+            content: " *";
+            color: #dc3545;
+            margin-left: 2px;
+        }
+
+        .format-btn.active {
+            background: linear-gradient(90deg, #0d6efd, #0dcaf0);
+            color: #fff;
+            box-shadow: 0 8px 28px rgba(13, 110, 253, 0.15);
+            border: 0;
+        }
+
+        .sticky-top {
+            position: sticky;
+            /* Standard sticky top offset handled inline, but ensures z-index if needed */
+            z-index: 1000;
+        }
+    </style>
+}
 
 @section Scripts {
-    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <partial name="_ValidationScriptsPartial" />
     <script>
-        const formatSelect = document.getElementById('competitionFormatSelect');
-        const poolPlayDiv = document.getElementById('poolPlayOptions');
-        const eliminationDiv = document.getElementById('eliminationOptions');
-        const roundRobinDiv = document.getElementById('roundRobinOptions');
+        (function () {
+            // --- 1. Definitions ---
+            const FORMAT_LABELS = { "0": "Pool Play", "1": "Single Elimination", "2": "Round Robin" };
+            // Enum values from C# (rendered as integers)
+            const ENUM_POOL = '@((int)CompetitionFormat.PoolPlay)';
+            const ENUM_ELIM = '@((int)CompetitionFormat.Elimination)';
+            const ENUM_RR = '@((int)CompetitionFormat.RoundRobin)';
+            const ENUM_STANDING_PTS = '@((int)StandingCalculation.WinLossPoints)';
 
-        const standingSelect = document.getElementById('standingCalculationSelect');
-        const pointsDiv = document.getElementById('pointSystemOptions');
+            // Inputs (Left Side) - asp-for generates IDs matching the property name
+            const inputs = {
+                format: document.getElementById('FormatHidden'),
+                numTeam: document.getElementById('NumTeam'),
+                numPool: document.getElementById('NumPool'),
+                winners: document.getElementById('WinnersPerPool'),
+                thirdPlace: document.getElementById('ThirdPlaceMatch'),
+                doubleRR: document.getElementById('DoublePool'),
+                standing: document.getElementById('standingCalculationSelect')
+            };
 
-        // Enum values (ensure these match your CompetitionFormat enum integers)
-        const poolPlayValue = "@((int)CompetitionFormat.PoolPlay)";
-        const eliminationValue = "@((int)CompetitionFormat.Elimination)";
-        const roundRobinValue = "@((int)CompetitionFormat.RoundRobin)";
+            // Layout Containers (Left Side)
+            const containers = {
+                pool: document.getElementById('poolOptionsCard'),
+                elim: document.getElementById('eliminationCard'),
+                rr: document.getElementById('roundRobinCard'),
+                pointsLeft: document.getElementById('pointsCardInline') // Kept if you still have the inline one
+            };
 
-        // Enum values for StandingCalculation
-         const winLossPointsValue = "@((int)StandingCalculation.WinLossPoints)";
+            // Summary Elements (Right Side)
+            const summary = {
+                format: document.getElementById('summaryFormat'),
+                numTeam: document.getElementById('summaryNumTeam'),
+                numPool: document.getElementById('summaryNumPool'),
+                winners: document.getElementById('summaryWinnersPerPool'),
+                thirdPlace: document.getElementById('summaryThirdPlace'),
+                doubleRR: document.getElementById('summaryDoubleRR'),
+                // Group containers to hide/show rows in summary
+                poolGroup: document.getElementById('summaryPoolGroup'),
+                elimGroup: document.getElementById('summaryElimGroup'),
+                rrGroup: document.getElementById('summaryRRGroup'),
+                // Point system card
+                pointsCard: document.getElementById('pointSystemContainer')
+            };
 
-        function toggleFormatOptions() {
-            const selectedFormat = formatSelect.value;
+            // --- 2. Logic ---
 
-            // Hide all format-specific sections initially
-            poolPlayDiv.style.display = 'none';
-            eliminationDiv.style.display = 'none';
-            roundRobinDiv.style.display = 'none';
-             togglePointSystemOptions(); // Also hide/show points based on initial standing calc
+            function updateUI() {
+                const currentFormat = inputs.format.value;
 
-            // Show the relevant section
-            if (selectedFormat === poolPlayValue) {
-                poolPlayDiv.style.display = 'block';
-                 togglePointSystemOptions(); // Check point system visibility on format change
-            } else if (selectedFormat === eliminationValue) {
-                eliminationDiv.style.display = 'block';
-            } else if (selectedFormat === roundRobinValue) {
-                roundRobinDiv.style.display = 'block';
+                // A. Update Left Side Visibility
+                containers.pool.style.display = (currentFormat === ENUM_POOL) ? 'block' : 'none';
+                containers.elim.style.display = (currentFormat === ENUM_ELIM) ? 'block' : 'none';
+                containers.rr.style.display = (currentFormat === ENUM_RR) ? 'block' : 'none';
+
+                // B. Update Summary Text
+                summary.format.textContent = FORMAT_LABELS[currentFormat] || 'Unknown';
+                summary.numTeam.textContent = inputs.numTeam.value || '-';
+                summary.numPool.textContent = inputs.numPool.value || '-';
+                summary.winners.textContent = inputs.winners.value || '-';
+                summary.thirdPlace.textContent = inputs.thirdPlace.checked ? 'Yes' : 'No';
+                summary.doubleRR.textContent = inputs.doubleRR.checked ? 'Yes' : 'No';
+
+                // C. Update Summary Rows Visibility
+                summary.poolGroup.style.display = (currentFormat === ENUM_POOL) ? 'block' : 'none';
+                summary.elimGroup.style.display = (currentFormat === ENUM_ELIM) ? 'block' : 'none';
+                summary.rrGroup.style.display = (currentFormat === ENUM_RR) ? 'block' : 'none';
+
+                // D. Update Point System Visibility
+                const isWinLossPoints = inputs.standing.value === ENUM_STANDING_PTS;
+                // Show the right-side card if correct standing method selected
+                if (summary.pointsCard) summary.pointsCard.style.display = isWinLossPoints ? 'block' : 'none';
+                // Show the inline left-side inputs if you kept them
+                if (containers.pointsLeft) containers.pointsLeft.style.display = isWinLossPoints ? 'block' : 'none';
             }
-        }
 
-         function togglePointSystemOptions() {
-            // Only relevant if pool play is visible
-            if (poolPlayDiv.style.display === 'block' && standingSelect.value === winLossPointsValue) {
-                pointsDiv.style.display = 'block';
-            } else {
-                pointsDiv.style.display = 'none';
-            }
-         }
+            // --- 3. Event Listeners ---
 
+            // Format Buttons (Click)
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Update Active State
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
 
-        // Event listeners
-        formatSelect.addEventListener('change', toggleFormatOptions);
-         standingSelect.addEventListener('change', togglePointSystemOptions);
+                    // Set Hidden Value
+                    inputs.format.value = btn.dataset.val;
 
+                    // Trigger Update
+                    updateUI();
+                });
+            });
 
-        // Initial call on page load to set the correct visibility
-        document.addEventListener('DOMContentLoaded', function() {
-            toggleFormatOptions();
-        });
+            // Input Fields (Input & Change)
+            // We listen to 'input' (typing) and 'change' (checkbox/select commits)
+            const allInputs = [inputs.numTeam, inputs.numPool, inputs.winners, inputs.thirdPlace, inputs.doubleRR, inputs.standing];
+            allInputs.forEach(el => {
+                if (el) {
+                    el.addEventListener('input', updateUI);
+                    el.addEventListener('change', updateUI);
+                }
+            });
+
+            // --- 4. Initialization ---
+// Find the button that is set as 'active' in the HTML
+const activeBtn = document.querySelector('.format-btn.active');
+
+if (activeBtn) {
+    // Initialize the hidden input's value to match the active button
+    inputs.format.value = activeBtn.dataset.val;
+}
+
+// Now call updateUI() to synchronize all elements based on this initial value
+updateUI();
+        })();
     </script>
 }

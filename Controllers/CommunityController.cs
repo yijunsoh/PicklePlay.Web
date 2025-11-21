@@ -609,10 +609,20 @@ namespace PicklePlay.Controllers
             if (vm.FeeType == FeeType.PerPerson && !vm.FeeAmount.HasValue) { ModelState.AddModelError("FeeAmount", "Fee Amount is required for Per Team fee type."); }
             if (vm.StartTime <= DateTime.Now) { ModelState.AddModelError("StartTime", "Competition Start Date & Time must be in the future."); }
 
+// New: Early-bird pairing validation (both-or-none) server-side
+            var earlyPriceProvided = vm.EarlyBirdPrice.HasValue && vm.EarlyBirdPrice.Value > 0m;
+            var earlyCloseProvided = vm.EarlyBirdClose.HasValue;
+            if (earlyPriceProvided ^ earlyCloseProvided) // XOR -> one provided but not the other
+            {
+                if (!earlyPriceProvided) ModelState.AddModelError("EarlyBirdPrice", "Early bird price is required when early bird deadline is set.");
+                if (!earlyCloseProvided) ModelState.AddModelError("EarlyBirdClose", "Early bird deadline is required when early bird price is set.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return View(vm);
             }
+
 
             // --- 1. Handle File Upload FIRST ---
             string? uniqueImagePath = await ProcessUploadedImage(vm.PosterImage);
@@ -639,11 +649,12 @@ namespace PicklePlay.Controllers
                 RegOpen = vm.RegOpen,
                 RegClose = vm.RegClose,
                 EarlyBirdClose = vm.EarlyBirdClose,
+                 EarlyBirdPrice = (vm.FeeType == FeeType.PerPerson) ? vm.EarlyBirdPrice : null,
                 NumTeam = vm.NumTeam,
                 Duration = null,
                 NumPlayer = null,
-                MinRankRestriction = vm.MinRankRestriction,
-                MaxRankRestriction = vm.MaxRankRestriction,
+                MinRankRestriction = vm.MinRankRestriction ?? 0.000m,
+                MaxRankRestriction = vm.MaxRankRestriction ?? 0.000m,
                 GenderRestriction = vm.GenderRestriction,
                 AgeGroupRestriction = vm.AgeGroupRestriction,
                 FeeType = vm.FeeType,
@@ -725,9 +736,10 @@ namespace PicklePlay.Controllers
                 RegOpen = schedule.RegOpen ?? DateTime.Now,
                 RegClose = schedule.RegClose ?? DateTime.Now,
                 EarlyBirdClose = schedule.EarlyBirdClose,
+                EarlyBirdPrice = (schedule.FeeType == FeeType.PerPerson) ? schedule.EarlyBirdPrice : null,
                 NumTeam = schedule.NumTeam ?? 8,
-                MinRankRestriction = schedule.MinRankRestriction,
-                MaxRankRestriction = schedule.MaxRankRestriction,
+                MinRankRestriction = schedule.MinRankRestriction ?? 0.000m,
+                MaxRankRestriction = schedule.MaxRankRestriction ?? 0.000m,
                 GenderRestriction = schedule.GenderRestriction ?? Models.GenderRestriction.None,
                 AgeGroupRestriction = schedule.AgeGroupRestriction ?? Models.AgeGroupRestriction.Adult,
                 FeeType = schedule.FeeType ?? Models.FeeType.Free,
@@ -858,6 +870,11 @@ namespace PicklePlay.Controllers
         public IActionResult SetupMatch(int id, CompetitionSetupViewModel vm)
         {
             if (id != vm.ScheduleId) { return BadRequest("ID mismatch."); }
+            // tolerate missing/incorrect binding from the form:
+            // - if vm.ScheduleId is 0 (not bound), use route id
+            // - if both present but different, treat as mismatch
+            if (vm.ScheduleId == 0) vm.ScheduleId = id;
+           if (id != vm.ScheduleId) { return BadRequest("ID mismatch."); }
 
             if (vm.Format == CompetitionFormat.PoolPlay)
             {
