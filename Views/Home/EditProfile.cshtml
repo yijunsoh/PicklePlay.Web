@@ -605,8 +605,8 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h1><i class="fas fa-user-edit me-3"></i>Edit Profile</h1>
-                <p class="lead mb-0">Manage your personal information and preferences</p>
+                <h1><i class="fas fa-user-edit me-3"></i>My Profile</h1>
+                @* <p class="lead mb-0">Manage your personal information and preferences</p> *@
             </div>
             <div class="col-md-4 text-end">
                 <a href="@Url.Action("Community", "Home")" class="btn btn-light btn-sm">
@@ -644,218 +644,208 @@
 }
 
     <div class="row">
-        <!-- Left side: Profile form -->
-        <div class="col-lg-8 col-md-7">
-            <div class="form-container">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="mb-0"><i class="fas fa-user-cog me-2"></i>Profile Settings</h3>
-                    <button type="button" class="btn btn-edit" id="editToggleBtn">
-                        <i class="fas fa-edit me-2"></i>Edit Profile
+    <div class="col-lg-8 col-md-7">
+        <div class="form-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="mb-0"><i class="fas fa-user-cog me-2"></i>Profile Settings</h3>
+                <button type="button" class="btn btn-edit" id="editToggleBtn">
+                    <i class="fas fa-edit me-2"></i>Edit Profile
+                </button>
+            </div>
+
+            <form method="post" asp-controller="Home" asp-action="UpdateProfile" enctype="multipart/form-data"
+                  id="profileForm" class="needs-validation" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="UserId" />
+                <input type="hidden" asp-for="CurrentProfileImagePath" />
+
+                @Html.ValidationSummary(true, "", new { @class = "validation-summary-errors" })
+
+                <div class="profile-header mb-4">
+                    <div class="profile-image-upload">
+                        <img src="@(string.IsNullOrEmpty(Model.CurrentProfileImagePath) ? "/images/profile_image.jpg" : Model.CurrentProfileImagePath)"
+                             alt="Profile Picture" id="profileImagePreview" class="shadow">
+                        <div class="edit-overlay" onclick="document.getElementById('profileImage').click()">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h4 class="fw-bold mb-2" id="displayName">@Model.FullName</h4>
+                        <p class="text-muted mb-2">Member since @DateTime.Now.Year</p>
+                        <input type="file" class="form-control d-none" id="profileImage" name="ProfileImage"
+                               accept="image/*" style="max-width: 300px;">
+                        <small class="text-muted d-none" id="imageHelp">
+                            <i class="fas fa-info-circle me-1"></i>Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                        </small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="FullName" class="form-label fw-bold">
+                            <i class="fas fa-user me-2"></i>Full Name
+                        </label>
+                        <input asp-for="FullName" class="form-control" readonly
+                               data-original-value="@Model.FullName" />
+                        <span asp-validation-for="FullName" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Email" class="form-label fw-bold">
+                            <i class="fas fa-envelope me-2"></i>Email Address
+                        </label>
+                        <div class="input-group">
+                            <input asp-for="Email" class="form-control" readonly
+                                   data-original-value="@Model.Email" />
+                            <span class="input-group-text bg-success text-white">
+                                <i class="fas fa-check me-1"></i>Verified
+                            </span>
+                        </div>
+                        <small class="text-muted">Email cannot be changed</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="PhoneNumber" class="form-label fw-bold">
+                            <i class="fas fa-phone me-2"></i>Phone Number
+                        </label>
+                        <input asp-for="PhoneNumber" class="form-control" placeholder="e.g., +6012-3456789" readonly
+                               data-original-value="@Model.PhoneNumber" pattern="^(\+?6?01)[0-46-9]-*[0-9]{7,8}$"
+                               title="Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)" />
+                        <span asp-validation-for="PhoneNumber" class="field-validation-error"></span>
+                        <small class="text-muted">Format: +6012-3456789 or 012-3456789</small>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Gender" class="form-label fw-bold">
+                            <i class="fas fa-venus-mars me-2"></i>Gender
+                        </label>
+                        <select asp-for="Gender" class="form-control" disabled data-original-value="@Model.Gender">
+                            <option value="">Select your gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <span asp-validation-for="Gender" class="field-validation-error"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="DateOfBirth" class="form-label fw-bold">
+                            <i class="fas fa-birthday-cake me-2"></i>Date of Birth
+                        </label>
+                        <input asp-for="DateOfBirth" type="date" class="form-control" readonly
+                               data-original-value="@Model.DateOfBirth?.ToString("yyyy-MM-dd")"
+                               max="@DateTime.Now.AddYears(-18).ToString("yyyy-MM-dd")"
+                               title="You must be at least 18 years old" />
+                        <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Age" class="form-label fw-bold">Age</label>
+                        <input asp-for="Age" class="form-control" readonly />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Location" class="form-label fw-bold">
+                            <i class="fas fa-map-marker-alt me-2"></i>Location (State)
+                        </label>
+                        <select asp-for="Location" class="form-control" disabled
+                                data-original-value="@Model.Location">
+                            <option value="">Select your state</option>
+                            @foreach (var state in malaysianStates)
+                            {
+                                <option value="@state">@state</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Location" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-lock me-2"></i>Password
+                        </label>
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-password-change" id="changePasswordBtn"
+                                    data-bs-toggle="modal" data-bs-target="#changePasswordModal" disabled>
+                                <i class="fas fa-key me-2"></i>Change Password
+                            </button>
+                        </div>
+                        <small class="text-muted">Click "Edit Profile" to enable password change</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Bio" class="form-label fw-bold">
+                        <i class="fas fa-edit me-2"></i>Bio
+                    </label>
+                    <textarea asp-for="Bio" class="form-control" rows="3"
+                              placeholder="Tell something about yourself..." readonly data-original-value="@Model.Bio"
+                              maxlength="500"></textarea>
+                    <span asp-validation-for="Bio" class="field-validation-error"></span>
+                    <small class="text-muted">
+                        <span id="bioCharCount">@(Model.Bio?.Length ?? 0)</span>/500 characters
+                    </small>
+                </div>
+
+                <div class="d-flex gap-2 button-group mt-4">
+                    <button type="submit" class="btn btn-save d-none" id="saveBtn">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                    <button type="button" class="btn btn-cancel d-none" id="cancelBtn">
+                        <i class="fas fa-times me-2"></i>Cancel
                     </button>
                 </div>
+            </form>
 
-                <!-- Profile Form -->
-                <form method="post" asp-controller="Home" asp-action="UpdateProfile" enctype="multipart/form-data"
-                    id="profileForm" class="needs-validation" novalidate>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" asp-for="UserId" />
-                    <input type="hidden" asp-for="CurrentProfileImagePath" />
-
-                    @Html.ValidationSummary(true, "", new { @class = "validation-summary-errors" })
-
-                    <div class="profile-header mb-4">
-                        <div class="profile-image-upload">
-                            <img src="@(string.IsNullOrEmpty(Model.CurrentProfileImagePath) ? "/images/profile_image.jpg" : Model.CurrentProfileImagePath)"
-                                alt="Profile Picture" id="profileImagePreview" class="shadow">
-                            <div class="edit-overlay" onclick="document.getElementById('profileImage').click()">
-                                <i class="fas fa-camera"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h4 class="fw-bold mb-2" id="displayName">@Model.FullName</h4>
-                            <p class="text-muted mb-2">Member since @DateTime.Now.Year</p>
-                            <input type="file" class="form-control d-none" id="profileImage" name="ProfileImage"
-                                accept="image/*" style="max-width: 300px;">
-                            <small class="text-muted d-none" id="imageHelp">
-                                <i class="fas fa-info-circle me-1"></i>Max file size: 5MB. Supported formats: JPG, PNG,
-                                GIF
-                            </small>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="FullName" class="form-label fw-bold">
-                                <i class="fas fa-user me-2"></i>Full Name
-                            </label>
-                            <input asp-for="FullName" class="form-control" readonly
-                                data-original-value="@Model.FullName" />
-                            <span asp-validation-for="FullName" class="field-validation-error"></span>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Email" class="form-label fw-bold">
-                                <i class="fas fa-envelope me-2"></i>Email Address
-                            </label>
-                            <div class="input-group">
-                                <input asp-for="Email" class="form-control" readonly
-                                    data-original-value="@Model.Email" />
-                                <span class="input-group-text bg-success text-white">
-                                    <i class="fas fa-check me-1"></i>Verified
-                                </span>
-                            </div>
-                            <small class="text-muted">Email cannot be changed</small>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="PhoneNumber" class="form-label fw-bold">
-                                <i class="fas fa-phone me-2"></i>Phone Number
-                            </label>
-                            <input asp-for="PhoneNumber" class="form-control" placeholder="e.g., +6012-3456789" readonly
-                                data-original-value="@Model.PhoneNumber" pattern="^(\+?6?01)[0-46-9]-*[0-9]{7,8}$"
-                                title="Please enter a valid Malaysian phone number (e.g., +6012-3456789 or 012-3456789)" />
-                            <span asp-validation-for="PhoneNumber" class="field-validation-error"></span>
-                            <small class="text-muted">Format: +6012-3456789 or 012-3456789</small>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Gender" class="form-label fw-bold">
-                                <i class="fas fa-venus-mars me-2"></i>Gender
-                            </label>
-                            <select asp-for="Gender" class="form-control" disabled data-original-value="@Model.Gender">
-                                <option value="">Select your gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                            <span asp-validation-for="Gender" class="field-validation-error"></span>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="DateOfBirth" class="form-label fw-bold">
-                                <i class="fas fa-birthday-cake me-2"></i>Date of Birth
-                            </label>
-                            <input asp-for="DateOfBirth" type="date" class="form-control" readonly
-                                data-original-value="@Model.DateOfBirth?.ToString("yyyy-MM-dd")"
-                                max="@DateTime.Now.AddYears(-18).ToString("yyyy-MM-dd")"
-                                title="You must be at least 18 years old" />
-                            <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Age" class="form-label fw-bold">Age</label>
-                            <input asp-for="Age" class="form-control" readonly />
-                        </div>
-                    </div>
-
-                    <!-- Location and Password Change Section -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Location" class="form-label fw-bold">
-                                <i class="fas fa-map-marker-alt me-2"></i>Location (State)
-                            </label>
-                            <select asp-for="Location" class="form-control" disabled
-                                data-original-value="@Model.Location">
-                                <option value="">Select your state</option>
-                                @foreach (var state in malaysianStates)
-                                {
-                                    <option value="@state">@state</option>
-                                }
-                            </select>
-                            <span asp-validation-for="Location" class="field-validation-error"></span>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-lock me-2"></i>Password
-                            </label>
-                            <div class="d-grid">
-                                <button type="button" class="btn btn-password-change" id="changePasswordBtn"
-                                    data-bs-toggle="modal" data-bs-target="#changePasswordModal" disabled>
-                                    <i class="fas fa-key me-2"></i>Change Password
-                                </button>
-                            </div>
-                            <small class="text-muted">Click "Edit Profile" to enable password change</small>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Bio" class="form-label fw-bold">
-                            <i class="fas fa-edit me-2"></i>Bio
-                        </label>
-                        <textarea asp-for="Bio" class="form-control" rows="3"
-                            placeholder="Tell something about yourself..." readonly data-original-value="@Model.Bio"
-                            maxlength="500"></textarea>
-                        <span asp-validation-for="Bio" class="field-validation-error"></span>
-                        <small class="text-muted"><span id="bioCharCount">@(Model.Bio?.Length ?? 0)</span>/500
-                            characters</small>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2 button-group mt-4">
-                        <button type="submit" class="btn btn-save d-none" id="saveBtn">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
-                        <button type="button" class="btn btn-cancel d-none" id="cancelBtn">
-                            <i class="fas fa-times me-2"></i>Cancel
-                        </button>
-                    </div>
-                </form>
-
-                <div class="mt-4">
-                    @await Component.InvokeAsync("EndorsementSection", new { userId = Model.UserId })
-                </div>
-                </div>
-
-                    <div class="form-container mt-4">
-        <h5 class="mb-3"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Your RANK Rating</h5>
-        
-        <!-- RANK Section -->
-<div class="form-container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">
-            <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Your RANK Rating
-        </h5>
-        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshRankBtn" title="Refresh RANK data">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-success" id="recalculateRankBtn" title="Recalculate rating from all matches">
-                <i class="bi bi-calculator"></i> Recalculate
-            </button>
-    </div>
-    
-    <div id="profileRankLoading" class="text-center py-3">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+            <div class="mt-4">
+                @await Component.InvokeAsync("EndorsementSection", new { userId = Model.UserId })
+            </div>
         </div>
-        <p class="text-muted mt-2 small">Loading your rating...</p>
     </div>
 
-    <div id="profileRankData" style="display: none;">
-        <!-- RANK content will be loaded here -->
-    </div>
-    
-    <div id="profileRankError" style="display: none;">
-        <div class="alert alert-danger mb-0">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <span id="rankErrorMessage">Failed to load RANK data</span>
+    <div class="col-lg-4 col-md-5">
+        
+        <div class="side-box">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Rank Rating
+                </h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshRankBtn" title="Refresh RANK data">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                </div>
+
+            <div id="profileRankLoading" class="text-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-2 small">Loading your rating...</p>
+            </div>
+
+            <div id="profileRankData" style="display: none;">
+                </div>
+
+            <div id="profileRankError" style="display: none;">
+                <div class="alert alert-danger mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <span id="rankErrorMessage">Failed to load RANK data</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-box mt-4">
+            @{
+                var achievements = await GetUserAchievements(Model.UserId);
+            }
+            @await Html.PartialAsync("_UserAchievementsSection", achievements)
         </div>
     </div>
 </div>
-    </div>
-
-                <div class="mt-4">
-                    @{
-                        var achievements = await GetUserAchievements(Model.UserId);
-                    }
-                    @await Html.PartialAsync("_UserAchievementsSection", achievements)
-                </div>
-                </div>
-            
 
 @functions {
     private async Task<UserAchievementViewModel> GetUserAchievements(int userId)
@@ -902,74 +892,7 @@
     }
 }
 
-            <!-- Right side: Wallet + Communities -->
-            <div class="col-lg-4 col-md-5">
-                <!-- Wallet Section -->
-                <div class="side-box text-center">
-                    <h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Wallet Balance & Overview</h5>
-                    <div class="chart-container">
-                        <canvas id="walletChart"></canvas>
-                    </div>
-
-                    <!-- Legend -->
-                    <div class="mt-3">
-                        <span class="badge bg-success me-1">Balance</span>
-                        <span class="badge bg-primary me-1">Escrow</span>
-                        <span class="badge bg-danger">Spent</span>
-                    </div>
-                    <div class="wallet-balance mt-2">RM 250.00</div>
-                    <div class="wallet-overview text-muted">
-                        <p class="mb-1">Total Escrow: RM 120.00</p>
-                        <p class="mb-2">Total Spent: RM 80.00</p>
-                        <a href="@Url.Action("WalletManagement", "Wallet")" class="btn btn-save mt-2">
-                            <i class="fas fa-arrow-right me-2"></i>Go to Wallet Management
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Communities Section -->
-                <div class="side-box">
-                    <h5 class="mb-3"><i class="fas fa-users me-2"></i>Communities Joined</h5>
-                    <ul class="community-list list-unstyled">
-                        <li>
-                            <a href="@Url.Action("CommunityPages", "Home")" class="text-decoration-none">
-                                🏸 KL Pickleball Club
-                            </a>
-                        </li>
-                        <li>🎾 Penang Pickleballers</li>
-                        <li>⚡ Weekend Warriors</li>
-                    </ul>
-                    <div class="text-center mt-3">
-                        <a href="@Url.Action("Community", "Home")" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye me-2"></i>View All Communities
-                        </a>
-                    </div>
-                </div>
-
-
-                <!-- Quick Stats -->
-                <div class="side-box">
-                    <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Quick Stats</h5>
-                    <div class="row">
-                        <div class="col-6 mb-3">
-                            <div class="stats-card">
-                                <i class="fas fa-calendar-check"></i>
-                                <h4>12</h4>
-                                <p>Bookings</p>
-                            </div>
-                        </div>
-                        <div class="col-6 mb-3">
-                            <div class="stats-card">
-                                <i class="fas fa-trophy"></i>
-                                <h4>8</h4>
-                                <p>Matches</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        
 
     <!-- Change Password Modal -->
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
@@ -1027,52 +950,8 @@
 
 
 @section Scripts {
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
         <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                // Initialize wallet chart
-                const ctx = document.getElementById('walletChart').getContext('2d');
-                const walletChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Balance', 'Escrow', 'Spent'],
-                        datasets: [{
-                            data: [250, 120, 80],
-                            backgroundColor: [
-                                'rgba(25, 135, 84, 0.8)',
-                                'rgba(13, 110, 253, 0.8)',
-                                'rgba(220, 53, 69, 0.8)'
-                            ],
-                            borderColor: [
-                                'rgba(25, 135, 84, 1)',
-                                'rgba(13, 110, 253, 1)',
-                                'rgba(220, 53, 69, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            datalabels: {
-                                color: '#fff',
-                                font: {
-                                    weight: 'bold',
-                                    size: 12
-                                },
-                                formatter: (value, ctx) => {
-                                    let label = ctx.chart.data.labels[ctx.dataIndex];
-                                    return label + "\nRM " + value;
-                                }
-                            }
-                        }
-                    },
-                    plugins: [ChartDataLabels]
-                });
-
+            document.addEventListener('DOMContentLoaded', function () {               
                 const editToggleBtn = document.getElementById('editToggleBtn');
                 const saveBtn = document.getElementById('saveBtn');
                 const cancelBtn = document.getElementById('cancelBtn');
