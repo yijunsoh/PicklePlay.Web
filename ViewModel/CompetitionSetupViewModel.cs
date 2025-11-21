@@ -43,7 +43,7 @@ namespace PicklePlay.Models
 
         // --- Round Robin Specific ---
         [Display(Name = "Play Each Team Twice (Double Round Robin)?")]
-        public bool DoublePool { get; set; } = false; // Default from DB (mapped from tinyint 1)
+        public bool DoubleRR { get; set; } = false; // Default from DB (mapped from tinyint 1)
 
         // --- Common / Elimination / Round Robin ---
         [Display(Name = "Match Rules / Details")]

@@ -88,8 +88,8 @@
                         <div id="roundRobinCard" class="mt-3" style="display:none;">
                             <h6>Round robin options</h6>
                             <div class="form-check mb-2">
-                                <input asp-for="DoublePool" class="form-check-input" type="checkbox" />
-                                <label asp-for="DoublePool" class="form-check-label">Double round-robin</label>
+                                <input asp-for="DoubleRR" class="form-check-input" type="checkbox" />
+                                <label asp-for="DoubleRR" class="form-check-label">Double round-robin</label>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Match rules</label>
@@ -223,7 +223,7 @@
                 numPool: document.getElementById('NumPool'),
                 winners: document.getElementById('WinnersPerPool'),
                 thirdPlace: document.getElementById('ThirdPlaceMatch'),
-                doubleRR: document.getElementById('DoublePool'),
+                doubleRR: document.getElementById('DoubleRR'),
                 standing: document.getElementById('standingCalculationSelect')
             };
 

@@ -1,0 +1,43 @@
+@model PicklePlay.Models.ViewModels.RRStandingsViewModel
+@using PicklePlay.Models
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th class="text-end">MP</th>
+                <th class="text-end">W</th>
+                <th class="text-end">L</th>
+                <th class="text-end">GW</th>
+                <th class="text-end">GL</th>
+                <th class="text-end">SD</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Standings == null || !Model.Standings.Any())
+            {
+                <tr><td colspan="8" class="text-center text-muted">No standings available yet.</td></tr>
+            }
+            else
+            {
+                var rank = 1;
+                foreach (var s in Model.Standings)
+                {
+                    <tr>
+                        <td>@rank</td>
+                        <td>@s.TeamName</td>
+                        <td class="text-end">@s.GamesPlayed</td>
+                        <td class="text-end">@s.MatchesWon</td>
+                        <td class="text-end">@s.MatchesLost</td>
+                        <td class="text-end">@s.GamesWon</td>
+                        <td class="text-end">@s.GamesLost</td>
+                        <td class="text-end">@s.ScoreDifference</td>
+                    </tr>;
+                    rank++;
+                }
+            }
+        </tbody>
+    </table>
+</div>

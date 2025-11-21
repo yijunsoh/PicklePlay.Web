@@ -1139,7 +1139,7 @@
                                 }
                                 @if (Model.Competition.Format == CompetitionFormat.RoundRobin)
                                 {
-                                    <p><strong>Double Round:</strong> @(Model.Competition.DoublePool ? "Yes" : "No")</p>
+                                    <p><strong>Double Round:</strong> @(Model.Competition.DoubleRR ? "Yes" : "No")</p>
                                 }
                             </div>
                             <div class="col-md-6">
@@ -2281,8 +2281,21 @@
 
             standingTab.addEventListener('show.bs.tab', function (event) {
                 if (!standingLoaded) {
-                    loadStanding();
-                    standingLoaded = true;
+                    // choose endpoint based on format
+                    var url = COMP_DATA.isRoundRobin
+                        ? '/Standing/GetRoundRobinStandings?id=' + COMP_DATA.scheduleId
+                        : '/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId;
+
+                    fetch(url)
+                        .then(r => r.text())
+                        .then(html => {
+                            var container = document.getElementById('standing-container');
+                            if (container) {
+                                container.innerHTML = html;
+                            }
+                            standingLoaded = true;
+                        })
+                        .catch(err => console.error('Failed to load standings', err));
                 }
             });
 
@@ -2298,23 +2311,27 @@
                                         </div>
                                     </div>`;
 
-                fetch('/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId)
-                    .then(response => {
-                        console.log('Standing response status:', response.status);
-                        if (!response.ok) {
-                            throw new Error('HTTP error ' + response.status);
-                        }
-                        return response.text();
-                    })
-                    .then(html => {
-                        console.log('Standing HTML received, length:', html.length);
-                        container.innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Failed to load standing:', error);
-                        container.innerHTML =
-                            '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load standings: ' + error.message + '</div>';
-                    });
+                // choose appropriate endpoint for current format
+                var endpoint = COMP_DATA.isRoundRobin
+                    ? '/Standing/GetRoundRobinStandings?id=' + COMP_DATA.scheduleId
+                    : '/Standing/GetPoolStandings?id=' + COMP_DATA.scheduleId;
+                fetch(endpoint)
+                     .then(response => {
+                         console.log('Standing response status:', response.status);
+                         if (!response.ok) {
+                             throw new Error('HTTP error ' + response.status);
+                         }
+                         return response.text();
+                     })
+                     .then(html => {
+                         console.log('Standing HTML received, length:', html.length);
+                         container.innerHTML = html;
+                     })
+                     .catch(error => {
+                         console.error('Failed to load standing:', error);
+                         container.innerHTML =
+                             '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load standings: ' + error.message + '</div>';
+                     });
             }
         }
 

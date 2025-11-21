@@ -24,8 +24,8 @@ namespace PicklePlay.Models
         [Column("thirdPlaceMatch")]
         public bool ThirdPlaceMatch { get; set; } = true; // Assuming 0=Yes maps to true
 
-        [Column("doublePool")]
-        public bool DoublePool { get; set; } = false; // Assuming 1=No maps to false
+        [Column("doubleRR")]
+        public bool DoubleRR { get; set; } = false; // Assuming 1=No maps to false
 
         [Column("standingCalculation")]
         public StandingCalculation StandingCalculation { get; set; } = StandingCalculation.WinLossPoints;

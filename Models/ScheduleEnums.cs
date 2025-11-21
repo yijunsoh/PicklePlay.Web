@@ -139,7 +139,7 @@ namespace PicklePlay.Models
     {
         Null = 0,
         Active = 1,
-        Past = 2,
+        Past = 2, //schedule end game
         Quit = 3,
         Cancelled = 4,
         PendingSetup = 5,

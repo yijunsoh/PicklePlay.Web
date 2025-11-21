@@ -674,7 +674,7 @@ namespace PicklePlay.Controllers
                 NumPool = 4,
                 WinnersPerPool = 1,
                 ThirdPlaceMatch = true,
-                DoublePool = false,
+                DoubleRR = false,
                 StandingCalculation = StandingCalculation.WinLossPoints
             };
 
@@ -859,7 +859,7 @@ namespace PicklePlay.Controllers
                 TieBreakLoss = schedule.Competition.TieBreakLoss,
                 Draw = schedule.Competition.Draw,
                 ThirdPlaceMatch = schedule.Competition.ThirdPlaceMatch,
-                DoublePool = schedule.Competition.DoublePool,
+                DoubleRR = schedule.Competition.DoubleRR,
                 MatchRule = schedule.Competition.MatchRule
             };
 
@@ -919,7 +919,7 @@ namespace PicklePlay.Controllers
             scheduleToUpdate.Competition.ThirdPlaceMatch = vm.ThirdPlaceMatch; // <-- THIS IS THE FIX
 
             // Round Robin Settings
-            scheduleToUpdate.Competition.DoublePool = vm.DoublePool;
+            scheduleToUpdate.Competition.DoubleRR = vm.DoubleRR;
             // --- END OF NEW LOGIC ---
 
             scheduleToUpdate.Status = ScheduleStatus.Active;

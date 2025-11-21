@@ -83,5 +83,94 @@ namespace PicklePlay.Controllers
 
             return PartialView("~/Views/Competition/_PoolStandings.cshtml", viewModel);
         }
+
+                [HttpGet]
+        public async Task<IActionResult> GetRoundRobinStandings(int id)
+        {
+            Console.WriteLine($"GetRoundRobinStandings called with id: {id}");
+
+            var competition = await _context.Competitions
+                .FirstOrDefaultAsync(c => c.ScheduleId == id);
+
+            if (competition == null || competition.Format != CompetitionFormat.RoundRobin)
+            {
+                Console.WriteLine("Competition not found or not round robin");
+                return PartialView("~/Views/Competition/_EmptyStanding.cshtml");
+            }
+
+            // Get confirmed teams for this schedule
+            var teams = await _context.Teams
+                .Where(t => t.ScheduleId == id && t.Status == TeamStatus.Confirmed)
+                .ToListAsync();
+
+            var matches = await _context.Matches
+                .Where(m => m.ScheduleId == id && !m.IsThirdPlaceMatch && m.Status == MatchStatus.Done)
+                .ToListAsync();
+
+            var standings = new List<RRTeamStanding>();
+
+            foreach (var team in teams)
+            {
+                var st = new RRTeamStanding
+                {
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName ?? "TBD"
+                };
+
+                var teamMatches = matches.Where(m => m.Team1Id == team.TeamId || m.Team2Id == team.TeamId).ToList();
+
+                foreach (var match in teamMatches)
+                {
+                    bool isTeam1 = match.Team1Id == team.TeamId;
+                    var teamScoreStr = isTeam1 ? match.Team1Score : match.Team2Score;
+                    var oppScoreStr = isTeam1 ? match.Team2Score : match.Team1Score;
+
+                    if (string.IsNullOrEmpty(teamScoreStr) || string.IsNullOrEmpty(oppScoreStr))
+                        continue;
+
+                    var teamSets = teamScoreStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => int.TryParse(s.Trim(), out var v) ? v : 0).ToArray();
+                    var oppSets = oppScoreStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => int.TryParse(s.Trim(), out var v) ? v : 0).ToArray();
+
+                    int setWins = 0, oppSetWins = 0;
+                    int teamTotal = 0, oppTotal = 0;
+                    for (int i = 0; i < Math.Min(teamSets.Length, oppSets.Length); i++)
+                    {
+                        if (teamSets[i] > oppSets[i]) setWins++;
+                        else if (oppSets[i] > teamSets[i]) oppSetWins++;
+
+                        teamTotal += teamSets[i];
+                        oppTotal += oppSets[i];
+                    }
+
+                    st.GamesPlayed++;
+                    st.GamesWon += setWins;
+                    st.GamesLost += oppSetWins;
+                    st.ScoreDifference += (teamTotal - oppTotal);
+
+                    if (match.WinnerId == team.TeamId) st.MatchesWon++;
+                    else if (match.WinnerId.HasValue) st.MatchesLost++;
+                }
+
+                standings.Add(st);
+            }
+
+            // Sort: MatchesWon desc, GamesWon desc, GamesLost asc, ScoreDifference desc
+            standings = standings
+                .OrderByDescending(s => s.MatchesWon)
+                .ThenByDescending(s => s.GamesWon)
+                .ThenBy(s => s.GamesLost)
+                .ThenByDescending(s => s.ScoreDifference)
+                .ToList();
+
+            var vm = new RRStandingsViewModel
+            {
+                ScheduleId = id,
+                Standings = standings
+            };
+
+            return PartialView("~/Views/Competition/_RRStandings.cshtml", vm);
+        }
     }
 }

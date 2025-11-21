@@ -9,6 +9,8 @@ namespace PicklePlay.Models.ViewModels
         public Competition ?Competition { get; set; }
         public DrawPoolPlayViewModel ?PoolDraw { get; set; }
         public DrawEliminationViewModel ?EliminationDraw { get; set; }
+
+        public int ConfirmedTeamCount { get; set; }
     }
 
     public class MatchListingViewModel
