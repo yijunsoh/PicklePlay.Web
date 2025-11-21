@@ -25,7 +25,11 @@ namespace PicklePlay.Controllers
         {
             return View("Community");
         }
-
+        private DateTime NowMYT()
+        {
+            var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
+        }
         // GET: /Communities/GetCommunityData
         [HttpGet]
         public async Task<IActionResult> GetCommunityData()
@@ -1671,13 +1675,13 @@ namespace PicklePlay.Controllers
                 return BadRequest(new { success = false, message = "Invalid data submitted." });
             }
 
-            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            var currentUserId = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserId.HasValue)
             {
                 return Unauthorized(new { success = false, message = "User not authenticated." });
             }
 
-            int userId = currentUserIdInt.Value;
+            int userId = currentUserId.Value;
 
             try
             {
@@ -1688,127 +1692,109 @@ namespace PicklePlay.Controllers
                     .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
 
                 if (community == null)
-                {
                     return NotFound(new { success = false, message = "Community not found." });
-                }
 
-                // Verify user is community admin
-                var userMembership = await _context.CommunityMembers
+                // --- Validate Admin ---
+                var membership = await _context.CommunityMembers
                     .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
-                                             cm.UserId == userId &&
-                                             cm.Status == "Active" &&
-                                             cm.CommunityRole == "Admin");
+                                               cm.UserId == userId &&
+                                               cm.Status == "Active" &&
+                                               cm.CommunityRole == "Admin");
 
                 var isCreator = community.CreateByUserId == userId;
 
-                if (userMembership == null && !isCreator)
-                {
-                    return Forbid("Only community admins can delete this community.");
-                }
+                if (membership == null && !isCreator)
+                    return Forbid("You are not allowed to delete this community.");
 
-                // Verify community name matches for confirmation
+                // --- Confirm Name Match ---
                 if (!community.CommunityName.Equals(model.ConfirmationName, StringComparison.OrdinalIgnoreCase))
+                    return BadRequest(new { success = false, message = "Community name does not match." });
+
+                // --- Pending Requests ---
+                if (community.CommunityType == "Private" &&
+                    community.Memberships.Any(m => m.Status == "Pending"))
                 {
-                    return BadRequest(new { success = false, message = "Community name does not match. Please type the exact community name to confirm deletion." });
+                    return BadRequest(new { success = false, message = "Cannot delete community with pending join requests." });
                 }
 
-                // Check for pending join requests (for private communities)
-                if (community.CommunityType == "Private")
-                {
-                    var pendingRequests = community.Memberships
-                        .Where(m => m.Status == "Pending")
-                        .Any();
+                // --- Active Games ---
+                var hasActiveGames = await _context.Schedules
+                    .AnyAsync(s =>
+                        s.Location != null &&
+                        s.Location.Contains(community.CommunityName) &&
+                        (s.Status == ScheduleStatus.Active ||
+                         s.Status == ScheduleStatus.Open ||
+                         s.Status == ScheduleStatus.InProgress));
 
-                    if (pendingRequests)
-                    {
-                        return BadRequest(new { success = false, message = "Cannot delete private community while there are pending join requests. Please resolve all pending requests first." });
-                    }
-                }
+                if (hasActiveGames)
+                    return BadRequest(new { success = false, message = "Community has active games. Cancel them first." });
 
-                // Check for active games/competitions associated with this community
-                var activeGames = await _context.Schedules
-                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
-                               (s.Status == ScheduleStatus.Active || s.Status == ScheduleStatus.Open || s.Status == ScheduleStatus.InProgress))
-                    .AnyAsync();
+                // --- Upcoming Competitions ---
+                var hasUpcomingComps = await _context.Schedules
+                    .AnyAsync(s =>
+                        s.Location != null &&
+                        s.Location.Contains(community.CommunityName) &&
+                        s.ScheduleType == ScheduleType.Competition &&
+                        s.StartTime > NowMYT() &&
+                        s.Status != ScheduleStatus.Cancelled);
 
-                if (activeGames)
-                {
-                    return BadRequest(new { success = false, message = "Cannot delete community while there are active games or competitions associated with it. Please cancel or complete all active events first." });
-                }
+                if (hasUpcomingComps)
+                    return BadRequest(new { success = false, message = "Cancel all upcoming competitions first." });
 
-                // Check for upcoming competitions
-                var upcomingCompetitions = await _context.Schedules
-                    .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
-                               s.ScheduleType == ScheduleType.Competition &&
-                               s.StartTime > DateTime.UtcNow &&
-                               s.Status != ScheduleStatus.Cancelled)
-                    .AnyAsync();
+                // Store MYT timestamp
+                var nowMYT = NowMYT();
+                string originalName = community.CommunityName;
 
-                if (upcomingCompetitions)
-                {
-                    return BadRequest(new { success = false, message = "Cannot delete community while there are upcoming competitions. Please cancel all upcoming competitions first." });
-                }
+                // --- Option 2: Unique Rename ---
+                string timestamp = nowMYT.ToString("yyyyMMddHHmmss");
+                string randomSuffix = Guid.NewGuid().ToString("N")[..6];
 
-                // Get ALL active members to notify (INCLUDING the deletor)
-                var activeMembers = community.Memberships
-                    .Where(m => m.Status == "Active")
-                    .Select(m => m.UserId)
-                    .ToList();
-
-                // SOFT DELETE: Update status to "Deleted" and store deletion metadata
+                community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
                 community.Status = "Deleted";
-                community.CommunityName = $"[DELETED] {community.CommunityName}";
 
-                // UPDATED: Format the reason field as "This community was deleted on YYYY-MM-DD + reason"
-                var deletionDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
-                community.DeletionReason = $"This community was deleted on {deletionDate}. Reason: {model.DeleteReason}";
+                // Deletion reason with MYT date
+                community.DeletionReason =
+                    $"This community was deleted on {nowMYT:yyyy-MM-dd HH:mm} MYT. Reason: {model.DeleteReason}";
 
                 community.DeletedByUserId = userId;
-                community.DeletionDate = DateTime.UtcNow;
+                community.DeletionDate = nowMYT;
 
+                // Update Community
                 _context.Communities.Update(community);
 
-                // Archive or remove related data
+                // Remove related data
                 _context.CommunityAnnouncements.RemoveRange(community.Announcements);
                 _context.CommunityBlockLists.RemoveRange(community.BlockedUsers);
 
-                // Update all memberships to inactive
-                foreach (var membership in community.Memberships)
-                {
-                    membership.Status = "Inactive";
-                }
+                // Set all members to inactive
+                foreach (var m in community.Memberships)
+                    m.Status = "Inactive";
 
-                // SEND NOTIFICATIONS TO ALL FORMER MEMBERS (INCLUDING DELETOR)
-                if (model.NotifyMembers && activeMembers.Any())
+                // --- Notifications ---
+                if (model.NotifyMembers)
                 {
-                    var currentUser = await _context.Users.FindAsync(userId);
-                    var deleterName = currentUser?.Username ?? "Admin";
-                    var originalCommunityName = community.CommunityName.Replace("[DELETED] ", "");
+                    var affectedMembers = community.Memberships
+                        .Select(m => m.UserId)
+                        .Distinct()
+                        .ToList();
 
-                    foreach (var memberId in activeMembers)
+                    var deleter = await _context.Users.FindAsync(userId);
+                    string deleterName = deleter?.Username ?? "Admin";
+
+                    foreach (var memberId in affectedMembers)
                     {
-                        // Create different message for deletor vs other members
-                        string message;
-                        if (memberId == userId)
-                        {
-                            // Message for the person who deleted the community
-                            message = $"You have successfully deleted the community '{originalCommunityName}'. Reason: {model.DeleteReason}";
-                        }
-                        else
-                        {
-                            // Message for other members
-                            message = $"The community '{originalCommunityName}' has been deleted by {deleterName}. Reason: {model.DeleteReason}";
-                        }
+                        string message = memberId == userId
+                            ? $"You deleted the community '{originalName}'. Reason: {model.DeleteReason}"
+                            : $"The community '{originalName}' was deleted by {deleterName}. Reason: {model.DeleteReason}";
 
-                        var notification = new Notification
+                        _context.Notifications.Add(new Notification
                         {
                             UserId = memberId,
                             Message = message,
-                            LinkUrl = null, // Redirect to communities list
+                            LinkUrl = null,
                             IsRead = false,
-                            DateCreated = DateTime.UtcNow
-                        };
-                        _context.Notifications.Add(notification);
+                            DateCreated = nowMYT
+                        });
                     }
                 }
 
@@ -1817,20 +1803,21 @@ namespace PicklePlay.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Community has been successfully deleted.",
-                    communityId = model.CommunityId
+                    message = "Community deleted successfully.",
+                    newName = community.CommunityName
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Database error deleting community: {ex.Message}");
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "An unexpected error occurred while deleting the community."
+                    message = "A server error occurred.",
+                    detail = ex.Message
                 });
             }
         }
+
 
         // GET: /Communities/CheckCommunityDeletionRules
         [HttpGet]
@@ -1887,154 +1874,154 @@ namespace PicklePlay.Controllers
         }
 
         // GET: /Communities/GetCommunityChatHistory
-[HttpGet]
-public async Task<IActionResult> GetCommunityChatHistory(int communityId, int skip = 0, int take = 50)
-{
-    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-    {
-        return Unauthorized(new { success = false, message = "User not authenticated." });
-    }
-
-    int userId = currentUserIdInt.Value;
-
-    try
-    {
-        // Verify user is a member of this community
-        var membership = await _context.CommunityMembers
-            .FirstOrDefaultAsync(cm => cm.CommunityId == communityId && 
-                                     cm.UserId == userId && 
-                                     cm.Status == "Active");
-
-        if (membership == null)
+        [HttpGet]
+        public async Task<IActionResult> GetCommunityChatHistory(int communityId, int skip = 0, int take = 50)
         {
-            return Forbid("You must be a member to view community chat.");
-        }
-
-        // Get chat history (latest messages first, then reverse for display)
-        var messages = await _context.CommunityChatMessages
-            .Include(m => m.Sender)
-            .Where(m => m.CommunityId == communityId && !m.IsDeleted)
-            .OrderByDescending(m => m.SentAt)
-            .Skip(skip)
-            .Take(take)
-            .Select(m => new
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
             {
-                messageId = m.MessageId,
-                communityId = m.CommunityId,
-                senderId = m.SenderId,
-                senderName = m.Sender!.Username ?? "Unknown",
-                senderProfilePicture = m.Sender.ProfilePicture,
-                content = m.Content,
-                sentAt = m.SentAt,
-                isAdmin = _context.CommunityMembers
-                    .Any(cm => cm.CommunityId == communityId && 
-                              cm.UserId == m.SenderId && 
-                              cm.CommunityRole == "Admin"),
-                isModerator = _context.CommunityMembers
-                    .Any(cm => cm.CommunityId == communityId && 
-                              cm.UserId == m.SenderId && 
-                              cm.CommunityRole == "Moderator"),
-                isMine = m.SenderId == userId
-            })
-            .ToListAsync();
-
-        // Reverse to show oldest to newest
-        messages.Reverse();
-
-        return Ok(new
-        {
-            success = true,
-            data = new
-            {
-                messages = messages,
-                hasMore = messages.Count == take
+                return Unauthorized(new { success = false, message = "User not authenticated." });
             }
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error loading chat history: {ex.Message}");
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "An error occurred while loading chat history."
-        });
-    }
-}
 
-// POST: /Communities/DeleteCommunityMessage (Admin/Moderator can delete ANY message)
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> DeleteCommunityMessage(int messageId, int communityId)
-{
-    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-    if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-    {
-        return Unauthorized(new { success = false, message = "User not authenticated." });
-    }
+            int userId = currentUserIdInt.Value;
 
-    int userId = currentUserIdInt.Value;
+            try
+            {
+                // Verify user is a member of this community
+                var membership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active");
 
-    try
-    {
-        var message = await _context.CommunityChatMessages
-            .FirstOrDefaultAsync(m => m.MessageId == messageId && m.CommunityId == communityId);
+                if (membership == null)
+                {
+                    return Forbid("You must be a member to view community chat.");
+                }
 
-        if (message == null)
-        {
-            return NotFound(new { success = false, message = "Message not found." });
+                // Get chat history (latest messages first, then reverse for display)
+                var messages = await _context.CommunityChatMessages
+                    .Include(m => m.Sender)
+                    .Where(m => m.CommunityId == communityId && !m.IsDeleted)
+                    .OrderByDescending(m => m.SentAt)
+                    .Skip(skip)
+                    .Take(take)
+                    .Select(m => new
+                    {
+                        messageId = m.MessageId,
+                        communityId = m.CommunityId,
+                        senderId = m.SenderId,
+                        senderName = m.Sender!.Username ?? "Unknown",
+                        senderProfilePicture = m.Sender.ProfilePicture,
+                        content = m.Content,
+                        sentAt = m.SentAt,
+                        isAdmin = _context.CommunityMembers
+                            .Any(cm => cm.CommunityId == communityId &&
+                                      cm.UserId == m.SenderId &&
+                                      cm.CommunityRole == "Admin"),
+                        isModerator = _context.CommunityMembers
+                            .Any(cm => cm.CommunityId == communityId &&
+                                      cm.UserId == m.SenderId &&
+                                      cm.CommunityRole == "Moderator"),
+                        isMine = m.SenderId == userId
+                    })
+                    .ToListAsync();
+
+                // Reverse to show oldest to newest
+                messages.Reverse();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        messages = messages,
+                        hasMore = messages.Count == take
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading chat history: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while loading chat history."
+                });
+            }
         }
 
-        // Check if user is admin/moderator or message owner
-        var membership = await _context.CommunityMembers
-            .FirstOrDefaultAsync(cm => cm.CommunityId == communityId && 
-                                     cm.UserId == userId && 
-                                     cm.Status == "Active");
-
-        if (membership == null)
+        // POST: /Communities/DeleteCommunityMessage (Admin/Moderator can delete ANY message)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteCommunityMessage(int messageId, int communityId)
         {
-            return Forbid("You are not a member of this community.");
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+            }
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                var message = await _context.CommunityChatMessages
+                    .FirstOrDefaultAsync(m => m.MessageId == messageId && m.CommunityId == communityId);
+
+                if (message == null)
+                {
+                    return NotFound(new { success = false, message = "Message not found." });
+                }
+
+                // Check if user is admin/moderator or message owner
+                var membership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
+                                             cm.UserId == userId &&
+                                             cm.Status == "Active");
+
+                if (membership == null)
+                {
+                    return Forbid("You are not a member of this community.");
+                }
+
+                // ⬇️ UPDATED: Admin and Moderator can delete ANY message, users can only delete their own
+                bool isAdmin = membership.CommunityRole == "Admin";
+                bool isModerator = membership.CommunityRole == "Moderator";
+                bool isOwner = message.SenderId == userId;
+
+                bool canDelete = isAdmin || isModerator || isOwner;
+
+                if (!canDelete)
+                {
+                    return Forbid("You don't have permission to delete this message.");
+                }
+
+                // Soft delete
+                message.IsDeleted = true;
+                message.DeletedAt = DateTime.UtcNow;
+                message.DeletedByUserId = userId;
+
+                _context.CommunityChatMessages.Update(message);
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"Message {messageId} deleted by user {userId} (Role: {membership.CommunityRole})");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Message deleted successfully.",
+                    messageId = messageId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting message: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while deleting the message."
+                });
+            }
         }
-
-        // ⬇️ UPDATED: Admin and Moderator can delete ANY message, users can only delete their own
-        bool isAdmin = membership.CommunityRole == "Admin";
-        bool isModerator = membership.CommunityRole == "Moderator";
-        bool isOwner = message.SenderId == userId;
-
-        bool canDelete = isAdmin || isModerator || isOwner;
-
-        if (!canDelete)
-        {
-            return Forbid("You don't have permission to delete this message.");
-        }
-
-        // Soft delete
-        message.IsDeleted = true;
-        message.DeletedAt = DateTime.UtcNow;
-        message.DeletedByUserId = userId;
-
-        _context.CommunityChatMessages.Update(message);
-        await _context.SaveChangesAsync();
-
-        Console.WriteLine($"Message {messageId} deleted by user {userId} (Role: {membership.CommunityRole})");
-
-        return Ok(new
-        {
-            success = true,
-            message = "Message deleted successfully.",
-            messageId = messageId
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error deleting message: {ex.Message}");
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "An error occurred while deleting the message."
-        });
-    }
-}
     }
 }
