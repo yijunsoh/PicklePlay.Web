@@ -1524,23 +1524,69 @@ public async Task<IActionResult> AdvanceToPlayoff(int scheduleId)
         var poolGroups = qualifiedTeams
             .GroupBy(qt => qt.PoolName)
             .OrderBy(g => g.Key)
+            .Select(g => g.OrderBy(q => q.Position).ToList())
             .ToList();
 
         int numPools = poolGroups.Count;
         int winnersPerPool = competition.WinnersPerPool;
 
-        if (numPools == 2 && winnersPerPool == 2)
+        // Pair pools (A vs B), for each pair produce cross match order:
+        // A#1 vs B#2, B#1 vs A#2, then A#3,B#3, A#4,B#4...
+        if (numPools >= 2)
         {
-            var poolA = poolGroups[0].OrderBy(qt => qt.Position).ToList();
-            var poolB = poolGroups[1].OrderBy(qt => qt.Position).ToList();
+            for (int i = 0; i < numPools; i += 2)
+            {
+                // if odd last pool has no partner -> fall back to simple interleave
+                if (i + 1 >= numPools)
+                {
+                    var lone = poolGroups[i];
+                    for (int pos = 1; pos <= winnersPerPool; pos++)
+                    {
+                        var entryTuple = lone.FirstOrDefault(x => x.Position == pos);
+                        if (entryTuple.Team != null) seededTeams.Add(entryTuple.Team);
+                    }
+                    break;
+                }
 
-            seededTeams.Add(poolA[0].Team); // Pool A #1
-            seededTeams.Add(poolB[1].Team); // Pool B #2
-            seededTeams.Add(poolB[0].Team); // Pool B #1
-            seededTeams.Add(poolA[1].Team); // Pool A #2
+                var A = poolGroups[i];
+                var B = poolGroups[i + 1];
+
+                // primary cross pairs for pos 1 and 2
+                if (winnersPerPool >= 2)
+                {
+                    var a1Tuple = A.FirstOrDefault(x => x.Position == 1);
+                    var b2Tuple = B.FirstOrDefault(x => x.Position == 2);
+                    var A1 = a1Tuple.Team;
+                    var B2 = b2Tuple.Team;
+                    if (A1 != null && B2 != null) { seededTeams.Add(A1); seededTeams.Add(B2); }
+
+                    var b1Tuple = B.FirstOrDefault(x => x.Position == 1);
+                    var a2Tuple = A.FirstOrDefault(x => x.Position == 2);
+                    var B1 = b1Tuple.Team;
+                    var A2 = a2Tuple.Team;
+                    if (B1 != null && A2 != null) { seededTeams.Add(B1); seededTeams.Add(A2); }
+                }
+                else
+                {
+                    // winnersPerPool == 1 -> pair A1 vs B1 (fallback)
+                    var A1 = A.FirstOrDefault(x => x.Position == 1).Team;
+                    var B1 = B.FirstOrDefault(x => x.Position == 1).Team;
+                    if (A1 != null && B1 != null) { seededTeams.Add(A1); seededTeams.Add(B1); }
+                }
+
+                // for any remaining positions (3..winnersPerPool), append A#pos then B#pos
+                for (int pos = 3; pos <= winnersPerPool; pos++)
+                {
+                    var aPos = A.FirstOrDefault(x => x.Position == pos).Team;
+                    var bPos = B.FirstOrDefault(x => x.Position == pos).Team;
+                    if (aPos != null) seededTeams.Add(aPos);
+                    if (bPos != null) seededTeams.Add(bPos);
+                }
+            }
         }
         else
         {
+            // fallback: interleave by position across pools (existing behavior)
             for (int pos = 1; pos <= winnersPerPool; pos++)
             {
                 foreach (var poolGroup in poolGroups)
