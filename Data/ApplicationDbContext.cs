@@ -14,7 +14,7 @@ namespace PicklePlay.Data
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<EscrowDispute> EscrowDisputes { get; set; }
         public DbSet<RefundRequest> RefundRequests { get; set; }
-
+        public DbSet<UserSuspension> UserSuspensions { get; set; }
         public DbSet<Community> Communities { get; set; }
         public DbSet<CommunityRequest> CommunityRequests { get; set; }
         public DbSet<CommunityMember> CommunityMembers { get; set; }
@@ -50,7 +50,7 @@ namespace PicklePlay.Data
         public DbSet<RankMatch> RankMatches { get; set; }
         public DbSet<RankMatchHistory> RankMatchHistories { get; set; }
 
-public DbSet<AiSuggestedPartner> AiSuggestedPartners { get; set; }
+        public DbSet<AiSuggestedPartner> AiSuggestedPartners { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

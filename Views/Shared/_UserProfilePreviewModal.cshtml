@@ -17,7 +17,7 @@
         border-radius: 50%;
         border: 4px solid white;
         object-fit: cover;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         margin-bottom: 15px;
     }
 
@@ -157,12 +157,85 @@
         right: 18px;
         top: 18px;
         z-index: 30;
-        background: rgba(255,255,255,0.12);
+        background: rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         padding: 6px 8px;
         color: white;
         border: none;
         cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .report-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+
+    /* Report Modal Styles */
+    #aiReportModal .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    #aiReportModal .modal-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        border-bottom: none;
+        padding: 20px;
+    }
+
+    #aiReportModal .modal-title {
+        font-weight: 700;
+        font-size: 1.3rem;
+    }
+
+    #aiReportModal .modal-body {
+        padding: 25px;
+    }
+
+    #aiReportModal .modal-footer {
+        border-top: 1px solid #e9ecef;
+        padding: 20px 25px;
+    }
+
+    #aiReportModal .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 12px;
+        font-size: 0.95rem;
+        resize: vertical;
+    }
+
+    #aiReportModal .form-control:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    #aiReportModal .alert-info {
+        background-color: #e8f4fd;
+        border-color: #b6e0fe;
+        color: #055160;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    #reportConfirmBtn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    #reportConfirmBtn:not(:disabled):hover {
+        background-color: #c82333;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    }
+
+    .form-text {
+        text-align: right;
+        font-size: 0.85rem;
+        color: #6c757d;
     }
 </style>
 
@@ -185,138 +258,459 @@
     </div>
 </div>
 
-<!-- Clean Report Modal -->
+<!-- Report User Modal -->
 <div class="modal fade" id="aiReportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius:14px;">
-            <div class="modal-body text-center p-4">
-                <h5 class="mb-3">Report User</h5>
-
-                <p class="text-muted">Are you sure you want to report this user?</p>
-
-                <div class="d-flex justify-content-center gap-2 mt-3">
-                    <button id="reportCancelBtn" class="btn btn-outline-secondary">Cancel</button>
-                    <button id="reportConfirmBtn" class="btn btn-danger">Submit Report</button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Report User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="reportReason" class="form-label">Reason for reporting</label>
+                    <textarea class="form-control" id="reportReason" rows="4"
+                        placeholder="Please provide details about why you are reporting this user..."
+                        maxlength="500"></textarea>
+                    <div class="form-text">
+                        <span id="charCount">0</span>/500 characters
+                    </div>
                 </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Your report will be reviewed by our moderation team. False
+                    reports may result in action against your account.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="reportCancelBtn"
+                    data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="reportConfirmBtn" disabled>Submit Report</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-(function() {
-    // Store modal instances
-    let reportModalInstance = null;
-    let userPreviewModalInstance = null;
+    (function () {
+        // Store modal instances and current target user
+        let reportModalInstance = null;
+        let userPreviewModalInstance = null;
+        let currentTargetUserId = null;
 
-    // Initialize modals when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize report modal
-        const reportModalEl = document.getElementById('aiReportModal');
-        if (reportModalEl) {
-            reportModalInstance = new bootstrap.Modal(reportModalEl, {
-                backdrop: true,
-                keyboard: true
+        // Initialize modals when DOM is ready
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize report modal
+            const reportModalEl = document.getElementById('aiReportModal');
+            if (reportModalEl) {
+                reportModalInstance = new bootstrap.Modal(reportModalEl, {
+                    backdrop: true,
+                    keyboard: true
+                });
+            }
+
+            // Initialize user preview modal
+            const userPreviewModalEl = document.getElementById('userProfilePreviewModal');
+            if (userPreviewModalEl) {
+                userPreviewModalInstance = new bootstrap.Modal(userPreviewModalEl);
+            }
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Monitor for user data in console and global variables
+            setupUserDataMonitoring();
+        });
+
+        function setupUserDataMonitoring() {
+            // Method 1: Override console.log to capture user data
+            const originalConsoleLog = console.log;
+            console.log = function (...args) {
+                originalConsoleLog.apply(console, args);
+
+                // Look for user data in console logs
+                args.forEach(arg => {
+                    try {
+                        if (typeof arg === 'string') {
+                            if (arg.includes('User data:') || arg.includes('userId:')) {
+                                extractUserIdFromConsole(arg);
+                            }
+                        } else if (typeof arg === 'object' && arg !== null) {
+                            // Directly check if this is a user object
+                            if (arg.userId || (arg.id && (arg.username || arg.fullName))) {
+                                currentTargetUserId = arg.userId || arg.id;
+                                console.log('Extracted user ID from object:', currentTargetUserId);
+                            } else {
+                                // Try to extract from nested objects
+                                extractUserIdFromObject(arg);
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Error processing console arg:', e);
+                    }
+                });
+            };
+
+            // Method 2: Monitor the specific function that shows user profile
+            overrideShowUserProfilePreview();
+
+            // Method 3: Monitor DOM changes for user data
+            const observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (mutation) {
+                    mutation.addedNodes.forEach(function (node) {
+                        if (node.nodeType === 1) {
+                            // Add report button to user header
+                            const userHeader = node.querySelector ? node.querySelector('.user-preview-header') : null;
+                            if (userHeader && !userHeader.querySelector('.report-btn')) {
+                                addReportButton(userHeader);
+                            }
+
+                            // Check for data attributes in the modal content
+                            checkForDataAttributes(node);
+                        }
+                    });
+                });
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Also check existing content
+            const existingHeader = document.querySelector('.user-preview-header');
+            if (existingHeader && !existingHeader.querySelector('.report-btn')) {
+                addReportButton(existingHeader);
+            }
+        }
+
+        function overrideShowUserProfilePreview() {
+            // Store the original function if it exists
+            const originalShowUserProfilePreview = window.showUserProfilePreview;
+
+            if (originalShowUserProfilePreview) {
+                window.showUserProfilePreview = function (...args) {
+                    console.log('showUserProfilePreview called with:', args);
+
+                    // Try to extract user ID from arguments
+                    args.forEach(arg => {
+                        if (arg && typeof arg === 'object') {
+                            const userId = extractUserIdFromObject(arg);
+                            if (userId) {
+                                console.log('User ID extracted from showUserProfilePreview:', userId);
+                            }
+                        }
+                    });
+
+                    // Call the original function
+                    return originalShowUserProfilePreview.apply(this, args);
+                };
+            }
+        }
+
+        function checkForDataAttributes(node) {
+            // Look for elements with data-user-id or similar attributes
+            const elementsWithUserId = node.querySelectorAll ?
+                node.querySelectorAll('[data-user-id], [data-user], [data-id]') : [];
+
+            elementsWithUserId.forEach(element => {
+                const userId = element.getAttribute('data-user-id') ||
+                    element.getAttribute('data-user') ||
+                    element.getAttribute('data-id');
+                if (userId && !isNaN(userId)) {
+                    currentTargetUserId = parseInt(userId);
+                    console.log('Extracted user ID from data attribute:', currentTargetUserId);
+                }
             });
         }
 
-        // Initialize user preview modal
-        const userPreviewModalEl = document.getElementById('userProfilePreviewModal');
-        if (userPreviewModalEl) {
-            userPreviewModalInstance = new bootstrap.Modal(userPreviewModalEl);
+        function extractUserIdFromConsole(logMessage) {
+            try {
+                // Try to parse JSON-like structures
+                if (typeof logMessage === 'string') {
+                    const jsonMatch = logMessage.match(/\{.*userId[^}]*\}/);
+                    if (jsonMatch) {
+                        const userData = JSON.parse(jsonMatch[0]);
+                        if (userData.userId) {
+                            currentTargetUserId = userData.userId;
+                            console.log('Extracted user ID from console:', currentTargetUserId);
+                            return userData.userId;
+                        }
+                    }
+
+                    // Try to extract from key-value pairs
+                    const userIdMatch = logMessage.match(/userId[:\s]*(\d+)/i);
+                    if (userIdMatch) {
+                        currentTargetUserId = parseInt(userIdMatch[1]);
+                        console.log('Extracted user ID from console pattern:', currentTargetUserId);
+                        return currentTargetUserId;
+                    }
+                }
+            } catch (e) {
+                console.log('Error extracting from console:', e);
+            }
+            return null;
         }
 
-        // Setup event listeners
-        setupEventListeners();
-    });
+        function extractUserIdFromObject(obj) {
+            if (!obj || typeof obj !== 'object') return null;
 
-    function setupEventListeners() {
-        // Report button click
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('#reportUserBtn')) {
+            try {
+                // Check common user data structures
+                if (obj.userId !== undefined && obj.userId !== null) {
+                    currentTargetUserId = obj.userId;
+                    console.log('Extracted user ID from object.userId:', currentTargetUserId);
+                    return obj.userId;
+                }
+
+                if (obj.id !== undefined && obj.id !== null && (obj.username || obj.fullName)) {
+                    currentTargetUserId = obj.id;
+                    console.log('Extracted user ID from object.id:', currentTargetUserId);
+                    return obj.id;
+                }
+
+                // Check nested structures
+                for (let key in obj) {
+                    if (obj[key] && typeof obj[key] === 'object') {
+                        const userId = extractUserIdFromObject(obj[key]);
+                        if (userId) return userId;
+                    }
+                }
+            } catch (e) {
+                console.log('Error extracting from object:', e);
+            }
+
+            return null;
+        }
+
+        function addReportButton(userHeader) {
+            // Create and add report button
+            const reportButton = document.createElement('button');
+            reportButton.className = 'report-btn';
+            reportButton.title = 'Report User';
+            reportButton.innerHTML = '<i class="fas fa-flag"></i>';
+
+            reportButton.addEventListener('click', function (e) {
                 e.preventDefault();
-                if (reportModalInstance) {
+                e.stopPropagation();
+
+                if (currentTargetUserId) {
+                    console.log('Using stored user ID:', currentTargetUserId);
+                    resetReportForm();
                     reportModalInstance.show();
+                } else {
+                    // Try one more time to extract from various sources
+                    const userId = tryEmergencyExtraction();
+                    if (userId) {
+                        currentTargetUserId = userId;
+                        console.log('Using emergency extracted user ID:', currentTargetUserId);
+                        resetReportForm();
+                        reportModalInstance.show();
+                    } else {
+                        alert('Unable to identify user. Please try again. Current ID: ' + currentTargetUserId);
+                    }
+                }
+            });
+
+            userHeader.style.position = 'relative';
+            userHeader.appendChild(reportButton);
+        }
+
+        function tryEmergencyExtraction() {
+            // Method 1: Check URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const userIdFromUrl = urlParams.get('userId') || urlParams.get('id');
+            if (userIdFromUrl) return parseInt(userIdFromUrl);
+
+            // Method 2: Check the modal content for any numbers that might be IDs
+            const modalContent = document.getElementById('userPreviewContent');
+            if (modalContent) {
+                // Look for any data attributes
+                const dataUserId = modalContent.querySelector('[data-user-id]');
+                if (dataUserId) {
+                    return parseInt(dataUserId.getAttribute('data-user-id'));
+                }
+
+                // Look for hidden inputs
+                const hiddenUserId = modalContent.querySelector('input[name="userId"], input[name="targetUserId"]');
+                if (hiddenUserId && hiddenUserId.value) {
+                    return parseInt(hiddenUserId.value);
                 }
             }
-        });
 
-        // Cancel report
-        const cancelBtn = document.getElementById('reportCancelBtn');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                if (reportModalInstance) {
-                    reportModalInstance.hide();
+            return null;
+        }
+
+        function setupEventListeners() {
+            // Character count for report reason
+            const reportReason = document.getElementById('reportReason');
+            if (reportReason) {
+                reportReason.addEventListener('input', function () {
+                    const charCount = this.value.length;
+                    document.getElementById('charCount').textContent = charCount;
+
+                    // Enable/disable submit button based on input
+                    const submitBtn = document.getElementById('reportConfirmBtn');
+                    if (submitBtn) {
+                        submitBtn.disabled = charCount === 0 || charCount > 500;
+                    }
+                });
+            }
+
+            // Cancel report
+            const cancelBtn = document.getElementById('reportCancelBtn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function () {
+                    if (reportModalInstance) {
+                        reportModalInstance.hide();
+                        resetReportForm();
+                    }
+                });
+            }
+
+            // Submit report
+            const confirmBtn = document.getElementById('reportConfirmBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function () {
+                    submitReport();
+                });
+            }
+
+            // Allow Enter key to submit (but not with Shift/Ctrl)
+            if (reportReason) {
+                reportReason.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+                        e.preventDefault();
+                        const submitBtn = document.getElementById('reportConfirmBtn');
+                        if (submitBtn && !submitBtn.disabled) {
+                            submitReport();
+                        }
+                    }
+                });
+            }
+
+            // Emergency cleanup for any modal issues
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    forceCleanup();
                 }
+            });
+
+            // Cleanup when modals are hidden
+            document.addEventListener('hidden.bs.modal', function (e) {
+                if (e.target.id === 'aiReportModal') {
+                    resetReportForm();
+                }
+
+                setTimeout(() => {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length > 0) {
+                        forceCleanup();
+                    }
+                }, 50);
             });
         }
 
-        // Submit report
-        const confirmBtn = document.getElementById('reportConfirmBtn');
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', function() {
-                // Your report submission logic here
-                console.log("Report submitted");
-                alert("Report submitted successfully.");
-                
-                // Close modal
-                if (reportModalInstance) {
-                    reportModalInstance.hide();
-                }
-            });
+        function resetReportForm() {
+            const reportReason = document.getElementById('reportReason');
+            const charCount = document.getElementById('charCount');
+            const submitBtn = document.getElementById('reportConfirmBtn');
+
+            if (reportReason) reportReason.value = '';
+            if (charCount) charCount.textContent = '0';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submit Report';
+            }
         }
 
-        // Emergency cleanup for any modal issues
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                forceCleanup();
+        async function submitReport() {
+            const reason = document.getElementById('reportReason')?.value.trim();
+            const submitBtn = document.getElementById('reportConfirmBtn');
+
+            if (!reason) {
+                alert('Please provide a reason for reporting.');
+                return;
             }
-        });
 
-        // Prevent modal backdrop from blocking interactions
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal-backdrop')) {
-                forceCleanup();
+            if (!currentTargetUserId) {
+                alert('Unable to identify user. Please refresh the page and try again.');
+                return;
             }
-        });
-    }
 
-    // Emergency cleanup function
-    function forceCleanup() {
-        console.log('Performing emergency cleanup...');
-        
-        // Remove all backdrops
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => {
-            backdrop.remove();
-        });
-        
-        // Hide all modals
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.style.display = 'none';
-            modal.classList.remove('show');
-        });
-        
-        // Reset body
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-        
-        console.log('Cleanup completed');
-    }
+            if (!submitBtn) return;
 
-    // Auto-cleanup when modals are hidden
-    document.addEventListener('hidden.bs.modal', function(e) {
-        // Small delay to ensure Bootstrap completes its cleanup
-        setTimeout(() => {
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+
+            try {
+                const response = await fetch('/Suspension/SubmitReport', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `targetUserId=${currentTargetUserId}&reason=${encodeURIComponent(reason)}`
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+
+                    const modals = document.querySelectorAll('.modal');
+                    modals.forEach(modal => {
+                        modal.style.display = 'none';
+                        modal.classList.remove('show');
+                    });
+
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => {
+                        backdrop.remove();
+                    });
+
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+
+                    resetReportForm();
+                    alert('Report submitted successfully!');
+                } else {
+                    alert('Error: ' + result.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Report';
+                }
+            } catch (error) {
+                console.error('Error submitting report:', error);
+                alert('An error occurred while submitting the report. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Report';
+            }
+        }
+
+        function forceCleanup() {
             const backdrops = document.querySelectorAll('.modal-backdrop');
-            if (backdrops.length > 0) {
-                console.log('Found lingering backdrops, cleaning up...');
-                forceCleanup();
-            }
-        }, 50);
-    });
+            backdrops.forEach(backdrop => {
+                backdrop.remove();
+            });
 
-})();
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+                modal.classList.remove('show');
+            });
+
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+
+        // Debug function to check current state
+        window.getCurrentReportState = function () {
+            return {
+                currentTargetUserId: currentTargetUserId,
+                reportModalInstance: !!reportModalInstance,
+                userPreviewModalInstance: !!userPreviewModalInstance
+            };
+        };
+
+    })();
 </script>
