@@ -94,14 +94,9 @@
     }
 
     .btn-chat:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-chat:disabled:hover {
-    background: #6c757d;
-    transform: none;
-}
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 
     .user-preview-section {
         padding: 20px;
@@ -145,97 +140,10 @@
         font-weight: 600;
     }
 
-    .endorsement-item {
-        display: flex;
-        gap: 12px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
-
-    .endorsement-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .endorsement-content {
-        flex: 1;
-    }
-
-    .endorsement-name {
-        font-weight: 600;
-        color: #343a40;
-        margin-bottom: 3px;
-    }
-
-    .endorsement-comment {
-        font-size: 0.9rem;
-        color: #6c757d;
-        margin-bottom: 3px;
-    }
-
-    .endorsement-date {
-        font-size: 0.8rem;
-        color: #adb5bd;
-    }
-
-    .achievement-badge-small {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        transition: all 0.3s;
-    }
-
-    .achievement-badge-small:hover {
-        background: #e8f5e9;
-        transform: translateX(5px);
-    }
-
-    .achievement-icon-small {
-        font-size: 2rem;
-    }
-
-    .achievement-details-small {
-        flex: 1;
-    }
-
-    .achievement-title-small {
-        font-weight: 600;
-        color: #343a40;
-        margin-bottom: 2px;
-    }
-
-    .achievement-meta-small {
-        font-size: 0.85rem;
-        color: #6c757d;
-    }
-
-    .position-badge-small {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: bold;
-        margin-left: 5px;
-    }
-
     .empty-state {
         text-align: center;
         padding: 30px;
         color: #6c757d;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        color: #dee2e6;
-        margin-bottom: 10px;
     }
 
     .loading-spinner {
@@ -243,19 +151,7 @@
         padding: 50px;
     }
 
-    .btn-friend-status {
-        background: #6c757d;
-        color: white;
-        cursor: default;
-    }
-
-    .btn-friend-status:hover {
-        background: #6c757d;
-        color: white;
-        transform: none;
-    }
-
-    /* Report / boombastic / cat overlay styles */
+    /* Simple report button */
     .report-btn {
         position: absolute;
         right: 18px;
@@ -268,102 +164,6 @@
         border: none;
         cursor: pointer;
     }
-    .boom-effect {
-        position: fixed;
-        left: 50%;
-        top: 40%;
-        transform: translate(-50%, -50%);
-        z-index: 10600;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 12px;
-        animation: boom-pop .9s ease forwards;
-    }
-    
-    
-    @@keyframes boom-pop {
-        0% { transform: translate(-50%, -50%) scale(0.4) rotate(0); opacity: 0; }
-        50% { transform: translate(-50%, -50%) scale(1.12) rotate(6deg); opacity: 1; }
-        100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
-    }
-    .boom-card {
-        background: linear-gradient(45deg,#ffdd57,#ff6b6b);
-        padding: 18px 24px;
-        border-radius: 18px;
-        color:#222;
-        font-weight:800;
-        box-shadow:0 10px 30px rgba(0,0,0,0.25);
-        transform-origin: center;
-    }
-    /* full-screen cat overlay */
-    #catOverlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.95);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        z-index: 10650;
-    }
-    #catOverlay img { max-width: 90vw; max-height: 75vh; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); }
-    #catOverlay .cat-text { color: #fff; margin-top: 18px; font-size: 1.25rem; font-weight:700; text-align:center; }
-    #catOverlay .cat-close {
-        position: absolute;
-        top: 18px;
-        right: 18px;
-        background: rgba(255,255,255,0.95);
-        border: none;
-        padding: 8px 12px;
-        border-radius: 10px;
-        font-weight:700;
-        cursor:pointer;
-        z-index: 10660;
-    }
-
-    /* full-page boombastic effect */
-#fullBoomOverlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    overflow: hidden;
-}
-#fullBoomOverlay .boom-bg {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 30% 40%, rgba(255,220,80,0.95), rgba(255,120,90,0.9) 20%, rgba(140,40,180,0.85) 60%, rgba(0,0,0,0.6) 100%);
-    filter: blur(12px) saturate(140%);
-    animation: boom-pulse 2200ms ease-out forwards;
-}
-#fullBoomOverlay .boom-card {
-    position: relative;
-    z-index: 10710;
-    color: #fff;
-    text-align: center;
-    font-weight: 900;
-    font-size: clamp(28px, 6vw, 72px);
-    transform-origin: center;
-    animation: boom-scale 1200ms ease-out forwards;
-    text-shadow: 0 8px 36px rgba(0,0,0,0.6);
-}
-@@keyframes boom-scale {
-    0% { transform: scale(0.3) rotate(-18deg); opacity: 0; }
-    40% { transform: scale(1.18) rotate(6deg); opacity: 1; }
-    70% { transform: scale(0.98) rotate(-3deg); }
-    100% { transform: scale(1) rotate(0); opacity: 1; }
-}
-@@keyframes boom-pulse {
-    0% { transform: scale(0.6); opacity: 0.0; }
-    25% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.6); }
-}
 </style>
 
 <!-- User Profile Preview Modal -->
@@ -372,10 +172,8 @@
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-
-               
             </div>
-            
+
             <div class="modal-body p-0" id="userPreviewContent">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
@@ -387,16 +185,18 @@
     </div>
 </div>
 
-<!-- Report Modal (blocking) -->
+<!-- Clean Report Modal -->
 <div class="modal fade" id="aiReportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:14px;">
             <div class="modal-body text-center p-4">
-                <h5 class="mb-3">Fuck You FYP! Let's Go Play Pickleball</h5>               
+                <h5 class="mb-3">Report User</h5>
 
-                <div class="d-flex justify-content-center gap-2">
-                    <button id="reportContinueBtn" class="btn btn-outline-primary">I want continue do FYP</button>
-                    <button id="reportPlayBtn" class="btn btn-success">Let's go play pickleball</button>
+                <p class="text-muted">Are you sure you want to report this user?</p>
+
+                <div class="d-flex justify-content-center gap-2 mt-3">
+                    <button id="reportCancelBtn" class="btn btn-outline-secondary">Cancel</button>
+                    <button id="reportConfirmBtn" class="btn btn-danger">Submit Report</button>
                 </div>
             </div>
         </div>
@@ -404,78 +204,119 @@
 </div>
 
 <script>
-    (function () {
-        // attach report button handler (delegated in case modal inserted late)
-        document.addEventListener('click', function (e) {
-            const el = e.target.closest('#reportUserBtn');
-            if (!el) return;
+(function() {
+    // Store modal instances
+    let reportModalInstance = null;
+    let userPreviewModalInstance = null;
 
-            // Show blocking modal - static backdrop, no keyboard close
-            const modalEl = document.getElementById('aiReportModal');
-            const bm = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
-            bm.show();
-        });
-
-        // "I want continue do FYP" -> boombastic effect then close report modal
-        document.getElementById('reportContinueBtn')?.addEventListener('click', function () {
-            // create overlay
-            if (document.getElementById('fullBoomOverlay')) return; // already showing
-
-            const overlay = document.createElement('div');
-            overlay.id = 'fullBoomOverlay';
-            overlay.innerHTML = '<div class="boom-bg"></div><div class="boom-card">BOOMBASTIC! 💥 Please Try Again!</div>';
-            document.body.appendChild(overlay);
-
-            // prevent interaction with page while effect plays
-            const prevOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-
-            // keep report modal visible and prevent close (backdrop static already). Do NOT hide report modal.
-            // remove overlay after strong effect duration, but keep report modal open.
-            setTimeout(() => {
-                overlay.remove();
-                document.body.style.overflow = prevOverflow || '';
-            }, 2500);
-        });
-
-        // "Let's go play pickleball" -> full-screen cat overlay replacing site (with close button)
-        document.getElementById('reportPlayBtn')?.addEventListener('click', function () {
-            const modalEl = document.getElementById('aiReportModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-
-            // remove site's main content and show cat overlay (we don't actually remove nodes; we overlay full-screen)
-            const overlay = document.createElement('div');
-            overlay.id = 'catOverlay';
-            overlay.style.position = 'fixed';
-            overlay.style.inset = '0';
-            overlay.style.zIndex = '10800';
-            overlay.style.display = 'flex';
-            overlay.style.alignItems = 'center';
-            overlay.style.justifyContent = 'center';
-            overlay.style.flexDirection = 'column';
-            overlay.style.background = 'rgba(0,0,0,0.98)';
-            overlay.innerHTML = `
-                <button id="catCloseBtn" style="position:absolute;right:18px;top:18px;padding:10px 14px;border-radius:10px;border:none;background:#fff;font-weight:700;cursor:pointer;z-index:10901;">Close</button>
-                <img src="/images/cat.png" alt="Good choice" style="max-width:92vw;max-height:78vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,0.6);" />
-                <div style="color:#fff;margin-top:18px;font-size:1.25rem;font-weight:800;text-align:center;">Good choices FROM your teammate - QS</div>
-            `;
-            document.body.appendChild(overlay);
-            const prevOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-
-            document.getElementById('catCloseBtn')?.addEventListener('click', function () {
-                overlay.remove();
-                document.body.style.overflow = prevOverflow || '';
+    // Initialize modals when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize report modal
+        const reportModalEl = document.getElementById('aiReportModal');
+        if (reportModalEl) {
+            reportModalInstance = new bootstrap.Modal(reportModalEl, {
+                backdrop: true,
+                keyboard: true
             });
+        }
+
+        // Initialize user preview modal
+        const userPreviewModalEl = document.getElementById('userProfilePreviewModal');
+        if (userPreviewModalEl) {
+            userPreviewModalInstance = new bootstrap.Modal(userPreviewModalEl);
+        }
+
+        // Setup event listeners
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        // Report button click
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#reportUserBtn')) {
+                e.preventDefault();
+                if (reportModalInstance) {
+                    reportModalInstance.show();
+                }
+            }
         });
 
-        // If userProfile modal is closed we ensure report modal is hidden too
-        document.getElementById('userProfilePreviewModal')?.addEventListener('hidden.bs.modal', function () {
-            const reportModal = document.getElementById('aiReportModal');
-            const inst = bootstrap.Modal.getInstance(reportModal);
-            if (inst) inst.hide();
+        // Cancel report
+        const cancelBtn = document.getElementById('reportCancelBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                if (reportModalInstance) {
+                    reportModalInstance.hide();
+                }
+            });
+        }
+
+        // Submit report
+        const confirmBtn = document.getElementById('reportConfirmBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                // Your report submission logic here
+                console.log("Report submitted");
+                alert("Report submitted successfully.");
+                
+                // Close modal
+                if (reportModalInstance) {
+                    reportModalInstance.hide();
+                }
+            });
+        }
+
+        // Emergency cleanup for any modal issues
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                forceCleanup();
+            }
         });
 
-    })();
+        // Prevent modal backdrop from blocking interactions
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-backdrop')) {
+                forceCleanup();
+            }
+        });
+    }
+
+    // Emergency cleanup function
+    function forceCleanup() {
+        console.log('Performing emergency cleanup...');
+        
+        // Remove all backdrops
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            backdrop.remove();
+        });
+        
+        // Hide all modals
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+        });
+        
+        // Reset body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        console.log('Cleanup completed');
+    }
+
+    // Auto-cleanup when modals are hidden
+    document.addEventListener('hidden.bs.modal', function(e) {
+        // Small delay to ensure Bootstrap completes its cleanup
+        setTimeout(() => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                console.log('Found lingering backdrops, cleaning up...');
+                forceCleanup();
+            }
+        }, 50);
+    });
+
+})();
 </script>
