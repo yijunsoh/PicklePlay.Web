@@ -22,6 +22,9 @@
     <form asp-action="@(isEditMode ? "EditCompetition" : "CreateCompetition")" asp-route-id="@Model.ScheduleId"
         method="post" enctype="multipart/form-data" novalidate>
         @Html.AntiForgeryToken()
+        <!-- Ensure ScheduleId is posted back so vm.ScheduleId is bound in POST -->
+        <input asp-for="ScheduleId" type="hidden" value="@(Model?.ScheduleId ?? 0)" />
+
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card shadow-sm rounded-3 border-0 mb-4">
@@ -34,6 +37,14 @@
                                 placeholder="e.g., Weekend Cup" required />
                             <span asp-validation-for="GameName" class="text-danger small"></span>
                         </div>
+
+                        <div class="row mb-3 g-3">
+                    <div class="col-md-6">
+                        <label asp-for="NumTeam" class="form-label required">Number of teams</label>
+                        <input asp-for="NumTeam" type="number" class="form-control" min="2" required />
+                        <span asp-validation-for="NumTeam" class="text-danger small"></span>
+                    </div>
+                </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">

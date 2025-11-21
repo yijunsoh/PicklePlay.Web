@@ -761,6 +761,8 @@ namespace PicklePlay.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditCompetition(int id, ScheduleCompetitionViewModel vm)
         {
+            // tolerate missing binding of ScheduleId from the form: use route id when vm.ScheduleId == 0
+            if (vm.ScheduleId == 0) vm.ScheduleId = id;
             if (id != vm.ScheduleId) return BadRequest();
 
             // Re-run validation

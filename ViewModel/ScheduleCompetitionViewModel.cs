@@ -50,7 +50,7 @@ namespace PicklePlay.Models
 
         [Display(Name = "Number of Teams")]
         [Required]
-        [Range(2, 200)]
+        [Range(2, 64)]
         public int NumTeam { get; set; } = 16;
 
         [Display(Name = "Min Rank")]
