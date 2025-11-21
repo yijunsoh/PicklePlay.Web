@@ -5,8 +5,30 @@
 
 <div class="p-4">
     <h2>Suspend / Ban Users</h2>
+    
+    <!-- User History Modal -->
+    <div class="modal fade" id="userHistoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">User Report History</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="userHistoryContent">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="table-responsive bg-white p-3 rounded shadow-sm">
-        <table class="table table-hover">
+        <table class="table table-hover" id="reportsTable">
             <thead class="table-dark">
                 <tr>
                     <th>Report ID</th>
@@ -14,68 +36,218 @@
                     <th>Reported By</th>
                     <th>Reason</th>
                     <th>Date</th>
-                    <th>Status</th>
-                    <th>Action</th>
+                    <th>User Status</th>
+                    <th>Previous Suspensions</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>RPT001</td>
-                    <td>john_doe</td>
-                    <td>alice</td>
-                    <td>Harassment in chat</td>
-                    <td>2025-08-20</td>
-                    <td><span class="badge bg-warning">Suspended Once</span></td>
-                    <td>
-                        <button class="btn btn-info btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#viewModal" data-reason="Harassment in chat. Used offensive language multiple times.">View</button>
-                        <button class="btn btn-danger btn-sm action-btn">Ban</button>
-                        <button class="btn btn-secondary btn-sm action-btn">Reject</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>RPT002</td>
-                    <td>mike88</td>
-                    <td>tommy</td>
-                    <td>Spamming links</td>
-                    <td>2025-08-21</td>
-                    <td><span class="badge bg-success">Pending</span></td>
-                    <td>
-                        <button class="btn btn-info btn-sm action-btn" data-bs-toggle="modal" data-bs-target="#viewModal" data-reason="User repeatedly posted spam links to external websites.">View</button>
-                        <button class="btn btn-warning btn-sm action-btn">Suspend</button>
-                        <button class="btn btn-secondary btn-sm action-btn">Reject</button>
-                    </td>
-                </tr>
+            <tbody id="reportsTableBody">
+                <!-- Data will be loaded via JavaScript -->
             </tbody>
         </table>
-    </div>
-</div>
-
-<!-- Modal -->
-<div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">Report Details</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div id="loadingSpinner" class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading reports...</span>
             </div>
-            <div class="modal-body">
-                <p id="reportReason">Reason details will appear here...</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
+        </div>
+        <div id="noReports" class="text-center p-4" style="display: none;">
+            <p class="text-muted">No pending reports found.</p>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Show reason in modal dynamically
-        const viewModal = document.getElementById('viewModal');
-        viewModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const reason = button.getAttribute('data-reason');
-            document.getElementById('reportReason').innerText = reason;
+        let currentReportId = null;
+
+        // Load reports on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPendingReports();
         });
+
+        async function loadPendingReports() {
+            try {
+                const response = await fetch('/Suspension/GetPendingReports');
+                const result = await response.json();
+
+                const tbody = document.getElementById('reportsTableBody');
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                const noReports = document.getElementById('noReports');
+
+                loadingSpinner.style.display = 'none';
+
+                if (result.success && result.reports.length > 0) {
+                    tbody.innerHTML = result.reports.map(report => `
+                        <tr>
+                            <td>${report.reportId}</td>
+                            <td>
+                                <strong>${report.reportedUserName}</strong><br>
+                                <small class="text-muted">${report.reportedUserEmail}</small>
+                            </td>
+                            <td>${report.reporterName}</td>
+                            <td>${report.reportReason}</td>
+                            <td>${new Date(report.createdAt).toLocaleDateString()}</td>
+                            <td>
+                                ${getStatusBadge(report.currentStatus)}
+                            </td>
+                            <td>
+                                ${report.suspensionCount > 0 ? 
+                                    `<span class="badge bg-warning">${report.suspensionCount} previous</span>` : 
+                                    '<span class="badge bg-success">First offense</span>'}
+                            </td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewUserHistory(${report.reportedUserId})">
+                                    History
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="approveReport(${report.reportId})">
+                                    Approve
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectReport(${report.reportId})">
+                                    Reject
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    noReports.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                alert('Error loading reports');
+            }
+        }
+
+        function getStatusBadge(status) {
+            switch(status) {
+                case 'Suspended':
+                    return '<span class="badge bg-warning">Suspended</span>';
+                case 'Banned':
+                    return '<span class="badge bg-danger">Banned</span>';
+                default:
+                    return '<span class="badge bg-success">Active</span>';
+            }
+        }
+
+        async function approveReport(reportId) {
+            if (!confirm('Are you sure you want to approve this report? This will apply penalties to the user.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/Suspension/ApproveReport', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `reportId=${reportId}`
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    loadPendingReports(); // Refresh the list
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error approving report:', error);
+                alert('Error approving report');
+            }
+        }
+
+        async function rejectReport(reportId) {
+            const reason = prompt('Please enter reason for rejection (optional):');
+            
+            try {
+                const response = await fetch('/Suspension/RejectReport', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `reportId=${reportId}&rejectionReason=${encodeURIComponent(reason || '')}`
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Report rejected successfully');
+                    loadPendingReports(); // Refresh the list
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error rejecting report:', error);
+                alert('Error rejecting report');
+            }
+        }
+
+        async function viewUserHistory(userId) {
+            try {
+                const response = await fetch(`/Suspension/GetUserReportHistory?userId=${userId}`);
+                const result = await response.json();
+
+                const historyContent = document.getElementById('userHistoryContent');
+                
+                if (result.success && result.history.length > 0) {
+                    historyContent.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Reporter</th>
+                                        <th>Reason</th>
+                                        <th>Decision</th>
+                                        <th>Penalty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${result.history.map(history => `
+                                        <tr>
+                                            <td>${new Date(history.createdAt).toLocaleDateString()}</td>
+                                            <td>${history.reporterName}</td>
+                                            <td>${history.reportReason}</td>
+                                            <td>${getDecisionBadge(history.adminDecision)}</td>
+                                            <td>${getPenaltyInfo(history)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    historyContent.innerHTML = '<p class="text-muted">No report history found.</p>';
+                }
+
+                new bootstrap.Modal(document.getElementById('userHistoryModal')).show();
+            } catch (error) {
+                console.error('Error loading user history:', error);
+                alert('Error loading user history');
+            }
+        }
+
+        function getDecisionBadge(decision) {
+            switch(decision) {
+                case 'Approved':
+                    return '<span class="badge bg-success">Approved</span>';
+                case 'Rejected':
+                    return '<span class="badge bg-danger">Rejected</span>';
+                default:
+                    return '<span class="badge bg-warning">Pending</span>';
+            }
+        }
+
+        function getPenaltyInfo(history) {
+            if (history.adminDecision !== 'Approved') return '-';
+            
+            if (history.isBanned) {
+                return '<span class="badge bg-danger">BANNED</span>';
+            } else if (history.suspensionStart) {
+                const endDate = history.suspensionEnd ? new Date(history.suspensionEnd).toLocaleDateString() : 'Permanent';
+                return `Suspended until ${endDate}`;
+            }
+            return '-';
+        }
     </script>
 }

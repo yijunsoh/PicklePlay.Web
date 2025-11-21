@@ -270,8 +270,6 @@ public class AuthService : IAuthService
         try
         {
             var normalizedEmail = email.Trim().ToLowerInvariant();
-
-
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
             if (user == null)
@@ -280,7 +278,6 @@ public class AuthService : IAuthService
                 {
                     Success = false,
                     Error = "Invalid email or password."
-                    // User is null by default - which is correct for failed auth
                 };
             }
 
@@ -292,17 +289,89 @@ public class AuthService : IAuthService
                 {
                     Success = false,
                     Error = "Invalid email or password."
-                    // User is null - we don't return user info for failed attempts
                 };
             }
+
+            // === SUSPENSION CHECK ===
+            // Check if user is banned
+            if (user.Status == "Banned")
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Your account has been permanently banned."
+                };
+            }
+
+            // Check if user is suspended and STILL in login block period (first 3 days)
+            if (user.Status == "Suspended")
+            {
+                // Check if there's an active suspension that's still in the first 3 days
+                var activeSuspension = await _db.UserSuspensions
+                    .Where(us => us.UserId == user.UserId &&
+                                us.AdminDecision == "Approved" &&
+                                !us.IsBanned &&
+                                us.SuspensionStart.HasValue &&
+                                us.SuspensionEnd > DateTime.UtcNow && // Still in suspension period
+                                DateTime.UtcNow <= us.SuspensionStart.Value.AddDays(3)) // Still in first 3 days
+                    .FirstOrDefaultAsync();
+
+                if (activeSuspension != null)
+                {
+                    var remainingTime = activeSuspension.SuspensionStart!.Value.AddDays(3) - DateTime.UtcNow;
+
+                    // Calculate days and hours
+                    var totalDays = (int)remainingTime.TotalDays;
+                    var remainingHours = (int)(remainingTime.TotalHours % 24);
+
+                    string remainingMessage;
+                    if (totalDays > 0)
+                    {
+                        remainingMessage = $"Your account is temporarily blocked. You can login again in {totalDays} day(s) and {remainingHours} hour(s).";
+                    }
+                    else
+                    {
+                        remainingMessage = $"Your account is temporarily blocked. You can login again in {remainingHours} hour(s).";
+                    }
+
+                    return new AuthenticationResult
+                    {
+                        Success = false,
+                        Error = remainingMessage
+                    };
+                }
+                // If we get here, user is suspended but AFTER the 3-day block - ALLOW LOGIN
+            }
+            // === END SUSPENSION CHECK ===
+
+            // Continue with normal checks
+            if (!user.EmailVerify)
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Please verify your email before logging in."
+                };
+            }
+
+            // ALLOW "Active" and "Suspended" (after 3 days) status for login
+            if (user.Status != "Active" && user.Status != "Suspended")
+            {
+                return new AuthenticationResult
+                {
+                    Success = false,
+                    Error = "Your account is not active. Please contact support."
+                };
+            }
+
             var lastLoginMalaysia = user.LastLogin?.ToLocalTime();
-            user.LastLogin = DateTime.Now; ;
+            user.LastLogin = DateTime.Now;
             await _db.SaveChangesAsync();
 
             return new AuthenticationResult
             {
                 Success = true,
-                User = user // Only set User when authentication is successful
+                User = user
             };
         }
         catch (Exception ex)
@@ -312,7 +381,6 @@ public class AuthService : IAuthService
             {
                 Success = false,
                 Error = "An error occurred during authentication."
-                // User remains null for errors
             };
         }
     }

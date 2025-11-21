@@ -106,5 +106,187 @@ namespace PicklePlay.Controllers
                 return Json(new { success = false, message = "Something went wrong. Try again later." });
             }
         }
+
+
+        //Admin side
+
+        [HttpGet]
+        public async Task<IActionResult> GetPendingReports()
+        {
+            try
+            {
+                var pendingReports = await _context.UserSuspensions
+                    .Where(us => us.AdminDecision == "Pending")
+                    .Include(us => us.User)          // The reported user
+                    .Include(us => us.ReportedBy)    // The reporter
+                    .Select(us => new
+                    {
+                        ReportId = us.SuspensionId,
+                        ReportedUserId = us.UserId,
+                        ReportedUserName = us.User.Username,
+                        ReportedUserEmail = us.User.Email,
+                        ReporterId = us.ReportedByUserId,
+                        ReporterName = us.ReportedBy.Username,
+                        ReportReason = us.ReportReason,
+                        CreatedAt = us.CreatedAt,
+                        // Get user's current status and suspension history
+                        UserStatus = us.User.Status,
+                        PreviousSuspensions = _context.UserSuspensions
+                            .Count(s => s.UserId == us.UserId && s.AdminDecision == "Approved")
+                    })
+                    .OrderByDescending(us => us.CreatedAt)
+                    .ToListAsync();
+
+                return Json(new { success = true, reports = pendingReports });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting pending reports: {ex.Message}");
+                return Json(new { success = false, message = "Error loading reports" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserReportHistory(int userId)
+        {
+            try
+            {
+                var history = await _context.UserSuspensions
+                    .Where(us => us.UserId == userId)
+                    .Include(us => us.ReportedBy)
+                    .OrderByDescending(us => us.CreatedAt)
+                    .Select(us => new
+                    {
+                        ReportId = us.SuspensionId,
+                        ReporterName = us.ReportedBy.Username,
+                        ReportReason = us.ReportReason,
+                        AdminDecision = us.AdminDecision,
+                        CreatedAt = us.CreatedAt,
+                        SuspensionStart = us.SuspensionStart,
+                        SuspensionEnd = us.SuspensionEnd,
+                        IsBanned = us.IsBanned,
+                        RejectionReason = us.RejectionReason
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, history = history });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting user history: {ex.Message}");
+                return Json(new { success = false, message = "Error loading history" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ApproveReport(int reportId)
+        {
+            try
+            {
+                var report = await _context.UserSuspensions
+                    .Include(us => us.User)
+                    .FirstOrDefaultAsync(us => us.SuspensionId == reportId);
+
+                if (report == null)
+                {
+                    return Json(new { success = false, message = "Report not found" });
+                }
+
+                var targetUser = report.User;
+                var now = NowMYT();
+
+                // Check if user has active suspension within last 30 days
+                var activeSuspension = await _context.UserSuspensions
+                    .Where(us => us.UserId == targetUser.UserId &&
+                                us.AdminDecision == "Approved" &&
+                                !us.IsBanned &&
+                                us.SuspensionEnd.HasValue &&
+                                us.SuspensionEnd > now)
+                    .FirstOrDefaultAsync();
+
+                if (activeSuspension != null)
+                {
+                    // Second offense during suspension period - BAN
+                    targetUser.Status = "Banned";
+
+                    report.SuspensionStart = now;
+                    report.SuspensionEnd = null; // Permanent ban
+                    report.IsBanned = true;
+
+                    // Also ban all other pending reports for this user
+                    var otherPendingReports = await _context.UserSuspensions
+                        .Where(us => us.UserId == targetUser.UserId &&
+                                    us.AdminDecision == "Pending")
+                        .ToListAsync();
+
+                    foreach (var pendingReport in otherPendingReports)
+                    {
+                        pendingReport.AdminDecision = "Approved";
+                        pendingReport.SuspensionStart = now;
+                        pendingReport.SuspensionEnd = null;
+                        pendingReport.IsBanned = true;
+                        pendingReport.UpdatedAt = now;
+                    }
+                }
+                else
+                {
+                    // First offense - SUSPEND
+                    targetUser.Status = "Suspended";
+
+                    report.SuspensionStart = now;
+                    report.SuspensionEnd = now.AddDays(30); // 30-day suspended status
+                    report.IsBanned = false;
+                }
+
+                report.AdminDecision = "Approved";
+                report.UpdatedAt = now;
+
+                await _context.SaveChangesAsync();
+
+                string actionMessage = report.IsBanned
+                    ? "User has been permanently banned (second offense during suspension)."
+                    : $"User suspended for 30 days. Login blocked for 3 days.";
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Report approved. {actionMessage}",
+                    actionTaken = targetUser.Status
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error approving report: {ex.Message}");
+                return Json(new { success = false, message = "Error approving report" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RejectReport(int reportId, string? rejectionReason = null)
+        {
+            try
+            {
+                var report = await _context.UserSuspensions
+                    .FirstOrDefaultAsync(us => us.SuspensionId == reportId);
+
+                if (report == null)
+                {
+                    return Json(new { success = false, message = "Report not found" });
+                }
+
+                report.AdminDecision = "Rejected";
+                report.RejectionReason = rejectionReason ?? "No reason provided";
+                report.UpdatedAt = NowMYT();
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Report rejected successfully" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error rejecting report: {ex.Message}");
+                return Json(new { success = false, message = "Error rejecting report" });
+            }
+        }
     }
 }

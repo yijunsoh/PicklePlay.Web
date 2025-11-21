@@ -58,7 +58,7 @@ namespace PicklePlay.Controllers
                         return View();
                     }
 
-                    if (user.Status != "Active")
+                    if (user.Status != "Active" && user.Status != "Suspended")
                     {
                         ModelState.AddModelError("", "Your account is not active. Please contact support.");
                         return View();
