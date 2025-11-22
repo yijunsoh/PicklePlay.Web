@@ -746,7 +746,7 @@
         </div>
     </div>
 </div>
-
+@Html.AntiForgeryToken()
 @await Html.PartialAsync("_CommunityDetailModal",
 viewData: new ViewDataDictionary(ViewData)
 {
@@ -814,14 +814,14 @@ viewData: new ViewDataDictionary(ViewData)
 
         function showError(containerId, message) {
             document.getElementById(containerId).innerHTML = `
-                                    <div class="col-12">
-                                        <div class="empty-state">
-                                            <i class="fas fa-exclamation-triangle text-muted"></i>
-                                            <h4>Error</h4>
-                                            <p class="text-muted">${message}</p>
+                                        <div class="col-12">
+                                            <div class="empty-state">
+                                                <i class="fas fa-exclamation-triangle text-muted"></i>
+                                                <h4>Error</h4>
+                                                <p class="text-muted">${message}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
         }
 
         function showLoading(elementId) {
@@ -1007,20 +1007,20 @@ viewData: new ViewDataDictionary(ViewData)
             }
 
             let paginationHTML = `
-                                    <div class="pagination-container">
-                                        <div class="pagination-info">
-                                            Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
-                                        </div>
-                                        <div class="pagination-buttons">
-                                `;
+                                        <div class="pagination-container">
+                                            <div class="pagination-info">
+                                                Page ${currentPlayerPage} of ${totalPages} • Total ${totalCount} players
+                                            </div>
+                                            <div class="pagination-buttons">
+                                    `;
 
             // Previous button
             paginationHTML += `
-                                    <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
-                                            onclick="changePlayerPage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentPlayerPage === 1 ? 'disabled' : ''}" 
+                                                onclick="changePlayerPage(${currentPlayerPage - 1})" ${currentPlayerPage === 1 ? 'disabled' : ''}>
+                                            <i class="fas fa-chevron-left"></i> Previous
+                                        </button>
+                                    `;
 
             // Page numbers
             const startPage = Math.max(1, currentPlayerPage - 2);
@@ -1050,16 +1050,16 @@ viewData: new ViewDataDictionary(ViewData)
 
             // Next button
             paginationHTML += `
-                                    <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
-                                            onclick="changePlayerPage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentPlayerPage === totalPages ? 'disabled' : ''}" 
+                                                onclick="changePlayerPage(${currentPlayerPage + 1})" ${currentPlayerPage === totalPages ? 'disabled' : ''}>
+                                            Next <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    `;
 
             paginationHTML += `
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1075,6 +1075,104 @@ viewData: new ViewDataDictionary(ViewData)
         function resetPlayerSearch() {
             loadInitialPlayers(1);
         }
+
+        // Toggle favorite for a player
+function toggleFavorite(playerId, button) {
+    const originalHTML = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+
+    console.log('Toggling favorite for player:', playerId);
+    console.log('CSRF Token:', getCsrfToken());
+
+    fetch('/Favorite/ToggleFavorite', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getCsrfToken()
+        },
+        body: `targetUserId=${playerId}`
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            if (data.isFavorited) {
+                button.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                button.classList.remove('btn-outline-custom');
+                button.classList.add('btn-custom');
+            } else {
+                button.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                button.classList.remove('btn-custom');
+                button.classList.add('btn-outline-custom');
+            }
+            showAlert('success', data.message);
+        } else {
+            button.innerHTML = originalHTML;
+            showAlert('error', data.message || 'Unknown error');
+            console.error('Server error:', data);
+        }
+        button.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error toggling favorite:', error);
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+        showAlert('error', 'Error: ' + error.message);
+    });
+}
+
+
+function initializeFavoriteButtons() {
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        const playerId = button.getAttribute('data-player-id');
+
+        // Reset button (prevent duplicates when AJAX reloads)
+        const cloned = button.cloneNode(true);
+        button.parentNode.replaceChild(cloned, button);
+        const newButton = cloned;
+
+        // Check initial favorite state
+        fetch(`/Favorite/IsFavorited?targetUserId=${playerId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.isFavorited) {
+                    newButton.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                    newButton.classList.remove('btn-outline-custom');
+                    newButton.classList.add('btn-custom');
+                } else {
+                    newButton.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                    newButton.classList.remove('btn-custom');
+                    newButton.classList.add('btn-outline-custom');
+                }
+
+                newButton.addEventListener('click', function () {
+                    toggleFavorite(playerId, this);
+                });
+            })
+            .catch(error => {
+                console.error('Error checking favorite status:', error);
+                newButton.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                newButton.classList.remove('btn-custom');
+                newButton.classList.add('btn-outline-custom');
+
+                newButton.addEventListener('click', function () {
+                    toggleFavorite(playerId, this);
+                });
+            });
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]').value;
+}
 
         // ========== COMMUNITY FUNCTIONS ==========
         function loadInitialCommunities(page = 1) {
@@ -1174,20 +1272,20 @@ viewData: new ViewDataDictionary(ViewData)
             }
 
             let paginationHTML = `
-            <div class="pagination-container">
-                <div class="pagination-info">
-                    Page ${currentCommunityPage} of ${totalPages} • Total ${totalCount} communities
-                </div>
-                <div class="pagination-buttons">
-        `;
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Page ${currentCommunityPage} of ${totalPages} • Total ${totalCount} communities
+                    </div>
+                    <div class="pagination-buttons">
+            `;
 
             // Previous button
             paginationHTML += `
-            <button class="page-nav ${currentCommunityPage === 1 ? 'disabled' : ''}" 
-                    onclick="changeCommunityPage(${currentCommunityPage - 1})" ${currentCommunityPage === 1 ? 'disabled' : ''}>
-                <i class="fas fa-chevron-left"></i> Previous
-            </button>
-        `;
+                <button class="page-nav ${currentCommunityPage === 1 ? 'disabled' : ''}" 
+                        onclick="changeCommunityPage(${currentCommunityPage - 1})" ${currentCommunityPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+            `;
 
             // Page numbers
             const startPage = Math.max(1, currentCommunityPage - 2);
@@ -1217,16 +1315,16 @@ viewData: new ViewDataDictionary(ViewData)
 
             // Next button
             paginationHTML += `
-            <button class="page-nav ${currentCommunityPage === totalPages ? 'disabled' : ''}" 
-                    onclick="changeCommunityPage(${currentCommunityPage + 1})" ${currentCommunityPage === totalPages ? 'disabled' : ''}>
-                Next <i class="fas fa-chevron-right"></i>
-            </button>
-        `;
+                <button class="page-nav ${currentCommunityPage === totalPages ? 'disabled' : ''}" 
+                        onclick="changeCommunityPage(${currentCommunityPage + 1})" ${currentCommunityPage === totalPages ? 'disabled' : ''}>
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
 
             paginationHTML += `
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1350,20 +1448,20 @@ viewData: new ViewDataDictionary(ViewData)
             }
 
             let paginationHTML = `
-                                    <div class="pagination-container">
-                                        <div class="pagination-info">
-                                            Page ${currentGamePage} of ${totalPages} • Total ${totalCount} games
-                                        </div>
-                                        <div class="pagination-buttons">
-                                `;
+                                        <div class="pagination-container">
+                                            <div class="pagination-info">
+                                                Page ${currentGamePage} of ${totalPages} • Total ${totalCount} games
+                                            </div>
+                                            <div class="pagination-buttons">
+                                    `;
 
             // Previous button
             paginationHTML += `
-                                    <button class="page-nav ${currentGamePage === 1 ? 'disabled' : ''}" 
-                                            onclick="changeGamePage(${currentGamePage - 1})" ${currentGamePage === 1 ? 'disabled' : ''}>
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentGamePage === 1 ? 'disabled' : ''}" 
+                                                onclick="changeGamePage(${currentGamePage - 1})" ${currentGamePage === 1 ? 'disabled' : ''}>
+                                            <i class="fas fa-chevron-left"></i> Previous
+                                        </button>
+                                    `;
 
             // Page numbers
             const startPage = Math.max(1, currentGamePage - 2);
@@ -1393,16 +1491,16 @@ viewData: new ViewDataDictionary(ViewData)
 
             // Next button
             paginationHTML += `
-                                    <button class="page-nav ${currentGamePage === totalPages ? 'disabled' : ''}" 
-                                            onclick="changeGamePage(${currentGamePage + 1})" ${currentGamePage === totalPages ? 'disabled' : ''}>
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentGamePage === totalPages ? 'disabled' : ''}" 
+                                                onclick="changeGamePage(${currentGamePage + 1})" ${currentGamePage === totalPages ? 'disabled' : ''}>
+                                            Next <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    `;
 
             paginationHTML += `
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1517,20 +1615,20 @@ viewData: new ViewDataDictionary(ViewData)
             }
 
             let paginationHTML = `
-                                    <div class="pagination-container">
-                                        <div class="pagination-info">
-                                            Page ${currentCompetitionPage} of ${totalPages} • Total ${totalCount} competitions
-                                        </div>
-                                        <div class="pagination-buttons">
-                                `;
+                                        <div class="pagination-container">
+                                            <div class="pagination-info">
+                                                Page ${currentCompetitionPage} of ${totalPages} • Total ${totalCount} competitions
+                                            </div>
+                                            <div class="pagination-buttons">
+                                    `;
 
             // Previous button
             paginationHTML += `
-                                    <button class="page-nav ${currentCompetitionPage === 1 ? 'disabled' : ''}" 
-                                            onclick="changeCompetitionPage(${currentCompetitionPage - 1})" ${currentCompetitionPage === 1 ? 'disabled' : ''}>
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentCompetitionPage === 1 ? 'disabled' : ''}" 
+                                                onclick="changeCompetitionPage(${currentCompetitionPage - 1})" ${currentCompetitionPage === 1 ? 'disabled' : ''}>
+                                            <i class="fas fa-chevron-left"></i> Previous
+                                        </button>
+                                    `;
 
             // Page numbers
             const startPage = Math.max(1, currentCompetitionPage - 2);
@@ -1560,16 +1658,16 @@ viewData: new ViewDataDictionary(ViewData)
 
             // Next button
             paginationHTML += `
-                                    <button class="page-nav ${currentCompetitionPage === totalPages ? 'disabled' : ''}" 
-                                            onclick="changeCompetitionPage(${currentCompetitionPage + 1})" ${currentCompetitionPage === totalPages ? 'disabled' : ''}>
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                `;
+                                        <button class="page-nav ${currentCompetitionPage === totalPages ? 'disabled' : ''}" 
+                                                onclick="changeCompetitionPage(${currentCompetitionPage + 1})" ${currentCompetitionPage === totalPages ? 'disabled' : ''}>
+                                            Next <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    `;
 
             paginationHTML += `
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
 
             container.innerHTML = paginationHTML;
         }
@@ -1587,34 +1685,8 @@ viewData: new ViewDataDictionary(ViewData)
         }
 
         // ========== BUTTON INITIALIZATION FUNCTIONS ==========
-        function initializeFavoriteButtons() {
-            document.querySelectorAll('.favorite-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    this.classList.toggle('btn-custom');
-                    this.classList.toggle('btn-outline-custom');
-
-                    if (this.classList.contains('btn-custom')) {
-                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
-                    } else {
-                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
-                    }
-                });
-            });
-        }
-
         function initializeGameButtons() {
-            document.querySelectorAll('.favorite-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    this.classList.toggle('btn-custom');
-                    this.classList.toggle('btn-outline-custom');
-
-                    if (this.classList.contains('btn-custom')) {
-                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
-                    } else {
-                        this.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
-                    }
-                });
-            });
+            // Game button initialization if needed
         }
 
         // Enter key support for search
@@ -1642,6 +1714,6 @@ viewData: new ViewDataDictionary(ViewData)
             }
         });
 
-        
+
     </script>
 }

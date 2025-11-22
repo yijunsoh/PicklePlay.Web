@@ -15,6 +15,7 @@ namespace PicklePlay.Data
         public DbSet<EscrowDispute> EscrowDisputes { get; set; }
         public DbSet<RefundRequest> RefundRequests { get; set; }
         public DbSet<UserSuspension> UserSuspensions { get; set; }
+        public virtual DbSet<Favorite> Favorites { get; set; } = null!;
         public DbSet<Community> Communities { get; set; }
         public DbSet<CommunityRequest> CommunityRequests { get; set; }
         public DbSet<CommunityMember> CommunityMembers { get; set; }
@@ -184,6 +185,19 @@ namespace PicklePlay.Data
                 .HasOne(n => n.RelatedUser)
                 .WithMany()
                 .HasForeignKey(n => n.RelatedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Favorite configuration
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.TargetUser)
+                .WithMany()
+                .HasForeignKey(f => f.TargetUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
 

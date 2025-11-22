@@ -204,14 +204,19 @@ namespace PicklePlay.Controllers
                                 us.SuspensionEnd > now)
                     .FirstOrDefaultAsync();
 
+                string notificationMessage = "";
+                string actionTaken = "";
+
                 if (activeSuspension != null)
                 {
                     // Second offense during suspension period - BAN
                     targetUser.Status = "Banned";
-
                     report.SuspensionStart = now;
                     report.SuspensionEnd = null; // Permanent ban
                     report.IsBanned = true;
+                    actionTaken = "Banned";
+
+                    notificationMessage = "Your account has been permanently banned due to repeated violations during your suspension period.";
 
                     // Also ban all other pending reports for this user
                     var otherPendingReports = await _context.UserSuspensions
@@ -232,14 +237,26 @@ namespace PicklePlay.Controllers
                 {
                     // First offense - SUSPEND
                     targetUser.Status = "Suspended";
-
                     report.SuspensionStart = now;
                     report.SuspensionEnd = now.AddDays(30); // 30-day suspended status
                     report.IsBanned = false;
+                    actionTaken = "Suspended";
+
+                    notificationMessage = $"Your account has been suspended for 30 days. You cannot login for the first 3 days. After 3 days, you may login but will remain in suspended status until {report.SuspensionEnd.Value.ToString("MMM dd, yyyy")}.";
                 }
 
                 report.AdminDecision = "Approved";
                 report.UpdatedAt = now;
+
+                // Add notification for the reported user
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = targetUser.UserId,
+                    Message = notificationMessage,
+                    LinkUrl = "/Home/Community", // Or wherever appropriate
+                    DateCreated = now,
+                    IsRead = false
+                });
 
                 await _context.SaveChangesAsync();
 
@@ -251,7 +268,7 @@ namespace PicklePlay.Controllers
                 {
                     success = true,
                     message = $"Report approved. {actionMessage}",
-                    actionTaken = targetUser.Status
+                    actionTaken = actionTaken
                 });
             }
             catch (Exception ex)
@@ -267,6 +284,7 @@ namespace PicklePlay.Controllers
             try
             {
                 var report = await _context.UserSuspensions
+                    .Include(us => us.ReportedBy) // Include reporter for notification
                     .FirstOrDefaultAsync(us => us.SuspensionId == reportId);
 
                 if (report == null)
@@ -274,9 +292,20 @@ namespace PicklePlay.Controllers
                     return Json(new { success = false, message = "Report not found" });
                 }
 
+                var now = NowMYT();
                 report.AdminDecision = "Rejected";
                 report.RejectionReason = rejectionReason ?? "No reason provided";
-                report.UpdatedAt = NowMYT();
+                report.UpdatedAt = now;
+
+                // Add notification for the reporter (the one who submitted the report)
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = report.ReportedByUserId,
+                    Message = $"Your report against user has been reviewed and rejected. Reason: {report.RejectionReason}",
+                    LinkUrl = "/Home/Community", // Or wherever appropriate
+                    DateCreated = now,
+                    IsRead = false
+                });
 
                 await _context.SaveChangesAsync();
 

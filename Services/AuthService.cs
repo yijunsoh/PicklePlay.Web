@@ -290,6 +290,24 @@ public class AuthService : IAuthService
                     Success = false,
                     Error = "Invalid email or password."
                 };
+            } 
+            
+            // AUTO-REACTIVATE CHECK: Check if suspension period has ended
+            if (user.Status == "Suspended")
+            {
+                var expiredSuspension = await _db.UserSuspensions
+                    .Where(us => us.UserId == user.UserId &&
+                                us.AdminDecision == "Approved" &&
+                                !us.IsBanned &&
+                                us.SuspensionEnd.HasValue &&
+                                us.SuspensionEnd <= DateTime.UtcNow)
+                    .FirstOrDefaultAsync();
+
+                if (expiredSuspension != null)
+                {
+                    // Auto-reactivate user
+                    user.Status = "Active";
+                }
             }
 
             // === SUSPENSION CHECK ===
