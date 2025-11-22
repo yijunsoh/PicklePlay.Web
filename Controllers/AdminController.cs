@@ -367,15 +367,6 @@ public class AdminController : Controller
     }
 
     // ... (Other Admin Actions)
-    public IActionResult InactiveCommunities()
-    {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return RedirectToAction("Login", "Auth");
-        }
-        return View();
-    }
 
     public IActionResult EscrowDashboard()
     {
@@ -428,6 +419,169 @@ public class AdminController : Controller
             .ToListAsync();
 
         return View("~/Views/Admin/Refund.cshtml", refundRequests);
+    }
+
+    // GET: /Admin/InactiveCommunities
+    public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (inactiveDays == null)
+        {
+            inactiveDays = 0;
+        }
+
+        IQueryable<Community> query = _context.Communities
+            .Include(c => c.Creator)
+            .Include(c => c.Memberships)
+            .Where(c => c.Status == "Active");
+
+        // If inactiveDays is 0, show ALL active communities
+        // Otherwise, show communities inactive for more than inactiveDays
+        if (inactiveDays > 0)
+        {
+            var cutoffDate = DateTime.UtcNow.AddDays(-inactiveDays.Value);
+            query = query.Where(c => c.LastActivityDate == null || c.LastActivityDate <= cutoffDate);
+        }
+
+        var inactiveCommunities = await query
+            .OrderBy(c => c.LastActivityDate ?? c.CreatedDate)
+            .ToListAsync();
+
+        ViewData["InactiveDays"] = inactiveDays;
+        return View("~/Views/Admin/InactiveCommunities.cshtml", inactiveCommunities);
+    }
+
+    // POST: /Admin/DeleteInactiveCommunity
+    [HttpPost]
+    public async Task<IActionResult> DeleteInactiveCommunity(int communityId, string? reason)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Json(new { success = false, message = "Unauthorized" });
+        }
+
+        try
+        {
+            var community = await _context.Communities.FindAsync(communityId);
+            if (community == null)
+            {
+                return Json(new { success = false, message = "Community not found" });
+            }
+
+            var currentUserId = HttpContext.Session.GetInt32("UserId");
+            
+            // Store original name before modifying
+            string originalName = community.CommunityName;
+            
+            // Generate unique suffix with timestamp and random characters
+            var nowUtc = DateTime.UtcNow;
+            string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
+            string randomSuffix = Guid.NewGuid().ToString("N")[..6];
+            
+            // Update community name with deletion marker
+            community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
+            community.Status = "Deleted";
+            community.DeletionReason = reason ?? "Deleted by admin - inactive community";
+            community.DeletedByUserId = currentUserId;
+            community.DeletionDate = nowUtc;
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Community deleted successfully" });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
+    // GET: /Admin/UpdateAllCommunityLastActivity
+    [HttpGet]
+    public async Task<IActionResult> UpdateAllCommunityLastActivity()
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        try
+        {
+            var communities = await _context.Communities
+                .Where(c => c.Status == "Active")
+                .ToListAsync();
+
+            int updatedCount = 0;
+
+            foreach (var community in communities)
+            {
+                var latestSchedule = await _context.Schedules
+                    .Where(s => s.CommunityId == community.CommunityId)
+                    .OrderByDescending(s => s.StartTime)
+                    .FirstOrDefaultAsync();
+
+                if (latestSchedule != null && latestSchedule.StartTime.HasValue)
+                {
+                    community.LastActivityDate = latestSchedule.StartTime;
+                    updatedCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Updated {updatedCount} communities with their latest activity dates.";
+            return RedirectToAction("InactiveCommunities");
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Error: {ex.Message}";
+            return RedirectToAction("InactiveCommunities");
+        }
+    }
+
+    // POST: /Admin/UpdateCommunityLastActivity
+    [HttpPost]
+    public async Task<IActionResult> UpdateCommunityLastActivity(int communityId)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Json(new { success = false, message = "Unauthorized" });
+        }
+
+        try
+        {
+            var community = await _context.Communities.FindAsync(communityId);
+            if (community == null)
+            {
+                return Json(new { success = false, message = "Community not found" });
+            }
+
+            // Get the latest schedule/competition activity for this community
+            var latestSchedule = await _context.Schedules
+                .Where(s => s.CommunityId == communityId)
+                .OrderByDescending(s => s.StartTime)
+                .FirstOrDefaultAsync();
+
+            if (latestSchedule != null)
+            {
+                community.LastActivityDate = latestSchedule.StartTime;
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "Last activity date updated", lastActivityDate = latestSchedule.StartTime });
+            }
+
+            return Json(new { success = false, message = "No schedule found for this community" });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
     }
 
 }

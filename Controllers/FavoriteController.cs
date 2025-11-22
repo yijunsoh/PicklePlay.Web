@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PicklePlay.Models;
+using PicklePlay.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using PicklePlay.Data;
 
@@ -47,7 +48,7 @@ namespace PicklePlay.Controllers
                 {
                     UserId = currentUserId.Value,
                     TargetUserId = targetUserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = DateTimeHelper.GetMalaysiaTime()
                 };
                 _context.Favorites.Add(favorite);
                 isFavorited = true;

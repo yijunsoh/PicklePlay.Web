@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using PicklePlay.Helpers;
 
 namespace PicklePlay.Models
 {
@@ -23,7 +24,7 @@ namespace PicklePlay.Models
         public int TargetUserId { get; set; }
 
         [Column("created_date")]
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTimeHelper.GetMalaysiaTime();
 
         // Navigation properties
         [ForeignKey("UserId")]

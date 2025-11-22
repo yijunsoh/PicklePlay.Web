@@ -283,6 +283,16 @@ namespace PicklePlay.Controllers
 
             _scheduleRepository.Add(newSchedule);
 
+            // Update community's last activity date
+            if (communityId.HasValue)
+            {
+                var community = await _context.Communities.FindAsync(communityId.Value);
+                if (community != null)
+                {
+                    community.LastActivityDate = newSchedule.StartTime ?? DateTime.UtcNow;
+                }
+            }
+
             // Add organizer and player
             var organizer = new ScheduleParticipant
             {
@@ -343,6 +353,16 @@ namespace PicklePlay.Controllers
             };
 
             _scheduleRepository.Add(parentSchedule);
+
+            // Update community's last activity date
+            if (communityId.HasValue)
+            {
+                var community = await _context.Communities.FindAsync(communityId.Value);
+                if (community != null)
+                {
+                    community.LastActivityDate = vm.StartTime ?? DateTime.UtcNow;
+                }
+            }
 
             // Generate instances
             var durationTimeSpan = ScheduleHelper.GetTimeSpan(vm.Duration);
@@ -685,6 +705,16 @@ namespace PicklePlay.Controllers
             try
             {
                 _scheduleRepository.Add(newSchedule); // The schedule gets its ID here
+
+                // Update community's last activity date
+                if (currentCommunityId.HasValue)
+                {
+                    var community = await _context.Communities.FindAsync(currentCommunityId.Value);
+                    if (community != null)
+                    {
+                        community.LastActivityDate = vm.StartTime;
+                    }
+                }
 
                 // *** THIS IS THE FIX ***
                 // Add the creator as the "Organizer" participant   
