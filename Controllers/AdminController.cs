@@ -457,49 +457,59 @@ public class AdminController : Controller
     }
 
     // POST: /Admin/DeleteInactiveCommunity
-    [HttpPost]
-    public async Task<IActionResult> DeleteInactiveCommunity(int communityId, string? reason)
+[HttpPost]
+public async Task<IActionResult> DeleteInactiveCommunity(int communityId, string? reason)
+{
+    var userRole = HttpContext.Session.GetString("UserRole");
+    if (userRole != "Admin")
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return Json(new { success = false, message = "Unauthorized" });
-        }
-
-        try
-        {
-            var community = await _context.Communities.FindAsync(communityId);
-            if (community == null)
-            {
-                return Json(new { success = false, message = "Community not found" });
-            }
-
-            var currentUserId = HttpContext.Session.GetInt32("UserId");
-            
-            // Store original name before modifying
-            string originalName = community.CommunityName;
-            
-            // Generate unique suffix with timestamp and random characters
-            var nowUtc = DateTime.UtcNow;
-            string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
-            string randomSuffix = Guid.NewGuid().ToString("N")[..6];
-            
-            // Update community name with deletion marker
-            community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
-            community.Status = "Deleted";
-            community.DeletionReason = reason ?? "Deleted by admin - inactive community";
-            community.DeletedByUserId = currentUserId;
-            community.DeletionDate = nowUtc;
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Community deleted successfully" });
-        }
-        catch (Exception ex)
-        {
-            return Json(new { success = false, message = $"Error: {ex.Message}" });
-        }
+        return Json(new { success = false, message = "Unauthorized" });
     }
+
+    try
+    {
+        var community = await _context.Communities
+            .Include(c => c.Memberships) // Include memberships to update them
+            .FirstOrDefaultAsync(c => c.CommunityId == communityId);
+        
+        if (community == null)
+        {
+            return Json(new { success = false, message = "Community not found" });
+        }
+
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        
+        // Store original name before modifying
+        string originalName = community.CommunityName;
+        
+        // Generate unique suffix with timestamp and random characters
+        var nowUtc = DateTime.UtcNow;
+        string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
+        string randomSuffix = Guid.NewGuid().ToString("N")[..6];
+        
+        // Update community name with deletion marker
+        community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
+        community.Status = "Deleted";
+        community.DeletionReason = reason ?? "Deleted by admin - inactive community";
+        community.DeletedByUserId = currentUserId;
+        community.DeletionDate = nowUtc;
+
+        // --- UPDATE ALL COMMUNITY MEMBERS TO INACTIVE ---
+        foreach (var member in community.Memberships)
+        {
+            member.Status = "Inactive";
+            _context.CommunityMembers.Update(member);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Json(new { success = true, message = "Community deleted successfully" });
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = $"Error: {ex.Message}" });
+    }
+}
 
     // GET: /Admin/UpdateAllCommunityLastActivity
     [HttpGet]

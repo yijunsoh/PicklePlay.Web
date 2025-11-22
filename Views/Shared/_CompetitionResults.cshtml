@@ -27,12 +27,12 @@
                             <span class="stats-badge"><i class="fas fa-trophy me-1"></i>Competition</span>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-custom">
+                            <a href="@Url.Action("CompDetails", "Competition", new { id = competition.ScheduleId })" class="btn btn-custom">
                                 <i class="fas fa-eye me-1"></i>View Details
-                            </button>
-                            <button class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#registerModal">
+                            </a>
+                             <a href="@Url.Action("CompDetails", "Competition", new { id = competition.ScheduleId })" class="btn btn-outline-custom">
                                 <i class="fas fa-edit me-1"></i>Register Now
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>

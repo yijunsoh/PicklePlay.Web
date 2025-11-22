@@ -171,7 +171,7 @@ namespace PicklePlay.Controllers
             var query = _context.Schedules
                 .Include(s => s.Competition)
                 .Include(s => s.Community)
-                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled)
+                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled && s.Status != (ScheduleStatus)8)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchTerm))
@@ -203,7 +203,8 @@ namespace PicklePlay.Controllers
         private async Task<int> GetTotalCompetitionsCountAsync(string searchTerm = "", string filter = "")
         {
             var query = _context.Schedules
-                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled)
+                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled && 
+                   s.Status != (ScheduleStatus)8)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchTerm))
@@ -359,8 +360,10 @@ namespace PicklePlay.Controllers
                 .Include(s => s.Community)
                 .Where(s => s.ScheduleType == ScheduleType.OneOff &&
                            s.Status != ScheduleStatus.Cancelled &&
-                           // Show public games OR games from private communities where user is a member
-                           (s.Privacy == Privacy.Public ||
+                            s.Status != (ScheduleStatus)2 && 
+                           // Show games from public communities OR games from private communities where user is a member
+                           (s.Community == null ||
+                            s.Community.CommunityType == "Public" ||
                             (s.CommunityId.HasValue && userPrivateCommunityIds.Contains(s.CommunityId.Value))))
                 .AsQueryable();
 
@@ -412,7 +415,9 @@ namespace PicklePlay.Controllers
             var query = _context.Schedules
                 .Where(s => s.ScheduleType == ScheduleType.OneOff &&
                            s.Status != ScheduleStatus.Cancelled &&
-                           (s.Privacy == Privacy.Public ||
+                           s.Status != (ScheduleStatus)2 &&
+                           (s.Community == null ||
+                            s.Community.CommunityType == "Public" ||
                             (s.CommunityId.HasValue && userPrivateCommunityIds.Contains(s.CommunityId.Value))))
                 .AsQueryable();
 

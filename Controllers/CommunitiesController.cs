@@ -1762,13 +1762,16 @@ namespace PicklePlay.Controllers
                 // Update Community
                 _context.Communities.Update(community);
 
+                // --- UPDATE ALL COMMUNITY MEMBERS TO INACTIVE ---
+                foreach (var member in community.Memberships)
+                {
+                    member.Status = "Inactive";
+                    _context.CommunityMembers.Update(member);
+                }
+
                 // Remove related data
                 _context.CommunityAnnouncements.RemoveRange(community.Announcements);
                 _context.CommunityBlockLists.RemoveRange(community.BlockedUsers);
-
-                // Set all members to inactive
-                foreach (var m in community.Memberships)
-                    m.Status = "Inactive";
 
                 // --- Notifications ---
                 if (model.NotifyMembers)

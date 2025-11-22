@@ -61,7 +61,7 @@ namespace PicklePlay.Controllers
 
                         // Sum all players’ escrow amounts for this game
                         Amount = g.Sum(e => e.Transactions.Sum(t => t.Amount)),
-                         TotalEscrowAmount = first.Schedule.TotalEscrowAmount,
+                        TotalEscrowAmount = first.Schedule.TotalEscrowAmount,
 
                         // If ANY player has a dispute → show dispute
                         DisputeReason = _context.EscrowDisputes
@@ -168,6 +168,17 @@ namespace PicklePlay.Controllers
 
             schedule.EscrowStatus = "Released";
 
+            if (schedule.ScheduleType == ScheduleType.Competition)
+            {
+                // Competition: Set to Completed (8)
+                schedule.Status = ScheduleStatus.Completed;
+            }
+            else
+            {
+                // Regular Game: Set to Past (2)
+                schedule.Status = ScheduleStatus.Past;
+            }
+
             // 🔥 UPDATE DISPUTE STATUS
             var allDisputes = await _context.EscrowDisputes
     .Where(d => d.ScheduleId == scheduleId)
@@ -239,6 +250,17 @@ namespace PicklePlay.Controllers
             }
 
             schedule.EscrowStatus = "Refunded";
+
+            if (schedule.ScheduleType == ScheduleType.Competition)
+            {
+                // Competition: Set to Completed (8)
+                schedule.Status = ScheduleStatus.Completed;
+            }
+            else
+            {
+                // Regular Game: Set to Past (2)
+                schedule.Status = ScheduleStatus.Past;
+            }
 
             // 🔥 UPDATE DISPUTE STATUS HERE
             var allDisputes = await _context.EscrowDisputes
