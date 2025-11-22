@@ -1,11 +1,114 @@
 @{
-    ViewData["Title"] = "Suspend / Ban Users";
+    ViewData["Title"] = "User Management";
     Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
 }
 
 <div class="p-4">
-    <h2>Suspend / Ban Users</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">User Management</h2>
+        <div class="badge bg-primary fs-6">Total Reports: <span id="totalCount">0</span></div>
+    </div>
     
+    <!-- Search and Filter Controls -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-light">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control" placeholder="Search users, reporters, or reasons...">
+                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                    Clear
+                </button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select id="statusFilter" class="form-select">
+                <option value="all">All Report Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select id="userStatusFilter" class="form-select">
+                <option value="all">All Users</option>
+                <option value="Active">Active</option>
+                <option value="Suspended">Suspended</option>
+                <option value="Banned">Banned</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" onclick="applyFilters()">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title mb-1">Pending</h6>
+                            <h4 class="mb-0" id="pendingCount">0</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title mb-1">Approved</h6>
+                            <h4 class="mb-0" id="approvedCount">0</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title mb-1">Rejected</h6>
+                            <h4 class="mb-0" id="rejectedCount">0</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-times-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title mb-1">Banned Users</h6>
+                            <h4 class="mb-0" id="bannedCount">0</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-ban fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- User History Modal -->
     <div class="modal fade" id="userHistoryModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -27,18 +130,17 @@
         </div>
     </div>
 
-    <div class="table-responsive bg-white p-3 rounded shadow-sm">
-        <table class="table table-hover" id="reportsTable">
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover mb-0" id="reportsTable">
             <thead class="table-dark">
                 <tr>
-                    <th>Report ID</th>
+                    <th width="120">Report ID</th>
                     <th>Reported User</th>
                     <th>Reported By</th>
                     <th>Reason</th>
-                    <th>Date</th>
-                    <th>User Status</th>
-                    <th>Previous Suspensions</th>
-                    <th>Actions</th>
+                    <th width="110">Date</th>
+                    <th width="120">Status</th>
+                    <th width="150">Actions</th>
                 </tr>
             </thead>
             <tbody id="reportsTableBody">
@@ -51,65 +153,45 @@
             </div>
         </div>
         <div id="noReports" class="text-center p-4" style="display: none;">
-            <p class="text-muted">No pending reports found.</p>
+            <p class="text-muted">No reports found matching your criteria.</p>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        let currentReportId = null;
+        let allReports = [];
+        let filteredReports = [];
 
         // Load reports on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadPendingReports();
+            loadAllReports();
+            
+            // Add event listeners for real-time search
+            document.getElementById('searchInput').addEventListener('input', function() {
+                if (this.value.length === 0 || this.value.length >= 3) {
+                    applyFilters();
+                }
+            });
+            
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            document.getElementById('userStatusFilter').addEventListener('change', applyFilters);
         });
 
-        async function loadPendingReports() {
+        async function loadAllReports() {
             try {
-                const response = await fetch('/Suspension/GetPendingReports');
+                const response = await fetch('/Suspension/GetAllReports');
                 const result = await response.json();
 
-                const tbody = document.getElementById('reportsTableBody');
                 const loadingSpinner = document.getElementById('loadingSpinner');
-                const noReports = document.getElementById('noReports');
-
                 loadingSpinner.style.display = 'none';
 
                 if (result.success && result.reports.length > 0) {
-                    tbody.innerHTML = result.reports.map(report => `
-                        <tr>
-                            <td>${report.reportId}</td>
-                            <td>
-                                <strong>${report.reportedUserName}</strong><br>
-                                <small class="text-muted">${report.reportedUserEmail}</small>
-                            </td>
-                            <td>${report.reporterName}</td>
-                            <td>${report.reportReason}</td>
-                            <td>${new Date(report.createdAt).toLocaleDateString()}</td>
-                            <td>
-                                ${getStatusBadge(report.currentStatus)}
-                            </td>
-                            <td>
-                                ${report.suspensionCount > 0 ? 
-                                    `<span class="badge bg-warning">${report.suspensionCount} previous</span>` : 
-                                    '<span class="badge bg-success">First offense</span>'}
-                            </td>
-                            <td>
-                                <button class="btn btn-info btn-sm" onclick="viewUserHistory(${report.reportedUserId})">
-                                    History
-                                </button>
-                                <button class="btn btn-success btn-sm" onclick="approveReport(${report.reportId})">
-                                    Approve
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="rejectReport(${report.reportId})">
-                                    Reject
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
+                    allReports = result.reports;
+                    applyFilters();
+                    updateStats();
                 } else {
-                    noReports.style.display = 'block';
+                    document.getElementById('noReports').style.display = 'block';
                 }
             } catch (error) {
                 console.error('Error loading reports:', error);
@@ -117,15 +199,141 @@
             }
         }
 
-        function getStatusBadge(status) {
-            switch(status) {
-                case 'Suspended':
-                    return '<span class="badge bg-warning">Suspended</span>';
-                case 'Banned':
-                    return '<span class="badge bg-danger">Banned</span>';
-                default:
-                    return '<span class="badge bg-success">Active</span>';
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const reportStatusFilter = document.getElementById('statusFilter').value;
+            const userStatusFilter = document.getElementById('userStatusFilter').value;
+            
+            filteredReports = allReports.filter(report => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    report.reportedUserName.toLowerCase().includes(searchTerm) ||
+                    report.reportedUserEmail.toLowerCase().includes(searchTerm) ||
+                    report.reporterName.toLowerCase().includes(searchTerm) ||
+                    report.reportReason.toLowerCase().includes(searchTerm);
+                
+                // Report status filter
+                const matchesReportStatus = reportStatusFilter === 'all' || report.adminDecision === reportStatusFilter;
+                
+                // User status filter
+                const matchesUserStatus = userStatusFilter === 'all' || report.userStatus === userStatusFilter;
+                
+                return matchesSearch && matchesReportStatus && matchesUserStatus;
+            });
+            
+            renderReportsTable();
+            updateStats();
+        }
+
+        function renderReportsTable() {
+            const tbody = document.getElementById('reportsTableBody');
+            const noReports = document.getElementById('noReports');
+
+            if (filteredReports.length > 0) {
+                tbody.innerHTML = filteredReports.map(report => `
+                    <tr>
+                        <td class="fw-bold">#${report.reportId}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-muted"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-semibold">${report.reportedUserName}</div>
+                                    <small class="text-muted">${report.reportedUserEmail}</small>
+                                    <div class="mt-1">
+                                        ${getUserStatusBadge(report.userStatus)}
+                                        ${report.previousSuspensions > 0 ? 
+                                            `<span class="badge bg-warning ms-1">${report.previousSuspensions} prev</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-medium">${report.reporterName}</div>
+                        </td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 200px;" title="${report.reportReason}">
+                                ${report.reportReason}
+                            </div>
+                        </td>
+                        <td>
+                            <small class="text-muted">${new Date(report.createdAt).toLocaleDateString()}</small>
+                        </td>
+                        <td>
+                            ${getReportStatusBadge(report.adminDecision)}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-info" onclick="viewUserHistory(${report.reportedUserId})" title="View History">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                ${report.adminDecision === 'Pending' ? `
+                                    ${report.userStatus === 'Banned' ? `
+                                        <button class="btn btn-outline-secondary" disabled title="User Already Banned">
+                                            <i class="fas fa-ban"></i> Banned
+                                        </button>
+                                    ` : `
+                                        <button class="btn btn-outline-success" onclick="approveReport(${report.reportId})" title="Approve Report">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="rejectReport(${report.reportId})" title="Reject Report">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    `}
+                                ` : `
+                                    <span class="text-muted small">Processed</span>
+                                `}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+                noReports.style.display = 'none';
+            } else {
+                tbody.innerHTML = '';
+                noReports.style.display = 'block';
             }
+        }
+
+        function updateStats() {
+            const totalCount = allReports.length;
+            const pendingCount = allReports.filter(r => r.adminDecision === 'Pending').length;
+            const approvedCount = allReports.filter(r => r.adminDecision === 'Approved').length;
+            const rejectedCount = allReports.filter(r => r.adminDecision === 'Rejected').length;
+            const bannedCount = allReports.filter(r => r.userStatus === 'Banned').length;
+
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('pendingCount').textContent = pendingCount;
+            document.getElementById('approvedCount').textContent = approvedCount;
+            document.getElementById('rejectedCount').textContent = rejectedCount;
+            document.getElementById('bannedCount').textContent = bannedCount;
+        }
+
+        function getReportStatusBadge(status) {
+            const badges = {
+                'Pending': 'bg-warning',
+                'Approved': 'bg-success',
+                'Rejected': 'bg-danger'
+            };
+            return `<span class="badge ${badges[status] || 'bg-secondary'}">${status}</span>`;
+        }
+
+        function getUserStatusBadge(status) {
+            const badges = {
+                'Active': 'bg-success',
+                'Suspended': 'bg-warning',
+                'Banned': 'bg-danger'
+            };
+            return `<span class="badge ${badges[status] || 'bg-secondary'}">${status}</span>`;
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('userStatusFilter').value = 'all';
+            applyFilters();
         }
 
         async function approveReport(reportId) {
@@ -146,7 +354,7 @@
                 
                 if (result.success) {
                     alert(result.message);
-                    loadPendingReports(); // Refresh the list
+                    loadAllReports();
                 } else {
                     alert('Error: ' + result.message);
                 }
@@ -158,6 +366,7 @@
 
         async function rejectReport(reportId) {
             const reason = prompt('Please enter reason for rejection (optional):');
+            if (reason === null) return; // User cancelled
             
             try {
                 const response = await fetch('/Suspension/RejectReport', {
@@ -172,7 +381,7 @@
                 
                 if (result.success) {
                     alert('Report rejected successfully');
-                    loadPendingReports(); // Refresh the list
+                    loadAllReports();
                 } else {
                     alert('Error: ' + result.message);
                 }
@@ -208,7 +417,7 @@
                                             <td>${new Date(history.createdAt).toLocaleDateString()}</td>
                                             <td>${history.reporterName}</td>
                                             <td>${history.reportReason}</td>
-                                            <td>${getDecisionBadge(history.adminDecision)}</td>
+                                            <td>${getReportStatusBadge(history.adminDecision)}</td>
                                             <td>${getPenaltyInfo(history)}</td>
                                         </tr>
                                     `).join('')}
@@ -224,17 +433,6 @@
             } catch (error) {
                 console.error('Error loading user history:', error);
                 alert('Error loading user history');
-            }
-        }
-
-        function getDecisionBadge(decision) {
-            switch(decision) {
-                case 'Approved':
-                    return '<span class="badge bg-success">Approved</span>';
-                case 'Rejected':
-                    return '<span class="badge bg-danger">Rejected</span>';
-                default:
-                    return '<span class="badge bg-warning">Pending</span>';
             }
         }
 

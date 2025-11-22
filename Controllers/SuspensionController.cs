@@ -111,6 +111,42 @@ namespace PicklePlay.Controllers
         //Admin side
 
         [HttpGet]
+        public async Task<IActionResult> GetAllReports()
+        {
+            try
+            {
+                var allReports = await _context.UserSuspensions
+                    .Include(us => us.User)          // The reported user
+                    .Include(us => us.ReportedBy)    // The reporter
+                    .Select(us => new
+                    {
+                        ReportId = us.SuspensionId,
+                        ReportedUserId = us.UserId,
+                        ReportedUserName = us.User.Username,
+                        ReportedUserEmail = us.User.Email,
+                        ReporterId = us.ReportedByUserId,
+                        ReporterName = us.ReportedBy.Username,
+                        ReportReason = us.ReportReason,
+                        CreatedAt = us.CreatedAt,
+                        AdminDecision = us.AdminDecision,
+                        // Get user's current status and suspension history
+                        UserStatus = us.User.Status,
+                        PreviousSuspensions = _context.UserSuspensions
+                            .Count(s => s.UserId == us.UserId && s.AdminDecision == "Approved")
+                    })
+                    .OrderByDescending(us => us.CreatedAt)
+                    .ToListAsync();
+
+                return Json(new { success = true, reports = allReports });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting all reports: {ex.Message}");
+                return Json(new { success = false, message = "Error loading reports" });
+            }
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetPendingReports()
         {
             try
