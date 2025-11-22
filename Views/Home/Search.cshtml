@@ -459,7 +459,7 @@
                     <p class="lead mb-0">Find players, communities, games and competitions in your area</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <a href="/Home/Index" class="btn btn-light">
+                    <a href="/Home/Community" class="btn btn-light">
                         <i class="fas fa-arrow-left me-2"></i>Back to Home
                     </a>
                 </div>
@@ -1113,10 +1113,8 @@ function toggleFavorite(playerId, button) {
                 button.classList.remove('btn-custom');
                 button.classList.add('btn-outline-custom');
             }
-            showAlert('success', data.message);
         } else {
             button.innerHTML = originalHTML;
-            showAlert('error', data.message || 'Unknown error');
             console.error('Server error:', data);
         }
         button.disabled = false;

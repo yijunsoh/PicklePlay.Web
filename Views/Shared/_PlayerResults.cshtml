@@ -29,14 +29,14 @@
                             <span class="stats-badge"><i class="fas fa-calendar me-1"></i>Active</span>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#friendModal">
+                            @* <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#friendModal">
                                 <i class="fas fa-user-plus me-1"></i>Add Friend
+                            </button> *@
+                             <button class="btn btn-profile" onclick="showUserProfilePreview('@player.UserId')">
+                                <i class="fas fa-eye me-1"></i>View Profile
                             </button>
                             <button class="btn btn-sm favorite-btn btn-outline-custom" data-player-id="@player.UserId">
                                 <i class="fas fa-star me-1"></i>Favorite
-                            </button>
-                            <button class="btn btn-profile" onclick="showUserProfilePreview('@player.UserId')">
-                                <i class="fas fa-eye me-1"></i>View Profile
                             </button>
                         </div>
                     </div>
