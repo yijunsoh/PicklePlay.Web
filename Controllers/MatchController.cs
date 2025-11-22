@@ -174,9 +174,31 @@ public async Task<IActionResult> StartCompetition(int id)
 
         case CompetitionFormat.RoundRobin:
             var rrMatches = GenerateRoundRobinMatches(confirmedTeams, id);
-            await _context.Matches.AddRangeAsync(rrMatches);
-            await _context.SaveChangesAsync();
-            break;
+
+                    // If double round-robin requested, append a reversed-leg for leg 2
+                    if (competition.DoubleRR)
+                    {
+                        var leg2 = new List<Match>(rrMatches.Count);
+                        foreach (var m in rrMatches)
+                        {
+                            leg2.Add(new Match
+                            {
+                                ScheduleId = m.ScheduleId,
+                                Team1Id = m.Team2Id,
+                                Team2Id = m.Team1Id,
+                                RoundName = (m.RoundName ?? "Round Robin") + " (Leg 2)",
+                                RoundNumber = 2,
+                                MatchNumber = m.MatchNumber,
+                                Status = m.Status,
+                                IsThirdPlaceMatch = m.IsThirdPlaceMatch
+                            });
+                        }
+                        rrMatches.AddRange(leg2);
+                    }
+
+                    await _context.Matches.AddRangeAsync(rrMatches);
+                    await _context.SaveChangesAsync();
+                     break;
     }
 
     // Update schedule status to "In Progress"
@@ -765,12 +787,16 @@ if (teams == null || teams.Count < 2)
             var competition = await _context.Competitions
                 .FirstOrDefaultAsync(c => c.ScheduleId == id);
 
-            Console.WriteLine($"Competition found: Format = {competition!.Format}");
+            if (competition == null)
+            {
+                return NotFound();
+            }
 
-            // *** ADD: Check if current user is organizer ***
+            Console.WriteLine($"Competition found: Format = {competition.Format}");
+
+            // --- determine current user / organizer ---
             var currentUserId = GetCurrentUserId();
             bool isOrganizer = false;
-
             if (currentUserId.HasValue)
             {
                 isOrganizer = await _context.ScheduleParticipants
@@ -779,33 +805,124 @@ if (teams == null || teams.Count < 2)
                                   p.Role == ParticipantRole.Organizer);
             }
 
+            // Pool play handled by specialized method
             if (competition.Format == CompetitionFormat.PoolPlay)
             {
-                return await GetPoolPlayMatchListing(id, competition, isOrganizer); // *** PASS isOrganizer ***
+                return await GetPoolPlayMatchListing(id, competition, isOrganizer);
             }
-            else
+
+            // Load matches for non-pool formats (elimination / round robin)
+            var matches = await _context.Matches
+                .Where(m => m.ScheduleId == id)
+                .Include(m => m.Team1)
+                .Include(m => m.Team2)
+                .Include(m => m.LastUpdatedByUser)
+                .OrderBy(m => m.RoundNumber)
+                .ThenBy(m => m.MatchNumber)
+                .ToListAsync();
+
+            Console.WriteLine($"Matches loaded: {matches.Count}");
+
+            // Expose RR flags to the view
+            ViewBag.IsRoundRobin = competition.Format == CompetitionFormat.RoundRobin;
+            ViewBag.IsDoubleRR = competition.Format == CompetitionFormat.RoundRobin && (competition.DoubleRR == true);
+
+            // If Round Robin + double-leg required, add display-only clones (leg 2)
+       if (competition.Format == CompetitionFormat.RoundRobin && competition.DoubleRR)
             {
-                // Existing elimination logic
-                var matches = await _context.Matches
-                    .Where(m => m.ScheduleId == id)
-                    .Include(m => m.Team1)
-                    .Include(m => m.Team2)
-                    .Include(m => m.LastUpdatedByUser) // *** ADD THIS ***
-                    .OrderBy(m => m.RoundNumber)
-                    .ThenBy(m => m.MatchNumber)
-                    .ToListAsync();
-
-                Console.WriteLine($"Elimination matches found: {matches.Count}");
-
-                var viewModel = new MatchListingViewModel
+                // if DB already contains round 2 matches, do not create display clones
+                bool hasRound2 = matches.Any(m => m.RoundNumber == 2);
+                if (!hasRound2)
                 {
-                    ScheduleId = id,
-                    Matches = matches,
-                    IsOrganizer = isOrganizer // *** ADD THIS ***
-                };
+                    var firstLeg = matches.Where(m => m.RoundNumber == 1).ToList();
+                    var clones = new List<Match>(firstLeg.Count);
 
-                return PartialView("~/Views/Competition/_MatchListing.cshtml", viewModel);
+                foreach (var m in firstLeg)
+                {
+                    // create display-only clone swapping teams for leg 2
+                    var clone = new Match
+                    {
+                        MatchId = m.MatchId * -1, // negative id to avoid confusion
+                        ScheduleId = m.ScheduleId,
+                        Team1Id = m.Team2Id,
+                        Team2Id = m.Team1Id,
+                        Team1 = m.Team2,
+                        Team2 = m.Team1,
+                        Team1Score = null,
+                        Team2Score = null,
+                        RoundNumber = 2,
+                        RoundName = (m.RoundName ?? "Round Robin") + " (Leg 2)",
+                        MatchNumber = m.MatchNumber,
+                        Status = MatchStatus.Active,
+                        IsBye = false,
+                        WinnerId = null,
+                        MatchPosition = m.MatchPosition
+                    };
+                    clones.Add(clone);
+                }
+
+                if (clones.Any())
+                {
+                    matches.AddRange(clones);
+                    matches = matches.OrderBy(m => m.RoundNumber).ThenBy(m => m.MatchNumber).ToList();
+                }
             }
+ }
+            var viewModel = new MatchListingViewModel
+            {
+                ScheduleId = id,
+                Matches = matches,
+                IsOrganizer = isOrganizer
+            };
+
+            return PartialView("~/Views/Competition/_MatchListing.cshtml", viewModel);
+        }
+   
+    
+         [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateRoundRobinSecondLeg(int scheduleId)
+        {
+            var competition = await _context.Competitions
+                .FirstOrDefaultAsync(c => c.ScheduleId == scheduleId);
+
+            if (competition == null || competition.Format != CompetitionFormat.RoundRobin || !competition.DoubleRR)
+            {
+                return BadRequest("Competition not eligible for creating second leg.");
+            }
+
+            // If round-2 already exists, nothing to do
+            var exists = await _context.Matches.AnyAsync(m => m.ScheduleId == scheduleId && m.RoundNumber == 2);
+            if (exists) return Json(new { success = false, message = "Second leg already exists." });
+
+            var firstLegMatches = await _context.Matches
+                .Where(m => m.ScheduleId == scheduleId && m.RoundNumber == 1)
+                .OrderBy(m => m.MatchNumber)
+                .ToListAsync();
+
+            if (!firstLegMatches.Any()) return Json(new { success = false, message = "No first-leg matches found." });
+
+            var leg2 = new List<Match>(firstLegMatches.Count);
+            foreach (var m in firstLegMatches)
+            {
+                leg2.Add(new Match
+                {
+                    ScheduleId = m.ScheduleId,
+                    Team1Id = m.Team2Id,
+                    Team2Id = m.Team1Id,
+                    RoundName = (m.RoundName ?? "Round Robin") + " (Leg 2)",
+                    RoundNumber = 2,
+                    MatchNumber = m.MatchNumber,
+                    Status = MatchStatus.Pending,
+                    IsThirdPlaceMatch = m.IsThirdPlaceMatch,
+                    IsBye = false
+                });
+            }
+
+            await _context.Matches.AddRangeAsync(leg2);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, created = leg2.Count });
         }
 
         private async Task<IActionResult> GetPoolPlayMatchListing(int scheduleId, Competition competition, bool isOrganizer)
