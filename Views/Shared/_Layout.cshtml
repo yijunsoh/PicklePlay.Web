@@ -373,6 +373,8 @@
                 contentDiv.innerHTML = renderUserProfile(user);
                 console.log('Profile rendered successfully');
 
+                // Load favorite status for modal button
+                loadModalFavoriteStatus(user.userId);
                 loadModalRankData(user.userId);
 
             } catch (error) {
@@ -427,13 +429,13 @@
                 }
 
                 actionButtons += `
-                    <button class="btn btn-favorite" onclick="toggleFavorite(${user.userId})" title="Coming Soon">
-        <i class="bi bi-star"></i>
-    </button>
-    <button class="btn btn-report" id="reportReplaceBtn" type="button" title="Report / Nudge"
-                           onclick="(function(){const m = new bootstrap.Modal(document.getElementById('aiReportModal'), { backdrop: 'static', keyboard: false }); m.show();})();">
-                       <i class="bi bi-flag-fill"></i>
-                  </button>
+                    <button class="btn btn-favorite" onclick="toggleFavorite(${user.userId}, this)" title="Favorite">
+                        <i class="fas fa-star me-1"></i>Favorite
+                    </button>
+                    <button class="btn btn-report" id="reportReplaceBtn" type="button" title="Report / Nudge"
+                                       onclick="(function(){const m = new bootstrap.Modal(document.getElementById('aiReportModal'), { backdrop: 'static', keyboard: false }); m.show();})();">
+                           <i class="bi bi-flag-fill"></i>
+                      </button>
                 `;
             }
 
@@ -709,6 +711,85 @@
             console.log('🟢 Navigating to:', newUrl);
 
             window.location.href = newUrl;
+        }
+
+        function loadModalFavoriteStatus(userId) {
+            const button = document.querySelector(`.user-preview-header .btn-favorite`);
+            if (!button) return;
+
+            fetch(`/Favorite/IsFavorited?targetUserId=${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.isFavorited) {
+                        button.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                        button.classList.remove('btn-outline-custom');
+                        button.classList.add('btn-custom');
+                    } else {
+                        button.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                        button.classList.remove('btn-custom');
+                        button.classList.add('btn-outline-custom');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading favorite status:', error);
+                });
+        }
+
+        function toggleFavorite(playerId, button) {
+            const originalHTML = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+
+            fetch('/Favorite/ToggleFavorite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getCsrfToken()
+                },
+                body: `targetUserId=${playerId}`
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update modal button
+                    if (data.isFavorited) {
+                        button.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                        button.classList.remove('btn-outline-custom');
+                        button.classList.add('btn-custom');
+                    } else {
+                        button.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                        button.classList.remove('btn-custom');
+                        button.classList.add('btn-outline-custom');
+                    }
+                    
+                    // Update the same button on search page if it exists
+                    const searchButton = document.querySelector(`.favorite-btn[data-player-id="${playerId}"]`);
+                    if (searchButton) {
+                        if (data.isFavorited) {
+                            searchButton.innerHTML = '<i class="fas fa-star me-1"></i>Favorited';
+                            searchButton.classList.remove('btn-outline-custom');
+                            searchButton.classList.add('btn-custom');
+                        } else {
+                            searchButton.innerHTML = '<i class="fas fa-star me-1"></i>Favorite';
+                            searchButton.classList.remove('btn-custom');
+                            searchButton.classList.add('btn-outline-custom');
+                        }
+                    }
+                } else {
+                    button.innerHTML = originalHTML;
+                }
+                button.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error toggling favorite:', error);
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            });
         }
 
         console.log('✓ User Profile Preview Modal loaded globally');

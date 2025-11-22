@@ -844,6 +844,10 @@
             }
             @await Html.PartialAsync("_UserAchievementsSection", achievements)
         </div>
+
+        <div class="side-box mt-4">
+            @await Html.PartialAsync("_UserFavoritesList", Model.UserId)
+        </div>
     </div>
 </div>
 

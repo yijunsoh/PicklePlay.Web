@@ -1,0 +1,221 @@
+@model int
+
+<style>
+    .favorites-section {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        margin-top: 25px;
+        border: 1px solid rgba(46, 139, 87, 0.1);
+    }
+
+    .favorites-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 2px solid #2E8B57;
+        margin-bottom: 15px;
+    }
+
+    .favorites-header h5 {
+        margin: 0;
+        color: #2E8B57;
+        font-weight: 700;
+    }
+
+    .favorites-toggle {
+        transition: transform 0.3s;
+        cursor: pointer;
+    }
+
+    .favorites-toggle.collapsed {
+        transform: rotate(-180deg);
+    }
+
+    .favorites-count {
+        background: #2E8B57;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+
+    .favorites-scroll-container {
+        display: flex;
+        gap: 15px;
+        overflow-x: auto;
+        padding: 10px 0;
+        scroll-behavior: smooth;
+    }
+
+    .favorites-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .favorites-scroll-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .favorites-scroll-container::-webkit-scrollbar-thumb {
+        background: #2E8B57;
+        border-radius: 10px;
+    }
+
+    .favorites-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #1E5B32;
+    }
+
+    .favorite-card {
+        flex: 0 0 150px;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .favorite-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(46, 139, 87, 0.2);
+        border-color: #2E8B57;
+    }
+
+    .favorite-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #2E8B57;
+    }
+
+    .favorite-name {
+        font-weight: 700;
+        color: #343A40;
+        font-size: 0.95rem;
+        word-break: break-word;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .favorite-username {
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .empty-favorites {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .empty-favorites i {
+        font-size: 3rem;
+        color: #dee2e6;
+        margin-bottom: 15px;
+    }
+</style>
+
+<div class="favorites-section">
+    <div class="favorites-header">
+        <h5>
+            <i class="fas fa-heart me-2"></i>Favorite Players
+            <span class="favorites-count" id="favoritesCount">0</span>
+        </h5>
+        <i class="fas fa-chevron-up favorites-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#favoritesCollapse" aria-expanded="false"></i>
+    </div>
+
+    <div class="collapse" id="favoritesCollapse">
+        <div id="favoritesContainer">
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-2">Loading favorites...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        loadFavorites();
+
+        // Toggle icon
+        document.querySelector('[data-bs-target="#favoritesCollapse"]').addEventListener('click', function() {
+            this.classList.toggle('collapsed');
+        });
+    });
+
+    function loadFavorites() {
+        fetch('/Favorite/GetFavoritePlayers')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.favorites && data.favorites.length > 0) {
+                    renderFavorites(data.favorites);
+                } else {
+                    renderEmptyFavorites();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading favorites:', error);
+                renderEmptyFavorites();
+            });
+    }
+
+    function renderFavorites(favorites) {
+        const container = document.getElementById('favoritesContainer');
+        const countElement = document.getElementById('favoritesCount');
+
+        countElement.textContent = favorites.length;
+
+        let html = '<div class="favorites-scroll-container">';
+        favorites.forEach(fav => {
+            const username = fav.username;
+            html += `
+                <div class="favorite-card" onclick="showUserProfilePreview(${fav.targetUserId})">
+                    <img src="${fav.profilePicture || '/images/profile_image.jpg'}" 
+                         alt="${username}" 
+                         class="favorite-avatar"
+                         onerror="this.src='/images/profile_image.jpg'">
+                    <div class="favorite-name">${username}</div>
+                    <div class="favorite-username">@@${username}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        container.innerHTML = html;
+    }
+
+    function renderEmptyFavorites() {
+        const container = document.getElementById('favoritesContainer');
+        const countElement = document.getElementById('favoritesCount');
+
+        countElement.textContent = '0';
+
+        container.innerHTML = `
+            <div class="empty-favorites">
+                <i class="fas fa-heart"></i>
+                <p class="mb-0">No favorite players yet. Add players from search to get started!</p>
+            </div>
+        `;
+    }
+</script>
