@@ -39,7 +39,7 @@ namespace PicklePlay.Controllers
         }
 
         // GET: /ManageTeam/Index/5
-        [HttpGet]
+       [HttpGet]
         public async Task<IActionResult> Index(int id)
         {
             var currentUserId = GetCurrentUserId();
@@ -62,41 +62,98 @@ namespace PicklePlay.Controllers
             {
                 ScheduleId = id,
                 CompetitionName = schedule.GameName,
+                // ⬇️ POPULATE LISTS BASED ON NEW LOGIC
+                OnHoldTeams = teams.Where(t => t.Status == TeamStatus.Onhold).ToList(),
                 PendingTeams = teams.Where(t => t.Status == TeamStatus.Pending).ToList(),
                 ConfirmedTeams = teams.Where(t => t.Status == TeamStatus.Confirmed).ToList(),
                 IsOrganizer = isOrganizer,
+                IsFreeCompetition = schedule.FeeType == FeeType.Free || (schedule.FeeAmount ?? 0) == 0,
+                MaxTeams = schedule.NumTeam ?? 0,
                 CurrentUserId = currentUserId
             };
 
-            // *** UPDATED PATH ***
             return View("~/Views/Competition/ManageTeam.cshtml", vm);
         }
 
-        // POST: /ManageTeam/UpdateTeamStatus
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateTeamStatus(int teamId, TeamStatus newStatus)
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UpdateTeamStatus(int teamId, TeamStatus newStatus)
+{
+    var team = await _context.Teams.FindAsync(teamId);
+    if (team == null) return NotFound();
+
+    if (!await IsUserOrganizer(team.ScheduleId))
+        return Forbid();
+
+    // Validation: Prevent accepting if ALREADY full
+    var schedule = await _context.Schedules.AsNoTracking().FirstOrDefaultAsync(s => s.ScheduleId == team.ScheduleId);
+    int confirmedCount = await _context.Teams.CountAsync(t => t.ScheduleId == team.ScheduleId && t.Status == TeamStatus.Confirmed);
+    int maxTeams = schedule?.NumTeam ?? 0;
+
+    // If trying to confirm/accept and it's already full
+    if ((newStatus == TeamStatus.Pending || newStatus == TeamStatus.Confirmed) && confirmedCount >= maxTeams)
+    {
+        TempData["ErrorMessage"] = "Cannot accept team: The competition is full.";
+        return RedirectToAction("Index", new { id = team.ScheduleId });
+    }
+
+    // Logic for Free Competitions
+    bool isFree = schedule != null && (schedule.FeeType == FeeType.Free || (schedule.FeeAmount ?? 0) == 0);
+    if (isFree && newStatus == TeamStatus.Confirmed)
+    {
+        team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
+    }
+
+    team.Status = newStatus;
+    _context.Teams.Update(team);
+    await _context.SaveChangesAsync(); // Save the status change first
+
+    // ⬇️ TRIGGER AUTO-MOVE LOGIC IF A TEAM WAS CONFIRMED
+    if (newStatus == TeamStatus.Confirmed)
+    {
+        await CheckForFullCompetition(team.ScheduleId);
+    }
+
+    return RedirectToAction("Index", new { id = team.ScheduleId });
+}
+
+// 2. UPDATE CheckForFullCompetition to be robust
+private async Task CheckForFullCompetition(int scheduleId)
+{
+    var schedule = await _context.Schedules.AsNoTracking().FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+    if (schedule == null) return;
+
+    // Count confirmed teams
+    int confirmedCount = await _context.Teams.CountAsync(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed);
+    int maxTeams = schedule.NumTeam ?? 0;
+
+    // If Full (or over capacity)
+    if (confirmedCount >= maxTeams)
+    {
+        // Find all teams that are currently "Pending" (waiting for payment)
+        var pendingTeams = await _context.Teams
+            .Where(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Pending)
+            .ToListAsync();
+
+        if (pendingTeams.Any())
         {
-            var team = await _context.Teams.FindAsync(teamId);
-            if (team == null) return NotFound();
+            foreach (var team in pendingTeams)
+            {
+                team.Status = TeamStatus.Onhold; // Move back to OnHold
+            }
 
-            if (!await IsUserOrganizer(team.ScheduleId))
-                return Forbid();
-
-            team.Status = newStatus;
-            _context.Teams.Update(team);
+            _context.Teams.UpdateRange(pendingTeams);
             await _context.SaveChangesAsync();
-
-            return RedirectToAction("Index", new { id = team.ScheduleId });
         }
-        
+    }
+}
+
         // POST: /ManageTeam/BulkUpdateTeamStatus
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> BulkAcceptTeams(int scheduleId, List<int> teamIds)
         {
-            if (!await IsUserOrganizer(scheduleId))
-                return Forbid();
+            if (!await IsUserOrganizer(scheduleId)) return Forbid();
                 
             if (teamIds == null || !teamIds.Any())
             {
@@ -104,21 +161,64 @@ namespace PicklePlay.Controllers
                 return RedirectToAction("Index", new { id = scheduleId });
             }
 
+            var schedule = await _context.Schedules.FindAsync(scheduleId);
+            if (schedule == null) return NotFound();
+
+            // ⬇️ VALIDATION: Check capacity
+            int confirmedCount = await _context.Teams.CountAsync(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Confirmed);
+            int pendingCount = await _context.Teams.CountAsync(t => t.ScheduleId == scheduleId && t.Status == TeamStatus.Pending); // Slots currently held for payment
+            
+            // Calculate available slots based on strict Confirmed count
+            int availableSlots = (schedule.NumTeam ?? 0) - confirmedCount;
+
+            if (availableSlots <= 0)
+            {
+                TempData["ErrorMessage"] = "Competition is already full. Cannot accept more teams.";
+                return RedirectToAction("Index", new { id = scheduleId });
+            }
+
+            
+            
+            bool isFree = (schedule.FeeType == FeeType.Free || (schedule.FeeAmount ?? 0) == 0);
+            
+            // If Free, they go straight to Confirmed, so we MUST enforce limit strictly here.
+            if (isFree && teamIds.Count > availableSlots)
+            {
+                TempData["ErrorMessage"] = $"Cannot accept {teamIds.Count} teams. Only {availableSlots} spots remaining.";
+                return RedirectToAction("Index", new { id = scheduleId });
+            }
+
+            var targetStatus = isFree ? TeamStatus.Confirmed : TeamStatus.Pending;
             var teams = await _context.Teams
                 .Where(t => t.ScheduleId == scheduleId && teamIds.Contains(t.TeamId))
                 .ToListAsync();
 
             foreach (var team in teams)
             {
-                team.Status = TeamStatus.Confirmed;
+                team.Status = targetStatus;
+                if (isFree && targetStatus == TeamStatus.Confirmed)
+                {
+                    team.PaymentStatusForSchedule = PaymentStatusForSchedule.Paid;
+                }
             }
 
             _context.Teams.UpdateRange(teams);
             await _context.SaveChangesAsync();
+
+            // ⬇️ NEW: Run cleanup if we moved teams to Confirmed
+            if (targetStatus == TeamStatus.Confirmed)
+            {
+                await CheckForFullCompetition(scheduleId);
+            }
             
-            TempData["SuccessMessage"] = $"{teams.Count} teams accepted.";
+            var statusName = isFree ? "Confirmed" : "Pending (Payment)";
+            TempData["SuccessMessage"] = $"{teams.Count} teams moved to {statusName}.";
             return RedirectToAction("Index", new { id = scheduleId });
         }
+
+        
+        
+                
 
         // POST: /ManageTeam/UpdatePaymentStatus
         [HttpPost]

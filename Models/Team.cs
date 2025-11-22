@@ -17,7 +17,7 @@ namespace PicklePlay.Models
         public string? TeamIconUrl { get; set; }
 
         [Required]
-        public TeamStatus Status { get; set; } = TeamStatus.Pending;
+        public TeamStatus Status { get; set; } = TeamStatus.Onhold;
 
         // Foreign key to the competition (which is a Schedule)
         [Required]
@@ -54,9 +54,10 @@ namespace PicklePlay.Models
 
     public enum TeamStatus
     {
-        Pending,
-        Confirmed,
-        Cancelled
+        Pending, //0 payment
+        Confirmed, //1
+        Onhold, //2
+        Cancelled //3
     }
 
     

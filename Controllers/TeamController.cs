@@ -79,7 +79,7 @@ namespace PicklePlay.Controllers
             {
                 TeamName = vm.TeamName,
                 TeamIconUrl = uniqueIconPath,
-                Status = TeamStatus.Pending,
+                Status = TeamStatus.Onhold,
                 
                 // --- *** FIX: ASSIGN THE FULL OBJECTS, NOT JUST IDs *** ---
                 Schedule = schedule,
@@ -163,6 +163,41 @@ namespace PicklePlay.Controllers
             TempData["SuccessMessage"] = "Team updated successfully.";
             return RedirectToAction("CompDetails", "Competition", new { id = teamToUpdate.ScheduleId });
         }
+
+        [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteTeam(int teamId)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue) return Unauthorized();
+
+        var team = await _context.Teams.FindAsync(teamId);
+        if (team == null) return NotFound();
+
+        // 1. Check Authorization (Must be Captain)
+        if (team.CreatedByUserId != currentUserId.Value)
+        {
+            TempData["ErrorMessage"] = "Only the team captain can withdraw the team.";
+            return RedirectToAction("CompDetails", "Competition", new { id = team.ScheduleId });
+        }
+
+        // 2. Check Status (Must be Onhold or Pending Payment)
+        // They CANNOT delete if Confirmed.
+        if (team.Status != TeamStatus.Onhold && team.Status != TeamStatus.Pending)
+        {
+            TempData["ErrorMessage"] = "Confirmed teams cannot be withdrawn. Please contact the organizer.";
+            return RedirectToAction("CompDetails", "Competition", new { id = team.ScheduleId });
+        }
+
+        // 3. Delete Team (Cascade delete in DB usually handles invitations/members, 
+        // but EF Core might need explicit removal depending on your config. 
+        // Standard cascade on TeamId is assumed here.)
+        _context.Teams.Remove(team);
+        await _context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = "Team withdrawn successfully.";
+        return RedirectToAction("CompDetails", "Competition", new { id = team.ScheduleId });
+    }
 
         private async Task<string?> ProcessUploadedImage(IFormFile imageFile)
         {

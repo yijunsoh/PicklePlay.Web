@@ -52,7 +52,9 @@
 
     Console.WriteLine($"User {currentUserId} - IsConfirmedParticipant (from Team table): {isConfirmedParticipant}");
 
-
+    int confirmedCount = Model.Teams.Count(t => t.Status == TeamStatus.Confirmed);
+    int maxTeams = Model.NumTeam ?? 0;
+    bool isFull = maxTeams > 0 && confirmedTeams.Count >= maxTeams;
 
 }
 
@@ -425,15 +427,22 @@
                 <a asp-action="SetupMatch" asp-controller="Community" asp-route-id="@Model.ScheduleId"
                     class="btn btn-warning"><i class="bi bi-pencil-square"></i> Continue Setup</a>
             }
-            else if (isCompetitionOpen && currentUserId.HasValue && !hasUserRegisteredTeam)
+            else if (hasUserRegisteredTeam)
+            {
+                <button class="btn btn-success" disabled><i class="bi bi-check-all"></i> Team Registered</button>
+            }
+            @* ⬇️ NEW: Block registration if full *@
+            else if (isFull)
+            {
+                <button class="btn btn-secondary" disabled>
+                    <i class="bi bi-lock-fill"></i> Competition Full
+                </button>
+            }
+            else if (isCompetitionOpen && currentUserId.HasValue)
             {
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerTeamModal">
                     <i class="bi bi-person-plus"></i> Register Team
                 </button>
-            }
-            else if (hasUserRegisteredTeam)
-            {
-                <button class="btn btn-success" disabled><i class="bi bi-check-all"></i> Team Registered</button>
             }
             else if (isCompetitionOpen && !currentUserId.HasValue)
             {
@@ -734,7 +743,7 @@
                     <button class="nav-link active" id="teams-subtab" data-bs-toggle="tab"
                         data-bs-target="#teams-subtab-pane" type="button" role="tab" aria-controls="teams-subtab-pane"
                         aria-selected="true">
-                        Teams (@Model.Teams.Count / @Model.NumTeam)
+                        Teams (@confirmedTeams.Count / @Model.NumTeam)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -865,16 +874,27 @@
                                 Confirmed (@confirmedTeams.Count)
                             </button>
                         </li>
+                        @if (Model.FeeType != FeeType.Free && (Model.FeeAmount ?? 0) > 0)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pending-teams-tab" data-bs-toggle="tab"
+                data-bs-target="#pending-teams-pane" type="button" role="tab" aria-controls="pending-teams-pane" aria-selected="false">
+                Pending Payment (@pendingTeams.Count)
+            </button>
+        </li>
+    }
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="pending-teams-tab" data-bs-toggle="tab"
-                                data-bs-target="#pending-teams-pane" type="button" role="tab"
-                                aria-controls="pending-teams-pane" aria-selected="false">
-                                Pending (@pendingTeams.Count)
+                            <button class="nav-link" id="onhold-teams-tab" data-bs-toggle="tab"
+                                data-bs-target="#onhold-teams-pane" type="button" role="tab"
+                                aria-controls="onhold-teams-pane" aria-selected="false">
+                                On Hold (@Model.Teams.Count(t => t.Status == TeamStatus.Onhold))
                             </button>
                         </li>
                     </ul>
+                    
 
-                    <div class="tab-content" id="teamStatusTabsContent">
+                <div class="tab-content" id="teamStatusTabsContent">
+                    @* pending teams tab content *@
                         <div class="tab-pane fade" id="pending-teams-pane" role="tabpanel"
                             aria-labelledby="pending-teams-tab" tabindex="0">
                             <div class="pt-3">
@@ -913,6 +933,14 @@
 
                                                 @if (team.CreatedByUserId == currentUserId)
                                                 {
+                                                                        <form asp-controller="Team" asp-action="DeleteTeam" method="post" class="d-inline"
+                          onsubmit="return confirm('Are you sure you want to withdraw?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="teamId" value="@team.TeamId" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                            <i class="bi bi-trash"></i> Quit
+                        </button>
+                    </form>
                                                     <a href="#" class="btn btn-sm btn-outline-secondary edit-team-btn"
                                                         data-bs-toggle="modal" data-bs-target="#editTeamModal"
                                                         data-team-id="@team.TeamId" data-team-name="@team.TeamName"
@@ -934,54 +962,16 @@
                                                     </div>
                                                     <span class="player-name">@member.User?.Username</span>
                                                 </div>
-
-                                                @if (currentUserId == team.CreatedByUserId && member.UserId !=
-                                                                                        team.CreatedByUserId)
-                                                {
-                                                    <div class="btn-group-vertical btn-group-sm"
-                                                        style="width: 65px; align-items: center;">
-                                                        <form asp-action="MakeCaptain" asp-controller="Competition" method="post"
-                                                            class="d-inline"
-                                                            onsubmit="return confirm('Make @member.User!.Username captain? You will lose captain permissions.')">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="teamId" value="@team.TeamId" />
-                                                            <input type="hidden" name="newCaptainUserId" value="@member.UserId" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-warning w-100"
-                                                                title="Make Captain">
-                                                                <i class="bi bi-star-fill"></i>
-                                                            </button>
-                                                        </form>
-                                                        <form asp-action="RemoveMember" asp-controller="Competition" method="post"
-                                                            class="d-inline"
-                                                            onsubmit="return confirm('Remove @member.User.Username from the team?')">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="teamId" value="@team.TeamId" />
-                                                            <input type="hidden" name="userId" value="@member.UserId" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"
-                                                                title="Remove Member">
-                                                                <i class="bi bi-x-lg"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                }
-                                            }
-                                            @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2) @* Assuming 2 players max *@
-                                                    {
-                                                <div class="player-slot-wrapper">
-                                                    <div class="empty-slot" data-bs-toggle="modal"
-                                                        data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
-                                                        title="Invite Player">
-                                                        <i class="bi bi-person-plus"></i>
-                                                    </div>
-                                                    <span class="player-name text-muted">Invite</span>
-                                                </div>
                                             }
                                         </div>
 
                                     </div>
                                 }
                             </div>
-                        </div>
+                        </div> 
+                         @* pending tabs content end *@
+                         @* confirmed tabs content *@
+                         
                         <div class="tab-pane fade show active" id="confirmed-teams-pane" role="tabpanel"
                             aria-labelledby="confirmed-teams-tab" tabindex="0">
                             <div class="pt-3">
@@ -1038,6 +1028,106 @@
                                 }
                             </div>
                         </div>
+                        @* confirmed tabs content end*@
+@* on hold tabs content*@
+<div class="tab-pane fade" id="onhold-teams-pane" role="tabpanel"
+    aria-labelledby="onhold-teams-tab" tabindex="0">
+    <div class="pt-3">
+        @{ var onHoldTeams = Model.Teams.Where(t => t.Status == TeamStatus.Onhold).ToList(); }
+        
+        @if (!onHoldTeams.Any())
+        {
+            <p class="text-muted">No teams currently on hold.</p>
+        }
+
+        @foreach (var team in onHoldTeams)
+        {
+            <div class="team-card opacity-75">
+                <div class="team-header d-flex align-items-center justify-content-between bg-light">
+                    <div class="d-flex align-items-center">
+                        <img src="@(string.IsNullOrEmpty(team.TeamIconUrl) ? "/images/team_icon.png" : team.TeamIconUrl)"
+                            alt="Team Icon" class="team-icon" />
+                        <h5 class="mb-0">@team.TeamName</h5>
+                        <span class="badge bg-secondary ms-2">On Hold</span>
+                    </div>
+                    
+                    @if (team.CreatedByUserId == currentUserId)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small fst-italic">Waiting approval...</span>
+                            
+                            @* Withdraw Button *@
+                            <form asp-controller="Team" asp-action="DeleteTeam" method="post" 
+                                  onsubmit="return confirm('Are you sure you want to withdraw your team application?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="teamId" value="@team.TeamId" />
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i> Withdraw
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+                <div class="team-body">
+                    @foreach (var member in team.TeamMembers)
+                    {
+                        <div class="player-slot-wrapper" style="cursor: pointer;"
+                             onclick="showUserProfilePreview(@member.UserId)"
+                             title="Click to view @member.User?.Username's profile">
+                            <div class="player-slot">
+                                <img src="@(string.IsNullOrEmpty(member.User?.ProfilePicture) ?
+                                    "/images/profile_image.jpg" : member.User.ProfilePicture)"
+                                    alt="Profile" />
+                            </div>
+                            <span class="player-name">@member.User?.Username</span>
+                        </div>
+
+                        @* ⬇️ RESTORED: Captain Controls (Make Captain / Remove Member) *@
+                        @if (currentUserId == team.CreatedByUserId && member.UserId != team.CreatedByUserId)
+                        {
+                            <div class="btn-group-vertical btn-group-sm" style="width: 65px; align-items: center;">
+                                <form asp-action="MakeCaptain" asp-controller="Competition" method="post"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Make @member.User!.Username captain? You will lose captain permissions.')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="teamId" value="@team.TeamId" />
+                                    <input type="hidden" name="newCaptainUserId" value="@member.UserId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-warning w-100" title="Make Captain">
+                                        <i class="bi bi-star-fill"></i>
+                                    </button>
+                                </form>
+
+                                <form asp-action="RemoveMember" asp-controller="Competition" method="post"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Remove @member.User.Username from the team?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="teamId" value="@team.TeamId" />
+                                    <input type="hidden" name="userId" value="@member.UserId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100" title="Remove Member">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    }
+
+                    @* ⬇️ Invite Logic (Only on OnHold Tab) *@
+                    @if (team.CreatedByUserId == currentUserId && team.TeamMembers.Count < 2)
+                    {
+                        <div class="player-slot-wrapper">
+                            <div class="empty-slot" data-bs-toggle="modal"
+                                 data-bs-target="#invitePlayerModal" data-team-id="@team.TeamId"
+                                 title="Invite Player">
+                                <i class="bi bi-person-plus"></i>
+                            </div>
+                            <span class="player-name text-muted">Invite</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
                     </div>
                 </div>
             </div>
