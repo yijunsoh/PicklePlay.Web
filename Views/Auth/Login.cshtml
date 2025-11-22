@@ -51,7 +51,7 @@
                 <h3 class="text-center mb-4">Login</h3>
 
                 <!-- Success Message -->
-                @if (TempData["SuccessMessage"] != null && (TempData["SuccessMessage"].ToString().Contains("verified") || TempData["SuccessMessage"].ToString().Contains("verification") || TempData["SuccessMessage"].ToString().Contains("email")))
+                @if (TempData["SuccessMessage"] != null)
                 {
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
@@ -107,7 +107,6 @@
                     </p>
                 </form>
 
-                <!-- Resend Verification Section -->
                 <!-- Resend Verification Section -->
                 <div class="resend-section">
                     <h6 class="text-center mb-3">Didn't receive verification email?</h6>
