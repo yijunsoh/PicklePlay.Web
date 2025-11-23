@@ -508,47 +508,81 @@ namespace PicklePlay.Controllers
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ReserveSlot(int scheduleId)
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ReserveSlot(int scheduleId, int extraSlots)
+{
+    var currentUserId = GetCurrentUserId();
+    if (!currentUserId.HasValue) return Unauthorized();
+
+    // 1. Basic Validation: Ensure at least 1 slot is requested
+    if (extraSlots < 1) extraSlots = 1;
+
+    var schedule = await _context.Schedules
+        .Include(s => s.Participants)
+        .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
+
+    if (schedule == null) return NotFound();
+
+    var participant = schedule.Participants
+        .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
+
+    // 2. Server-Side Capacity Check (Prevent Overbooking)
+    int maxPlayers = schedule.NumPlayer ?? 0;
+    if (maxPlayers > 0)
+    {
+        // Count all currently occupied spots (Self + Guests)
+        // We include Confirmed, PendingPayment, and OnHold to be safe
+        int occupiedSlots = schedule.Participants
+            .Where(p => p.Role == ParticipantRole.Player && 
+                        (p.Status == ParticipantStatus.Confirmed || 
+                         p.Status == ParticipantStatus.PendingPayment ||
+                         p.Status == ParticipantStatus.OnHold)) 
+            .Sum(p => 1 + p.ReservedSlots);
+
+        int availableSlots = maxPlayers - occupiedSlots;
+
+        // Calculate how many NEW spots are needed
+        // If user is new: Need 1 (Self) + extraSlots
+        // If user exists: Need just extraSlots
+        int spotsNeeded = (participant == null) ? (1 + extraSlots) : extraSlots;
+
+        if (spotsNeeded > availableSlots)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
-                return Unauthorized();
-
-            var schedule = await _context.Schedules
-                .Include(s => s.Participants)
-                .FirstOrDefaultAsync(s => s.ScheduleId == scheduleId);
-            if (schedule == null)
-                return NotFound();
-
-            // Find or create participant for current user
-            var participant = schedule.Participants
-                .FirstOrDefault(p => p.UserId == currentUserId && p.Role == ParticipantRole.Player);
-
-            if (participant == null)
-            {
-                participant = new ScheduleParticipant
-                {
-                    ScheduleId = scheduleId,
-                    UserId = currentUserId.Value,
-                    Role = ParticipantRole.Player,
-                    Status = ParticipantStatus.OnHold,
-                    ReservedSlots = 1
-                };
-                _context.ScheduleParticipants.Add(participant);
-            }
-            else
-            {
-                participant.ReservedSlots += 1;
-                participant.Status = ParticipantStatus.OnHold;
-                _context.ScheduleParticipants.Update(participant);
-            }
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Slot reserved! Organizer will review your request.";
+            TempData["ErrorMessage"] = "Not enough slots available. The game filled up!";
             return RedirectToAction("Details", "Schedule", new { id = scheduleId });
         }
+    }
+
+    // 3. Create or Update Participant
+    if (participant == null)
+    {
+        // User joining for the first time with guests
+        participant = new ScheduleParticipant
+        {
+            ScheduleId = scheduleId,
+            UserId = currentUserId.Value,
+            Role = ParticipantRole.Player,
+            Status = ParticipantStatus.OnHold, // Waiting for organizer approval
+            ReservedSlots = extraSlots // Set guests
+        };
+        _context.ScheduleParticipants.Add(participant);
+    }
+    else
+    {
+        // User already joined, adding MORE guests
+        participant.ReservedSlots += extraSlots; 
+        
+        // Optional: If they add guests, you might want to reset status to OnHold for re-approval
+        participant.Status = ParticipantStatus.OnHold;
+        
+        _context.ScheduleParticipants.Update(participant);
+    }
+
+    await _context.SaveChangesAsync();
+
+    TempData["SuccessMessage"] = $"Reserved {extraSlots} extra slot(s)! Organizer will review your request.";
+    return RedirectToAction("Details", "Schedule", new { id = scheduleId });
+}
 
         [HttpPost]
         [ValidateAntiForgeryToken]
