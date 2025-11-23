@@ -16,14 +16,20 @@
         {
             get
             {
+                // 1. Check for Past/Completed first -> GREY
+                if (Status == ScheduleStatus.Past || Status == ScheduleStatus.Completed)
+                {
+                    return "cal-event-past";
+                }
+
+                // 2. Existing Competition Logic
                 if (ScheduleType == ScheduleType.Competition)
                 {
-                    // If PendingSetup, use orange. Otherwise, use yellow.
                     return (Status == ScheduleStatus.PendingSetup) ? "cal-event-pending" : "cal-event-comp";
                 }
 
-                // All other types (OneOff, Recurring instances) are just "Games"
-                return "cal-event-game"; // Green
+                // 3. Default Game Logic
+                return "cal-event-game";
             }
         }
     }
@@ -310,12 +316,12 @@ else
                             </div>
 
                             @* --- UPDATED LEGEND --- *@
-                            <div class="d-flex justify-content-start align-items-center mb-2 small">
-                                <span class="me-2"><span class="cal-legend cal-event-game"></span> Game</span>
-                                <span class="me-2"><span class="cal-legend cal-event-comp"></span> Competition</span>
-                                <span class="me-2"><span class="cal-legend cal-event-pending"></span> Pending
-                                    Setup</span>
-                            </div>
+<div class="d-flex justify-content-start align-items-center mb-2 small">
+    <span class="me-2"><span class="cal-legend cal-event-game"></span> Game</span>
+    <span class="me-2"><span class="cal-legend cal-event-comp"></span> Competition</span>
+    <span class="me-2"><span class="cal-legend cal-event-pending"></span> Pending Setup</span>
+    <span class="me-2"><span class="cal-legend cal-event-past"></span> Past/Completed</span>
+</div>
 
                             <div class="table-responsive">
                                 <table class="table table-bordered calendar-table" style="table-layout: fixed;">
@@ -1079,6 +1085,13 @@ else
         background-color: #fd7e14;
         border-color: #e85d04;
         color: #ffffff;
+    }
+
+    .cal-event-past {
+        background-color: #e2e3e5;
+        border-color: #d3d6d8;
+        color: #636c72;
+        opacity: 0.8; /* Slight fade to indicate inactivity */
     }
 
     /* Legend CSS */
