@@ -18,6 +18,20 @@
     var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
     var currentUserParticipation = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId && p.Role ==
     ParticipantRole.Player);
+
+// ⬇️ NEW: Calculate Total Payment (Fee * Pax)
+    decimal baseFee = Model.FeeAmount ?? 0;
+    int paxCount = 1; // Default 1 person
+    decimal totalToPay = baseFee;
+
+    if (currentUserParticipation != null)
+    {
+        // Your Pax = 1 (Self) + Reserved Slots
+        paxCount = 1 + currentUserParticipation.ReservedSlots;
+        totalToPay = baseFee * paxCount;
+    }
+    // ⬆️ END NEW LOGIC
+
     var escrowStatus = ViewData["EscrowStatus"]?.ToString();
 
     // --- Requirement 1: Check if any restrictions exist ---
@@ -618,10 +632,22 @@
                         else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
                         {
                             <div class="payment-section">
-                                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal"
-                                    data-bs-target="#paymentModal">
-                                    <i class="bi bi-credit-card-fill"></i> Make Payment
-                                </button>
+              @if (maxPlayers > 0 && confirmedCount >= maxPlayers)
+        {
+            <button class="btn btn-secondary btn-lg" disabled>
+                <i class="bi bi-person-x-fill"></i> Game Full
+            </button>
+            <div class="text-danger small mt-1 text-center">
+                Sorry, someone else took the last spot.
+            </div>
+        }
+        else
+        {
+            @* Show Payment Button only if slots are available *@
+            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                <i class="bi bi-credit-card-fill"></i> Make Payment
+            </button>
+        }
 
                                 <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
                                     @Html.AntiForgeryToken()
@@ -638,7 +664,7 @@
 
 
                             <!-- Include Payment Modal Partial -->
-                            <partial name="_PaymentModal" />
+                            <partial name="_PaymentModal" model="Model" view-data='@new ViewDataDictionary(ViewData) { { "TotalToPay", totalToPay }, { "PaxCount", paxCount } }' />
                         }
                         else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
                         {
@@ -792,7 +818,32 @@
                 </div>
                 <div class="modal-body">
                     <p>Please complete your payment to confirm your spot.</p>
-                    <p><strong>Fee:</strong> RM @Model.FeeAmount?.ToString("0.00")</p>
+                    @* ⬇️ NEW: Dynamic Fee Display *@
+                    @if (paxCount > 1)
+                    {
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title">Payment Breakdown</h6>
+                                <div class="d-flex justify-content-between small">
+                                    <span>Base Fee:</span>
+                                    <span>RM @baseFee.ToString("0.00")</span>
+                                </div>
+                                <div class="d-flex justify-content-between small">
+                                    <span>Players:</span>
+                                    <span>@paxCount (You + @currentUserParticipation?.ReservedSlots Guest)</span>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between fw-bold text-primary">
+                                    <span>Total Amount:</span>
+                                    <span>RM @totalToPay.ToString("0.00")</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="fs-5"><strong>Total Fee:</strong> RM @totalToPay.ToString("0.00")</p>
+                    }
                     <div class="alert alert-info">
                         <i class="bi bi-tools"></i> Payment gateway integration is pending.
                     </div>

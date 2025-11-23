@@ -1,9 +1,13 @@
 @using PicklePlay.Models
 @{
     var modalContext = ViewData["ModalContext"] as string ?? "game";
-    var scheduleId = ViewData["ScheduleId"] as int?;
-    var feeAmount = ViewData["FeeAmount"] as decimal? ?? 0;
+    var scheduleId = ViewData["ScheduleId"] as int?;    
     var gameName = ViewData["GameName"] as string ?? "this event";
+
+    var baseFee = ViewData["FeeAmount"] as decimal? ?? 0;
+    var totalToPay = (ViewData["TotalToPay"] as decimal?) ?? baseFee;
+    var paxCount = (ViewData["PaxCount"] as int?) ?? 1;
+    var guestCount = paxCount - 1;
 }
 
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
@@ -19,19 +23,31 @@
                 <!-- Payment Summary -->
                 <div class="payment-summary mb-4">
                     <h6 class="fw-bold">Payment Summary</h6>
+                    
                     <div class="d-flex justify-content-between mb-2">
                         <span>@gameName Fee:</span>
-                        <strong>RM <span id="paymentAmount">@feeAmount.ToString("0.00")</span></strong>
+                        <strong>RM @baseFee.ToString("0.00")</strong>
                     </div>
+
+                    @if (guestCount > 0)
+                    {
+                        <div class="d-flex justify-content-between mb-2 text-muted small">
+                            <span><i class="bi bi-person-plus"></i> Extra Slots (@guestCount):</span>
+                            <span>+ RM @((baseFee * guestCount).ToString("0.00"))</span>
+                        </div>
+                        <hr class="my-2">
+                    }
+
                     <div class="d-flex justify-content-between small text-muted mb-2">
                         <span>Escrow Protection:</span>
                         <span>Included</span>
                     </div>
+                
                     <hr>
+                    
                     <div class="d-flex justify-content-between fw-bold">
                         <span>Total Amount:</span>
-                        <strong class="text-primary">RM <span
-                                id="totalAmount">@feeAmount.ToString("0.00")</span></strong>
+                        <strong class="text-primary">RM <span id="totalAmount">@totalToPay.ToString("0.00")</span></strong>
                     </div>
                 </div>
 
@@ -89,7 +105,7 @@
 
 <script>
     // Global variables
-    let paymentAmount = @feeAmount;
+    let paymentAmount = @totalToPay;
     let currentScheduleId = @scheduleId;
     let isBalanceChecked = false;
     let canAffordPayment = false;
