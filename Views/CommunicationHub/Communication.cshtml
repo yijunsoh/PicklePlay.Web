@@ -224,7 +224,7 @@
         margin-bottom: 20px;
     }
 
-    .message-bubble {
+.message-bubble {
         max-width: 70%;
         padding: 10px 15px;
         border-radius: 18px;
@@ -673,13 +673,25 @@
                 .build();
 
             chatConnection.on("ReceivePrivateMessage", (data) => {
+                // 1. If chat is open with this person, append message
                 if (currentChatFriendId === data.senderId) {
                     appendMessage(data, false);
-                }
+                    // Mark as read visually (optional, backend handles logic later)
+                } 
+                
+                // 2. Update Left Panel (Sidebar)
+                // If chat is OPEN, it is NOT unread. If chat is CLOSED, it IS unread.
+                const isUnread = (currentChatFriendId !== data.senderId);
+                updateFriendListUI(data.senderId, data.content, data.sentAt, isUnread);
             });
 
             chatConnection.on("MessageSent", (data) => {
+                // 1. Append to my chat window
                 appendMessage(data, true);
+                
+                // 2. Update Left Panel (Sidebar) for the receiver
+                // For sent messages, unread count is obviously 0 for me
+                updateFriendListUI(data.receiverId, data.content, data.sentAt, false);
             });
 
             chatConnection.on("Error", (message) => {
@@ -836,19 +848,35 @@
         `;
     }
 
-    // NEW: Local function that doesn't navigate
     window.openChatFromList = async function(friendId) {
         console.log('📩 Opening chat with friend:', friendId);
         currentChatFriendId = friendId;
 
+        // 1. Update Active State
         document.querySelectorAll('.friend-item').forEach(item => {
             item.classList.remove('active');
         });
+        
         const friendElement = document.querySelector(`[data-user-id="${friendId}"]`);
         if (friendElement) {
             friendElement.classList.add('active');
+            friendElement.classList.remove('unread'); // Remove unread styling
+            
+            // ⬇️ NEW: Find and hide the unread badge immediately
+            const badge = friendElement.querySelector('.unread-badge');
+            if (badge) {
+                badge.style.display = 'none'; // Hide visually
+                badge.textContent = '0';      // Reset number
+            }
         }
 
+        // 2. Reset local data count so it doesn't reappear on next render
+        const friendData = friendsData.friends.find(f => f.userId === friendId);
+        if (friendData) {
+            friendData.unreadMessageCount = 0;
+        }
+
+        // 3. Fetch Chat History (Existing logic)
         try {
             const response = await fetch(`/Friendship/GetChatMessages?friendId=${friendId}`);
             const result = await response.json();
@@ -916,15 +944,14 @@
 
         let html = '';
         messages.forEach(msg => {
+            // align-items: flex-end ensures bubbles don't stretch vertically or horizontally
             html += `
-                <div class="message-group" style="display: flex; ${msg.isMine ? 'justify-content: flex-end;' : ''}">
-                    <div>
-                        <div class="message-bubble ${msg.isMine ? 'message-sent' : 'message-received'}">
-                            ${msg.content}
-                        </div>
-                        <div class="message-time ${msg.isMine ? 'text-end' : ''}">
-                            ${formatMessageTime(new Date(msg.sentAt))}
-                        </div>
+                <div class="message-group" style="display: flex; flex-direction: column; align-items: ${msg.isMine ? 'flex-end' : 'flex-start'};">
+                    <div class="message-bubble ${msg.isMine ? 'message-sent' : 'message-received'}">
+                        ${msg.content}
+                    </div>
+                    <div class="message-time">
+                        ${formatMessageTime(new Date(msg.sentAt))}
                     </div>
                 </div>
             `;
@@ -1068,6 +1095,41 @@
             });
         }
     });
+
+    // NEW: Helper to update sidebar when message is sent/received
+    function updateFriendListUI(userId, message, time, isUnread) {
+        // 1. Find friend in the local data
+        const friendIndex = friendsData.friends.findIndex(f => f.userId === userId);
+        
+        if (friendIndex > -1) {
+            // 2. Update Data
+            const friend = friendsData.friends[friendIndex];
+            friend.lastMessage = message;
+            friend.lastMessageTime = time;
+            
+            if (isUnread) {
+                friend.unreadMessageCount = (friend.unreadMessageCount || 0) + 1;
+            }
+
+            // 3. Move to Top of List (Bump)
+            friendsData.friends.splice(friendIndex, 1);
+            friendsData.friends.unshift(friend);
+
+            // 4. Re-render list if on 'all' tab
+            if (currentTab === 'all') {
+                renderFriendList();
+                
+                // Re-apply active class if this person is currently selected
+                if (currentChatFriendId === userId) {
+                    const el = document.querySelector(`.friend-item[data-user-id="${userId}"]`);
+                    if (el) el.classList.add('active');
+                }
+            }
+        } else {
+            // Optional: If friend not in list (rare case for confirmed friends), reload list
+            // loadFriendList(); 
+        }
+    }
 
     // Handle URL parameters
     async function handleUrlParameters() {
