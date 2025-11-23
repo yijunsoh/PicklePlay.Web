@@ -46,13 +46,15 @@
 
     if (maxPlayers > 0)
     {
-        emptySlots = maxPlayers - confirmedPlayers.Count;
+        // Use the total count including reserved slots
+        emptySlots = maxPlayers - confirmedCount;
+
         if (emptySlots < 0) emptySlots = 0; // Safety check
     }
 
     // *** Get bookmark status from ViewBag (set in ScheduleController) ***
     bool isBookmarked = ViewBag.IsBookmarked ?? false;
-// ============================================================
+    // ============================================================
     // ⬇️ NEW: RESTRICTION VALIDATION LOGIC
     // ============================================================
     bool isEligible = true;
@@ -62,9 +64,9 @@
     {
         // Fetch full user details including Rank
         var currentUser = _context.Users
-            .Include(u => u.Rank) // Assuming 'Rank' navigation property exists
-            .AsNoTracking()
-            .FirstOrDefault(u => u.UserId == currentUserId.Value);
+        .Include(u => u.Rank) // Assuming 'Rank' navigation property exists
+        .AsNoTracking()
+        .FirstOrDefault(u => u.UserId == currentUserId.Value);
 
         if (currentUser != null)
         {
@@ -77,7 +79,8 @@
                     isEligible = false;
                     restrictionReasons.Add("This game is restricted to Male players.");
                 }
-                else if (Model.GenderRestriction == GenderRestriction.Female && !userGender.Equals("Female", StringComparison.OrdinalIgnoreCase))
+                else if (Model.GenderRestriction == GenderRestriction.Female && !userGender.Equals("Female",
+                StringComparison.OrdinalIgnoreCase))
                 {
                     isEligible = false;
                     restrictionReasons.Add("This game is restricted to Female players.");
@@ -129,11 +132,11 @@
             // 3. Rank/Rating Check
             // Assuming PlayerRank has a 'Rating' property of type decimal
             // If user has no rank, treat as 0.000
-            decimal userRating = 0.000m; 
+            decimal userRating = 0.000m;
             // Note: Adjust '.Rating' below if your property name is different (e.g. Score, Points)
-            if (currentUser.Rank != null) 
+            if (currentUser.Rank != null)
             {
-                 userRating = currentUser.Rank.Rating; // Uncomment if you have a Rating property
+                userRating = currentUser.Rank.Rating; // Uncomment if you have a Rating property
             }
 
             if (Model.MinRankRestriction.HasValue && Model.MinRankRestriction.Value > 0)
@@ -543,20 +546,38 @@
 
                     <div class="d-grid gap-2 mt-4">
                         @* LOGIC FLOW FOR BUTTONS *@
-                        @if (!currentUserId.HasValue)
+
+                        @* ⬇️ NEW: Check if Game Ended (Status 2) AND user is not a participant *@
+                        @if (Model.Status == ScheduleStatus.Past && currentUserParticipation == null)
                         {
-                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-success btn-lg">
+                            <button class="btn btn-secondary btn-lg" disabled>
+                                <i class="bi bi-calendar-x"></i> Game Ended
+                            </button>
+                        }
+                        @* ⬇️ EXISTING: If not logged in (and game is NOT past due to 'else') *@
+                        else if (!currentUserId.HasValue)
+                        {
+                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
+                                class="btn btn-success btn-lg">
                                 <i class="bi bi-box-arrow-in-right"></i> Log in to Join
                             </a>
                         }
+                        @* ⬇️ EXISTING: Logged in, not a participant *@
                         else if (currentUserParticipation == null && currentUserId.HasValue)
                         {
                             bool isOrganizer = organizers.Any(o => o.UserId == currentUserId);
-                            
+
                             if (isOrganizer && Model.HostRole == HostRole.HostOnly)
                             {
-                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                                    data-bs-target="#joinGameModal">
                                     <i class="bi bi-person-plus-fill"></i> Host and Play
+                                </button>
+                            }
+                            else if (maxPlayers > 0 && confirmedCount >= maxPlayers)
+                            {
+                                <button class="btn btn-secondary btn-lg" disabled>
+                                    <i class="bi bi-person-x-fill"></i> Game Full
                                 </button>
                             }
                             // ⬇️ NEW: CHECK ELIGIBILITY BEFORE SHOWING JOIN BUTTON
@@ -568,7 +589,7 @@
                                 <div class="alert alert-warning mt-2 p-2 small">
                                     <strong>Requirements not met:</strong>
                                     <ul class="mb-0 ps-3">
-                                        @foreach(var reason in restrictionReasons)
+                                        @foreach (var reason in restrictionReasons)
                                         {
                                             <li>@reason</li>
                                         }
@@ -577,7 +598,8 @@
                             }
                             else
                             {
-                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                                    data-bs-target="#joinGameModal">
                                     <i class="bi bi-person-plus-fill"></i> Join Game
                                 </button>
                             }
@@ -666,7 +688,21 @@
                             </a>
                         }
 
-                        <a href="#" class="btn btn-outline-secondary">Contact Host</a>
+                        @if (organizers.Any())
+                        {
+                            var hostId = organizers.First().UserId;
+
+                            <button type="button" class="btn btn-outline-secondary mt-2"
+                                onclick="showUserProfilePreview('@hostId')">
+                                <i class="bi bi-chat-dots"></i> Contact Host
+                            </button>
+
+                            <div class="text-center mt-1">
+                                <small class="text-muted fst-italic" style="font-size: 0.75rem;">
+                                    * You need to be friends with the host in order to chat *
+                                </small>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -876,7 +912,7 @@
                     });
             });
 
- // --- *** FIX: Add Organizer Modal Scripts *** ---
+            // --- *** FIX: Add Organizer Modal Scripts *** ---
             var addOrganizerModal = document.getElementById('addOrganizerModal');
             var organizerSearchInput = document.getElementById('organizerSearchInput');
             var organizerSearchResultsContainer = document.getElementById('organizer-search-results');
@@ -891,7 +927,7 @@
                 addOrganizerModal.addEventListener('shown.bs.modal', function () {
                     organizerSearchInput.focus();
                 });
-                
+
                 addOrganizerModal.addEventListener('hidden.bs.modal', function () {
                     organizerSearchInput.value = '';
                     organizerSearchResultsContainer.innerHTML = '';
@@ -945,25 +981,25 @@
 
                 users.forEach(user => {
                     var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
-                    
+
                     var userHtml = `
-                        <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
-                            <div class="d-flex align-items-center">
-                                <img src="${profilePic}" alt="${user.username}" 
-                                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px;"
-                                     onerror="this.src='/images/profile_image.jpg'" />
-                                <div>
-                                    <div class="fw-bold">${user.username}</div>
-                                </div>
-                            </div>
-                            <button class="btn btn-sm btn-primary add-organizer-btn" 
-                                    data-schedule-id="${scheduleId}" 
-                                    data-user-id="${user.userId}"
-                                    data-token="${token}">
-                                <i class="bi bi-plus-lg"></i> Add
-                            </button>
-                        </div>`;
-                        
+                                <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <img src="${profilePic}" alt="${user.username}" 
+                                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px;"
+                                             onerror="this.src='/images/profile_image.jpg'" />
+                                        <div>
+                                            <div class="fw-bold">${user.username}</div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary add-organizer-btn" 
+                                            data-schedule-id="${scheduleId}" 
+                                            data-user-id="${user.userId}"
+                                            data-token="${token}">
+                                        <i class="bi bi-plus-lg"></i> Add
+                                    </button>
+                                </div>`;
+
                     organizerSearchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
                 });
 
@@ -975,7 +1011,7 @@
             function addOrganizer(event) {
                 // Use currentTarget to target the BUTTON, not the icon
                 var button = event.currentTarget;
-                
+
                 var scheduleId = button.getAttribute('data-schedule-id');
                 var userId = button.getAttribute('data-user-id');
                 var token = button.getAttribute('data-token');
@@ -997,27 +1033,27 @@
                     },
                     body: `scheduleId=${scheduleId}&userId=${userId}`
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.message || 'Failed to add organizer') });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    button.innerHTML = '<i class="bi bi-check-lg"></i> Added';
-                    button.classList.remove('btn-primary');
-                    button.classList.add('btn-success');
-                    
-                    setTimeout(function() {
-                        location.reload();
-                    }, 800);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
-                    alert('Error: ' + error.message);
-                });
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw new Error(err.message || 'Failed to add organizer') });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        button.innerHTML = '<i class="bi bi-check-lg"></i> Added';
+                        button.classList.remove('btn-primary');
+                        button.classList.add('btn-success');
+
+                        setTimeout(function () {
+                            location.reload();
+                        }, 800);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                        alert('Error: ' + error.message);
+                    });
             }
 
             // *** DISPUTE MODAL SCRIPTS ***

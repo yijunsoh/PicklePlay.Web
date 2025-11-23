@@ -392,30 +392,35 @@ public async Task<IActionResult> GetUserProfilePreview(int userId)
 {
     try
     {
-        Console.WriteLine($"=== GetUserProfilePreview called for userId: {userId} ===");
+        // 1. DIRECTLY GET CURRENT USER ID (Bypass helper to avoid null/0 issues)
+        int? currentUserId = HttpContext.Session.GetInt32("UserId");
         
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-        {
-            Console.WriteLine($"User {userId} not found");
-            return NotFound(new { success = false, message = "User not found" });
-        }
+        Console.WriteLine($"[DEBUG] ProfilePreview - Target: {userId}, Viewer: {currentUserId}");
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.UserId == userId);
+
+        if (user == null) return Json(new { success = false, message = "User not found" });
 
         Console.WriteLine($"User found: {user.Username}");
-        
-        var currentUserId = GetCurrentUserId();
-        Console.WriteLine($"Current user ID: {currentUserId}");
 
-        // Get endorsement count and recent endorsements
+       
+
+        // 2. Get endorsement count and recent endorsements
         var endorsementData = await _context.Endorsements
+            .AsNoTracking()
             .Where(e => e.ReceiverUserId == userId)
             .OrderByDescending(e => e.EndorsementId)
             .Take(3)
-            .Select(e => new 
+            .Select(e => new
             {
                 e.EndorsementId,
                 e.GiverUserId,
-                Comment = e.Skill.ToString() + (e.Personality != PersonalityEndorsement.None ? " • " + e.Personality.ToString() : ""),
+                // Ensure Enums are converted to string safely
+                SkillName = e.Skill.ToString(),
+                PersonalityName = e.Personality.ToString(),
+                IsPersonalityNone = e.Personality == PersonalityEndorsement.None,
                 e.DateGiven
             })
             .ToListAsync();
@@ -425,24 +430,33 @@ public async Task<IActionResult> GetUserProfilePreview(int userId)
         var endorsements = new List<EndorsementPreviewItem>();
         foreach (var e in endorsementData)
         {
-            var sender = await _context.Users.FindAsync(e.GiverUserId);
+            var sender = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == e.GiverUserId);
+            
+            // Format comment string
+            string comment = e.SkillName;
+            if (!e.IsPersonalityNone)
+            {
+                comment += " • " + e.PersonalityName;
+            }
+
             endorsements.Add(new EndorsementPreviewItem
             {
                 EndorsementId = e.EndorsementId,
                 EndorserName = sender?.Username ?? "Unknown",
                 EndorserImage = sender?.ProfilePicture,
-                Comment = e.Comment,
+                Comment = comment,
                 CreatedAt = e.DateGiven
             });
         }
 
-        // Get achievement count and recent achievements
+        // 3. Get recent achievements (Awards)
         var achievements = await _context.Awards
+            .AsNoTracking()
             .Include(a => a.Team)
                 .ThenInclude(t => t!.TeamMembers)
             .Include(a => a.Schedule)
-            .Where(a => a.TeamId.HasValue && 
-                       a.Team!.TeamMembers.Any(tm => tm.UserId == userId))
+            .Where(a => a.TeamId.HasValue &&
+                        a.Team!.TeamMembers.Any(tm => tm.UserId == userId))
             .OrderByDescending(a => a.AwardedDate)
             .Take(3)
             .Select(a => new AchievementItem
@@ -453,7 +467,7 @@ public async Task<IActionResult> GetUserProfilePreview(int userId)
                 Description = a.Description,
                 Position = a.Position,
                 PositionName = a.Position == AwardPosition.Champion ? "Champion" :
-                              a.Position == AwardPosition.FirstRunnerUp ? "1st Runner Up" : "2nd Runner Up",
+                               a.Position == AwardPosition.FirstRunnerUp ? "1st Runner Up" : "2nd Runner Up",
                 AwardedDate = a.AwardedDate,
                 CompetitionTitle = a.Schedule!.GameName ?? "Competition",
                 TeamName = a.Team!.TeamName ?? "Unknown Team"
@@ -462,33 +476,43 @@ public async Task<IActionResult> GetUserProfilePreview(int userId)
 
         Console.WriteLine($"Found {achievements.Count} achievements");
 
-        // Get friend count
+        // 4. Get friend count
         var friendCount = await _context.Friendships
-            .Where(f => (f.UserOneId == userId || f.UserTwoId == userId) && 
-                       f.Status == FriendshipStatus.Accepted)
+            .AsNoTracking()
+            .Where(f => (f.UserOneId == userId || f.UserTwoId == userId) &&
+                        f.Status == FriendshipStatus.Accepted)
             .CountAsync();
 
         Console.WriteLine($"Friend count: {friendCount}");
 
-        // Check friendship status
         bool isFriend = false;
         bool hasPendingRequest = false;
 
         if (currentUserId.HasValue && currentUserId.Value != userId)
         {
+            // Fetch the friendship row directly
             var friendship = await _context.Friendships
+                .AsNoTracking()
                 .FirstOrDefaultAsync(f => 
                     (f.UserOneId == currentUserId.Value && f.UserTwoId == userId) ||
                     (f.UserOneId == userId && f.UserTwoId == currentUserId.Value));
 
             if (friendship != null)
             {
+                // DEBUG: Log the status found in DB
+                Console.WriteLine($"[DEBUG] Friendship Found! ID: {friendship.FriendshipId}, Status: {friendship.Status} ({(int)friendship.Status})");
+
+                // Check specifically for Accepted (Status 1)
                 isFriend = friendship.Status == FriendshipStatus.Accepted;
                 hasPendingRequest = friendship.Status == FriendshipStatus.Pending;
-                Console.WriteLine($"Friendship status - isFriend: {isFriend}, pending: {hasPendingRequest}");
+            }
+            else
+            {
+                Console.WriteLine("[DEBUG] No friendship record found in DB.");
             }
         }
 
+        // --- 3. RE-BUILD VIEWMODEL (Ensure isFriend is passed) ---
         var viewModel = new UserProfilePreviewViewModel
         {
             UserId = user.UserId,
@@ -499,30 +523,26 @@ public async Task<IActionResult> GetUserProfilePreview(int userId)
             Age = user.Age,
             Location = user.Location,
             Bio = user.Bio,
-            EndorsementCount = await _context.Endorsements.CountAsync(e => e.ReceiverUserId == userId),
-            AchievementCount = achievements.Count,
-            FriendCount = friendCount,
-            RecentEndorsements = endorsements,
-            RecentAchievements = achievements,
+            
+            // Pass the Fixed Flags
             IsFriend = isFriend,
             HasPendingFriendRequest = hasPendingRequest,
-            IsCurrentUser = currentUserId.HasValue && currentUserId.Value == userId
+            IsCurrentUser = currentUserId.HasValue && currentUserId.Value == userId,
+
+            
+            FriendCount = await _context.Friendships.CountAsync(f => (f.UserOneId == userId || f.UserTwoId == userId) && f.Status == FriendshipStatus.Accepted),
+            EndorsementCount = await _context.Endorsements.CountAsync(e => e.ReceiverUserId == userId),
+            AchievementCount = await _context.Awards.CountAsync(a => a.Team != null && a.Team.TeamMembers.Any(tm => tm.UserId == userId)),
+            RecentEndorsements = new List<EndorsementPreviewItem>(), 
+            RecentAchievements = new List<AchievementItem>()         
         };
 
-        Console.WriteLine("=== GetUserProfilePreview completed successfully ===");
         return Json(new { success = true, data = viewModel });
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"=== ERROR in GetUserProfilePreview ===");
-        Console.WriteLine($"Error: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        if (ex.InnerException != null)
-        {
-            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-        }
-        
-        return Json(new { success = false, message = $"Error: {ex.Message}" });
+        Console.WriteLine($"[ERROR] GetUserProfilePreview: {ex.Message}");
+        return Json(new { success = false, message = "Error loading profile" });
     }
 }
 
