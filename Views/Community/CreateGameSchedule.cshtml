@@ -203,13 +203,13 @@
                 <div class="col-md-6">
                     <label asp-for="FeeType" class="form-label required">Fee Type</label>
                     <div class="fee-type-selector">
-                        @foreach (FeeType ft in new[] { FeeType.Free, FeeType.PerPerson, FeeType.AutoSplitTotal })
+                        @foreach (FeeType ft in new[] { FeeType.Free, FeeType.PerPerson })
                         {
                             <input type="radio" class="btn-check" name="FeeType" value="@((int)ft)" id="feeType-@ft"
                                 checked="@(ft == FeeType.Free)" onchange="toggleFeeAmount()" />
                             <label class="btn btn-outline-success" for="feeType-@ft">
                                 <i class="bi bi-@(ft == FeeType.Free ? "gift" : "cash-stack") me-1"></i>
-                                @(ft == FeeType.Free ? "Free" : ft == FeeType.PerPerson ? "Per Person" : "Split Total")
+                                @(ft == FeeType.Free ? "Free" : (ft == FeeType.PerPerson ? "Per Person" : ""))
                             </label>
                         }
                     </div>
