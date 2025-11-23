@@ -12,6 +12,7 @@ namespace PicklePlay.Models.ViewModels
     {
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
+        public string? TeamIconUrl { get; set; }
 
         public int GamesPlayed { get; set; }
         public int MatchesWon { get; set; }
