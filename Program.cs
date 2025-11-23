@@ -60,6 +60,7 @@ builder.Services.AddHttpClient();
 
 // Add this line where you register other services (before builder.Build())
 builder.Services.AddHostedService<ScheduleAutoEndService>();
+builder.Services.AddHostedService<AutoReleaseEscrowService>();
 
 // Add these lines where you register other services (before builder.Build())
 builder.Services.AddScoped<RankAlgorithmService>();
