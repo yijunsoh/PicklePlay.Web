@@ -3,6 +3,8 @@
 @using PicklePlay.Models.ViewModels
 @using PicklePlay.Data
 @using System.Security.Claims;
+@using Microsoft.EntityFrameworkCore;
+@inject PicklePlay.Data.ApplicationDbContext _context
 
 @{
     ViewData["Title"] = Model.GameName ?? "Competition Details";
@@ -56,6 +58,88 @@
     int maxTeams = Model.NumTeam ?? 0;
     bool isFull = maxTeams > 0 && confirmedTeams.Count >= maxTeams;
 
+bool isEligible = true;
+    List<string> restrictionReasons = new List<string>();
+
+    if (currentUserId.HasValue)
+    {
+        // Fetch full user details
+        var currentUser = _context.Users
+            .Include(u => u.Rank)
+            .AsNoTracking()
+            .FirstOrDefault(u => u.UserId == currentUserId.Value);
+
+        if (currentUser != null)
+        {
+            // 1. Gender Check
+            if (Model.GenderRestriction != GenderRestriction.None)
+            {
+                string userGender = currentUser.Gender?.Trim() ?? "";
+                if (Model.GenderRestriction == GenderRestriction.Male && !userGender.Equals("Male", StringComparison.OrdinalIgnoreCase))
+                {
+                    isEligible = false;
+                    restrictionReasons.Add("Restricted to Male players.");
+                }
+                else if (Model.GenderRestriction == GenderRestriction.Female && !userGender.Equals("Female", StringComparison.OrdinalIgnoreCase))
+                {
+                    isEligible = false;
+                    restrictionReasons.Add("Restricted to Female players.");
+                }
+            }
+
+            // 2. Age Check
+            if (Model.AgeGroupRestriction != AgeGroupRestriction.None)
+            {
+                int userAge = 0;
+                if (currentUser.DateOfBirth.HasValue)
+                {
+                    var today = DateTime.Today;
+                    userAge = today.Year - currentUser.DateOfBirth.Value.Year;
+                    if (currentUser.DateOfBirth.Value.Date > today.AddYears(-userAge)) userAge--;
+                }
+                else { userAge = currentUser.Age ?? 0; }
+
+                if (userAge == 0)
+                {
+                    isEligible = false;
+                    restrictionReasons.Add("Update Date of Birth/Age in profile.");
+                }
+                else
+                {
+                    if (Model.AgeGroupRestriction == AgeGroupRestriction.Junior && userAge >= 18)
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("Junior (Under 18) only.");
+                    }
+                    else if (Model.AgeGroupRestriction == AgeGroupRestriction.Adult && (userAge < 18 || userAge >= 60))
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("Adult (18-59) only.");
+                    }
+                    else if (Model.AgeGroupRestriction == AgeGroupRestriction.Senior && userAge < 60)
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("Senior (60+) only.");
+                    }
+                }
+            }
+
+            // 3. Rank Check
+            decimal userRating = 0.000m;
+            if (currentUser.Rank != null) { userRating = currentUser.Rank.Rating; } // Use your specific property name
+
+            if (Model.MinRankRestriction.HasValue && Model.MinRankRestriction.Value > 0 && userRating < Model.MinRankRestriction.Value)
+            {
+                isEligible = false;
+                restrictionReasons.Add($"Min Rank: {Model.MinRankRestriction.Value:0.00} (Yours: {userRating:0.00})");
+            }
+            if (Model.MaxRankRestriction.HasValue && Model.MaxRankRestriction.Value > 0 && userRating > Model.MaxRankRestriction.Value)
+            {
+                isEligible = false;
+                restrictionReasons.Add($"Max Rank: {Model.MaxRankRestriction.Value:0.00} (Yours: {userRating:0.00})");
+            }
+        }
+    }
 }
 
 <style>
@@ -437,6 +521,16 @@
                 <button class="btn btn-secondary" disabled>
                     <i class="bi bi-lock-fill"></i> Competition Full
                 </button>
+            }
+            else if (currentUserId.HasValue && !isEligible)
+            {
+                <button class="btn btn-secondary" disabled>
+                    <i class="bi bi-slash-circle"></i> Not Eligible
+                </button>
+                @* Tooltip to show why *@
+                <div class="text-danger small mt-1" style="max-width: 200px; line-height: 1.2;">
+                    @foreach(var reason in restrictionReasons) { <div>• @reason</div> }
+                </div>
             }
             else if (isCompetitionOpen && currentUserId.HasValue)
             {
@@ -1920,21 +2014,40 @@
 
             users.forEach(user => {
                 var profilePic = user.profilePicture ? user.profilePicture : '/images/profile_image.jpg';
+                
+                // ⬇️ NEW: Determine button state
+                var buttonHtml = '';
+                
+                if (user.isEligible) {
+                    // Show Invite Button
+                    buttonHtml = `
+                        <button class="btn btn-sm btn-primary send-invite-btn" 
+                                data-team-id="${teamId}" 
+                                data-invitee-id="${user.userId}">
+                            Invite
+                        </button>`;
+                } else {
+                    // Show Disabled Button with Reason
+                    buttonHtml = `
+                        <button class="btn btn-sm btn-secondary" disabled 
+                                title="User does not meet requirements: ${user.reason}">
+                            <i class="bi bi-slash-circle me-1"></i>${user.reason}
+                        </button>`;
+                }
+
                 var userHtml = `
-                                    <div class="user-search-item">
-                                        <div class="d-flex align-items-center">
-                                            <img src="${profilePic}" alt="${user.username}" />
-                                            <strong>${user.username}</strong>
-                                        </div>
-                                        <button class="btn btn-sm btn-primary send-invite-btn" 
-                                                data-team-id="${teamId}" 
-                                                data-invitee-id="${user.userId}">
-                                            Invite
-                                        </button>
-                                    </div>`;
+                    <div class="user-search-item">
+                        <div class="d-flex align-items-center">
+                            <img src="${profilePic}" alt="${user.username}" />
+                            <strong>${user.username}</strong>
+                        </div>
+                        ${buttonHtml}
+                    </div>`;
+                    
                 searchResultsContainer.insertAdjacentHTML('beforeend', userHtml);
             });
 
+            // Re-attach events only for active buttons
             document.querySelectorAll('.send-invite-btn').forEach(button => {
                 button.addEventListener('click', sendInvite);
             });

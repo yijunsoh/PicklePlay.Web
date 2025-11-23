@@ -219,35 +219,59 @@ namespace PicklePlay.Controllers
         public async Task<IActionResult> SearchUsersForInvite(int teamId, string query)
         {
             var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
-            {
-                return Unauthorized();
-            }
+            if (!currentUserId.HasValue) return Unauthorized();
 
+            // 1. Fetch Team AND Schedule
             var team = await _context.Teams
                 .Include(t => t.TeamMembers)
                 .Include(t => t.Invitations)
+                .Include(t => t.Schedule)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.TeamId == teamId);
 
             if (team == null || team.CreatedByUserId != currentUserId.Value)
             {
-                return Forbid(); // Not the captain
+                return Forbid();
             }
 
-            // Get IDs of users already on the team or already invited
-            var existingMemberIds = team.TeamMembers.Select(tm => tm.UserId).ToList();
-            var pendingInviteIds = team.Invitations.Where(inv => inv.Status == InvitationStatus.Pending).Select(inv => inv.InviteeUserId).ToList();
-            var allExcludedIds = existingMemberIds.Concat(pendingInviteIds).Distinct();
+            var schedule = team.Schedule;
 
-            // Find users matching the query who are not excluded
-            var users = await _context.Users
+            // 2. Get excluded IDs
+            var existingMemberIds = team.TeamMembers.Select(tm => tm.UserId).ToList();
+            var pendingInviteIds = team.Invitations
+                .Where(inv => inv.Status == InvitationStatus.Pending)
+                .Select(inv => inv.InviteeUserId)
+                .ToList();
+            var allExcludedIds = existingMemberIds.Concat(pendingInviteIds).Distinct().ToList();
+
+            // 3. Fetch Candidates
+            var candidates = await _context.Users
+                .Include(u => u.Rank)
                 .Where(u => u.Username.Contains(query) && !allExcludedIds.Contains(u.UserId))
-                .Select(u => new { u.UserId, u.Username, u.ProfilePicture }) // Select only safe data
-                .Take(10)
+                .Take(50)
                 .ToListAsync();
 
-            return Ok(users);
+            var results = new List<object>();
+
+            // 4. Check eligibility for each candidate
+            foreach (var user in candidates)
+            {
+                // Get reason (returns NULL if eligible)
+                string? ineligibilityReason = GetIneligibilityReason(user, schedule);
+
+                results.Add(new 
+                { 
+                    userId = user.UserId, 
+                    username = user.Username, 
+                    profilePicture = user.ProfilePicture,
+                    isEligible = (ineligibilityReason == null), // True if no reason returned
+                    reason = ineligibilityReason
+                });
+
+                if (results.Count >= 10) break;
+            }
+
+            return Ok(results);
         }
 
         [HttpPost]
@@ -255,57 +279,110 @@ namespace PicklePlay.Controllers
         public async Task<IActionResult> SendInvite(int teamId, int inviteeUserId)
         {
             var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
-            {
-                return Unauthorized();
-            }
+            if (!currentUserId.HasValue) return Unauthorized();
 
-            // *** FIX: Fetch the required objects ***
             var inviter = await _context.Users.FindAsync(currentUserId.Value);
-            var invitee = await _context.Users.FindAsync(inviteeUserId);
+            var invitee = await _context.Users
+                .Include(u => u.Rank)
+                .FirstOrDefaultAsync(u => u.UserId == inviteeUserId);
+
             var team = await _context.Teams
                 .Include(t => t.TeamMembers)
                 .Include(t => t.Invitations)
+                .Include(t => t.Schedule)
                 .FirstOrDefaultAsync(t => t.TeamId == teamId);
                 
             if (team == null || inviter == null || invitee == null)
-            {
                 return BadRequest(new { message = "Invalid data." });
-            }
 
             if (team.CreatedByUserId != currentUserId.Value)
-            {
-                return Forbid(); // Not the captain
-            }
+                return Forbid();
 
             if (team.TeamMembers.Count >= 2) 
-            {
                 return BadRequest(new { message = "Your team is already full." });
+
+            // ⬇️ RE-CHECK: Final security check before sending
+            string? restrictionError = GetIneligibilityReason(invitee, team.Schedule);
+            if (restrictionError != null)
+            {
+                return BadRequest(new { message = $"Cannot invite user: {restrictionError}" });
             }
 
             if (team.TeamMembers.Any(tm => tm.UserId == inviteeUserId))
-            {
                 return BadRequest(new { message = "This user is already on your team." });
-            }
 
             if (team.Invitations.Any(inv => inv.InviteeUserId == inviteeUserId && inv.Status == InvitationStatus.Pending))
-            {
                 return BadRequest(new { message = "This user already has a pending invitation." });
-            }
 
             var newInvitation = new TeamInvitation
             {
-                // *** FIX: Assign full objects ***
                 Team = team,
                 Inviter = inviter,
                 Invitee = invitee,
-                Status = InvitationStatus.Pending
+                Status = InvitationStatus.Pending,
+                DateSent = DateTime.UtcNow
             };
 
             _context.TeamInvitations.Add(newInvitation);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Invitation sent!" });
+        }
+
+        // ⬇️ HELPER: Returns a string reason if ineligible, or NULL if eligible
+        private string? GetIneligibilityReason(User user, Schedule schedule)
+        {
+            // 1. Gender Check
+            if (schedule.GenderRestriction != GenderRestriction.None)
+            {
+                string userGender = user.Gender?.Trim() ?? "";
+                if (schedule.GenderRestriction == GenderRestriction.Male && 
+                    !userGender.Equals("Male", StringComparison.OrdinalIgnoreCase)) 
+                    return "Male only";
+                
+                if (schedule.GenderRestriction == GenderRestriction.Female && 
+                    !userGender.Equals("Female", StringComparison.OrdinalIgnoreCase)) 
+                    return "Female only";
+            }
+
+            // 2. Age Check
+            if (schedule.AgeGroupRestriction != AgeGroupRestriction.None)
+            {
+                int userAge = 0;
+                if (user.DateOfBirth.HasValue)
+                {
+                    var today = DateTime.Today;
+                    userAge = today.Year - user.DateOfBirth.Value.Year;
+                    if (user.DateOfBirth.Value.Date > today.AddYears(-userAge)) userAge--;
+                }
+                else
+                {
+                    userAge = user.Age ?? 0;
+                }
+
+                if (userAge == 0) return "Age info missing";
+
+                if (schedule.AgeGroupRestriction == AgeGroupRestriction.Junior && userAge >= 18) return "Junior (<18) only";
+                if (schedule.AgeGroupRestriction == AgeGroupRestriction.Adult && (userAge < 18 || userAge >= 60)) return "Adult (18-59) only";
+                if (schedule.AgeGroupRestriction == AgeGroupRestriction.Senior && userAge < 60) return "Senior (60+) only";
+            }
+
+            // 3. Rank Check
+            decimal userRating = user.Rank != null ? user.Rank.Rating : 0.000m;
+
+            if (schedule.MinRankRestriction.HasValue && schedule.MinRankRestriction.Value > 0)
+            {
+                if (userRating < schedule.MinRankRestriction.Value) 
+                    return $"Min Rank {schedule.MinRankRestriction.Value:0.0}";
+            }
+
+            if (schedule.MaxRankRestriction.HasValue && schedule.MaxRankRestriction.Value > 0)
+            {
+                if (userRating > schedule.MaxRankRestriction.Value) 
+                    return $"Max Rank {schedule.MaxRankRestriction.Value:0.0}";
+            }
+
+            return null; // Eligible
         }
 
         // --- *** MODIFIED ACTION *** ---
