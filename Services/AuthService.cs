@@ -331,12 +331,12 @@ public class AuthService : IAuthService
                                 !us.IsBanned &&
                                 us.SuspensionStart.HasValue &&
                                 us.SuspensionEnd > DateTime.UtcNow && // Still in suspension period
-                                DateTime.UtcNow <= us.SuspensionStart.Value.AddDays(3)) // Still in first 3 days
+                                DateTime.UtcNow <= us.SuspensionStart.Value.AddHours(72)) // Still in first 3 days
                     .FirstOrDefaultAsync();
 
                 if (activeSuspension != null)
                 {
-                    var remainingTime = activeSuspension.SuspensionStart!.Value.AddDays(3) - DateTime.UtcNow;
+                    var remainingTime = activeSuspension.SuspensionStart!.Value.AddHours(72) - DateTime.UtcNow;
 
                     // Calculate days and hours
                     var totalDays = (int)remainingTime.TotalDays;

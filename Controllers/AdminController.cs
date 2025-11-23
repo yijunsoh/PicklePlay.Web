@@ -422,94 +422,112 @@ public class AdminController : Controller
     }
 
     // GET: /Admin/InactiveCommunities
-    public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0)
-    {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return RedirectToAction("Login", "Auth");
-        }
-
-        if (inactiveDays == null)
-        {
-            inactiveDays = 0;
-        }
-
-        IQueryable<Community> query = _context.Communities
-            .Include(c => c.Creator)
-            .Include(c => c.Memberships)
-            .Where(c => c.Status == "Active");
-
-        // If inactiveDays is 0, show ALL active communities
-        // Otherwise, show communities inactive for more than inactiveDays
-        if (inactiveDays > 0)
-        {
-            var cutoffDate = DateTime.UtcNow.AddDays(-inactiveDays.Value);
-            query = query.Where(c => c.LastActivityDate == null || c.LastActivityDate <= cutoffDate);
-        }
-
-        var inactiveCommunities = await query
-            .OrderBy(c => c.LastActivityDate ?? c.CreatedDate)
-            .ToListAsync();
-
-        ViewData["InactiveDays"] = inactiveDays;
-        return View("~/Views/Admin/InactiveCommunities.cshtml", inactiveCommunities);
-    }
-
-    // POST: /Admin/DeleteInactiveCommunity
-[HttpPost]
-public async Task<IActionResult> DeleteInactiveCommunity(int communityId, string? reason)
+public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, string search = "", string statusFilter = "all")
 {
     var userRole = HttpContext.Session.GetString("UserRole");
     if (userRole != "Admin")
     {
-        return Json(new { success = false, message = "Unauthorized" });
+        return RedirectToAction("Login", "Auth");
     }
 
-    try
+    if (inactiveDays == null)
     {
-        var community = await _context.Communities
-            .Include(c => c.Memberships) // Include memberships to update them
-            .FirstOrDefaultAsync(c => c.CommunityId == communityId);
-        
-        if (community == null)
-        {
-            return Json(new { success = false, message = "Community not found" });
-        }
-
-        var currentUserId = HttpContext.Session.GetInt32("UserId");
-        
-        // Store original name before modifying
-        string originalName = community.CommunityName;
-        
-        // Generate unique suffix with timestamp and random characters
-        var nowUtc = DateTime.UtcNow;
-        string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
-        string randomSuffix = Guid.NewGuid().ToString("N")[..6];
-        
-        // Update community name with deletion marker
-        community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
-        community.Status = "Deleted";
-        community.DeletionReason = reason ?? "Deleted by admin - inactive community";
-        community.DeletedByUserId = currentUserId;
-        community.DeletionDate = nowUtc;
-
-        // --- UPDATE ALL COMMUNITY MEMBERS TO INACTIVE ---
-        foreach (var member in community.Memberships)
-        {
-            member.Status = "Inactive";
-            _context.CommunityMembers.Update(member);
-        }
-
-        await _context.SaveChangesAsync();
-
-        return Json(new { success = true, message = "Community deleted successfully" });
+        inactiveDays = 0;
     }
-    catch (Exception ex)
+
+    IQueryable<Community> query = _context.Communities
+        .Include(c => c.Creator)
+        .Include(c => c.Memberships);
+
+    // Apply search filter
+    if (!string.IsNullOrEmpty(search))
     {
-        return Json(new { success = false, message = $"Error: {ex.Message}" });
+        query = query.Where(c => c.CommunityName.Contains(search) || 
+                                c.CommunityLocation!.Contains(search));
     }
+
+    // Apply status filter
+    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "all")
+    {
+        query = query.Where(c => c.Status == statusFilter);
+    }
+
+    // If inactiveDays is 0, show ALL communities (including deleted)
+    // Otherwise, show only active communities inactive for more than inactiveDays
+    if (inactiveDays > 0)
+    {
+        var cutoffDate = DateTime.UtcNow.AddDays(-inactiveDays.Value);
+        query = query.Where(c => c.Status == "Active" && 
+                               (c.LastActivityDate == null || c.LastActivityDate <= cutoffDate));
+    }
+
+    // Always sort: Active first, then by name
+    query = query.OrderByDescending(c => c.Status == "Active")
+                .ThenBy(c => c.Status)
+                .ThenBy(c => c.CommunityName);
+
+    var communities = await query.ToListAsync();
+
+    ViewData["InactiveDays"] = inactiveDays;
+    ViewData["Search"] = search;
+    ViewData["StatusFilter"] = statusFilter;
+    return View("~/Views/Admin/InactiveCommunities.cshtml", communities);
 }
+
+    // POST: /Admin/DeleteInactiveCommunity
+    [HttpPost]
+    public async Task<IActionResult> DeleteInactiveCommunity(int communityId, string? reason)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Json(new { success = false, message = "Unauthorized" });
+        }
+
+        try
+        {
+            var community = await _context.Communities
+                .Include(c => c.Memberships) // Include memberships to update them
+                .FirstOrDefaultAsync(c => c.CommunityId == communityId);
+
+            if (community == null)
+            {
+                return Json(new { success = false, message = "Community not found" });
+            }
+
+            var currentUserId = HttpContext.Session.GetInt32("UserId");
+
+            // Store original name before modifying
+            string originalName = community.CommunityName;
+
+            // Generate unique suffix with timestamp and random characters
+            var nowUtc = DateTime.UtcNow;
+            string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
+            string randomSuffix = Guid.NewGuid().ToString("N")[..6];
+
+            // Update community name with deletion marker
+            community.CommunityName = $"[{originalName}]_deleted_{timestamp}_{randomSuffix}";
+            community.Status = "Deleted";
+            community.DeletionReason = reason ?? "Deleted by admin - inactive community";
+            community.DeletedByUserId = currentUserId;
+            community.DeletionDate = nowUtc;
+
+            // --- UPDATE ALL COMMUNITY MEMBERS TO INACTIVE ---
+            foreach (var member in community.Memberships)
+            {
+                member.Status = "Inactive";
+                _context.CommunityMembers.Update(member);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Community deleted successfully" });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
 
     // GET: /Admin/UpdateAllCommunityLastActivity
     [HttpGet]

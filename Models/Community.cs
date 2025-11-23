@@ -67,6 +67,9 @@ namespace PicklePlay.Models
         [ForeignKey("DeletedByUserId")]
         public virtual User? DeletedByUser { get; set; }
 
+        [Column("is_system_deletion")]
+        public bool IsSystemDeletion { get; set; } = false;
+
         // Add these properties to your Community class in Community.cs
         [NotMapped] // This property won't be stored in the database
         public IFormFile? ProfileImageFile { get; set; }

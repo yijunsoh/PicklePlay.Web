@@ -5,20 +5,22 @@
     ViewData["Title"] = "Inactive Communities";
     Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
     var inactiveDays = ViewData["InactiveDays"] as int? ?? 90;
+    var search = ViewData["Search"] as string ?? "";
+    var statusFilter = ViewData["StatusFilter"] as string ?? "all";
 }
 
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-md-8">
-            <h2><i class="fas fa-users me-2"></i>Inactive Communities</h2>
+            <h2><i class="fas fa-users me-2"></i>Communities Management</h2>
             <p class="text-muted">
                 @if (inactiveDays == 0)
                 {
-                    <span>All active communities</span>
+                    <span>All communities (including deleted)</span>
                 }
                 else
                 {
-                    <span>Communities with no activity in the last @inactiveDays days</span>
+                    <span>Active communities with no activity in the last @inactiveDays days</span>
                 }
             </p>
         </div>
@@ -29,14 +31,63 @@
         </div>
     </div>
 
+    <!-- Search and Filter Row -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <form method="get" class="d-flex">
+                <input type="hidden" name="inactiveDays" value="@inactiveDays" />
+                <input type="hidden" name="statusFilter" value="@statusFilter" />
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" value="@search" placeholder="Search by name or location..." />
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    @if (!string.IsNullOrEmpty(search))
+                    {
+                        <a href="/Admin/InactiveCommunities?inactiveDays=@inactiveDays&statusFilter=@statusFilter" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    }
+                </div>
+            </form>
+        </div>
+        <div class="col-md-3">
+            <form method="get" class="d-flex">
+                <input type="hidden" name="inactiveDays" value="@inactiveDays" />
+                <input type="hidden" name="search" value="@search" />
+                <select name="statusFilter" class="form-select" onchange="this.form.submit()">
+                    @switch (statusFilter)
+                    {
+                        case "Active":
+                            <option value="all">All Status</option>
+                            <option value="Active" selected>Active Only</option>
+                            <option value="Deleted">Deleted Only</option>
+                            break;
+                        case "Deleted":
+                            <option value="all">All Status</option>
+                            <option value="Active">Active Only</option>
+                            <option value="Deleted" selected>Deleted Only</option>
+                            break;
+                        default:
+                            <option value="all" selected>All Status</option>
+                            <option value="Active">Active Only</option>
+                            <option value="Deleted">Deleted Only</option>
+                            break;
+                    }
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Time Filter Row -->
     <div class="row mb-3">
         <div class="col-12">
             <div class="btn-group d-flex flex-wrap">
-                <a href="/Admin/InactiveCommunities?inactiveDays=0" class="btn btn-outline-primary @(inactiveDays == 0 ? "active" : "")" >All Communities</a>
-                <a href="/Admin/InactiveCommunities?inactiveDays=30" class="btn btn-outline-primary @(inactiveDays == 30 ? "active" : "")" >30 days</a>
-                <a href="/Admin/InactiveCommunities?inactiveDays=60" class="btn btn-outline-primary @(inactiveDays == 60 ? "active" : "")">60 days</a>
-                <a href="/Admin/InactiveCommunities?inactiveDays=90" class="btn btn-outline-primary @(inactiveDays == 90 ? "active" : "")">90 days</a>
-                <a href="/Admin/InactiveCommunities?inactiveDays=180" class="btn btn-outline-primary @(inactiveDays == 180 ? "active" : "")">6 months</a>
+            <a href="/Admin/InactiveCommunities?inactiveDays=0&search=@search&statusFilter=@statusFilter" class="btn btn-outline-primary @(inactiveDays == 0 ? "active" : "")">All Communities</a>
+                <a href="/Admin/InactiveCommunities?inactiveDays=30&search=@search&statusFilter=@statusFilter" class="btn btn-outline-primary @(inactiveDays == 30 ? "active" : "")">30 days</a>
+                <a href="/Admin/InactiveCommunities?inactiveDays=60&search=@search&statusFilter=@statusFilter" class="btn btn-outline-primary @(inactiveDays == 60 ? "active" : "")">60 days</a>
+                <a href="/Admin/InactiveCommunities?inactiveDays=90&search=@search&statusFilter=@statusFilter" class="btn btn-outline-primary @(inactiveDays == 90 ? "active" : "")">90 days</a>
+                <a href="/Admin/InactiveCommunities?inactiveDays=180&search=@search&statusFilter=@statusFilter" class="btn btn-outline-primary @(inactiveDays == 180 ? "active" : "")">6 months</a>
             </div>
         </div>
     </div>
@@ -47,9 +98,10 @@
             <table class="table table-striped table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
+                        <th>ID</th>
                         <th>Community Name</th>
                         <th>Created By</th>
-                        <th>Members</th>
+                        <th>Active Members</th>
                         <th>Created Date</th>
                         <th>Last Activity</th>
                         <th>Status</th>
@@ -69,18 +121,60 @@
                         
                         var daysDisplay = daysSinceActivity <= 0 ? "Active" : $"{daysSinceActivity} days ago";
 
-                        <tr>
+                        // Determine status badge color
+                        string statusBadgeClass = "bg-secondary"; // Default
+                        if (community.Status == "Active")
+                        {
+                            statusBadgeClass = "bg-success";
+                        }
+                        else if (community.Status == "Deleted")
+                        {
+                            statusBadgeClass = "bg-warning text-dark";
+                        }
+                        else if (community.Status == "Suspended")
+                        {
+                            statusBadgeClass = "bg-danger";
+                        }
+                        else if (community.Status == "Pending")
+                        {
+                            statusBadgeClass = "bg-info";
+                        }
+
+                        // Count active members
+                        var activeMembersCount = community.Memberships.Count(m => m.Status == "Active");
+
+                        <tr class="@(community.Status == "Deleted" ? "table-secondary" : "")">
+                            <td>
+                                <span class="text-muted small">#@community.CommunityId</span>
+                            </td>
                             <td>
                                 <strong>@community.CommunityName</strong>
+                                @if (community.Status == "Deleted")
+                                {
+                                    <br />
+                                    <small class="text-danger">
+                                        <i class="fas fa-trash me-1"></i>
+                                        Deleted: @community.DeletionDate?.ToString("MMM dd, yyyy")
+                                        @if (community.IsSystemDeletion)
+                                        {
+                                            <span class="badge bg-dark ms-1">Auto-Deleted</span>
+                                        }
+                                    </small>
+                                }
                                 @if (!string.IsNullOrEmpty(community.CommunityLocation))
                                 {
                                     <br />
                                     <small class="text-muted"><i class="fas fa-map-marker-alt"></i> @community.CommunityLocation</small>
                                 }
+                                @if (!string.IsNullOrEmpty(community.DeletionReason))
+                                {
+                                    <br />
+                                    <small class="text-muted"><i class="fas fa-info-circle"></i> @community.DeletionReason</small>
+                                }
                             </td>
                             <td>@community.Creator?.Username</td>
                             <td>
-                                <span class="badge bg-info">@community.Memberships.Count members</span>
+                                <span class="badge bg-info">@activeMembersCount members</span>
                             </td>
                             <td>@community.CreatedDate.ToString("MMM dd, yyyy")</td>
                             <td>
@@ -88,12 +182,24 @@
                                 <small class="text-muted">@daysDisplay</small>
                             </td>
                             <td>
-                                <span class="badge bg-warning text-dark">@community.Status</span>
+                                <span class="badge @statusBadgeClass">@community.Status</span>
+                                @if (community.IsSystemDeletion)
+                                {
+                                    <br />
+                                    <small class="text-muted">System Deletion</small>
+                                }
                             </td>
                             <td>
-                                <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteCommunity(@community.CommunityId, '@community.CommunityName')" title="Delete Community">
-                                    <i class="fas fa-trash me-1"></i>Delete
-                                </button>
+                                @if (community.Status == "Active")
+                                {
+                                    <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteCommunity(@community.CommunityId, '@community.CommunityName.Replace("'", "\\'")')" title="Delete Community">
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No actions</span>
+                                }
                             </td>
                         </tr>
                     }
@@ -107,11 +213,19 @@
             <i class="fas fa-info-circle me-2"></i>
             @if (inactiveDays == 0)
             {
-                <span>No active communities found.</span>
+                <span>No communities found.</span>
             }
             else
             {
                 <span>No inactive communities found in the last @inactiveDays days.</span>
+            }
+            @if (!string.IsNullOrEmpty(search))
+            {
+                <span>Search: "@search"</span>
+            }
+            @if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "all")
+            {
+                <span>Status: "@statusFilter"</span>
             }
         </div>
     }
@@ -253,8 +367,33 @@
         background-color: rgba(46, 139, 87, 0.05);
     }
 
+    .table tbody tr.table-secondary:hover {
+        background-color: rgba(108, 117, 125, 0.05);
+    }
+
     .btn-group-sm .btn {
         padding: 0.25rem 0.5rem;
         font-size: 0.875rem;
+    }
+
+    /* Status badge enhancements */
+    .badge.bg-success {
+        background: linear-gradient(45deg, #28a745, #20c997) !important;
+    }
+
+    .badge.bg-warning {
+        background: linear-gradient(45deg, #ffc107, #fd7e14) !important;
+    }
+
+    .badge.bg-danger {
+        background: linear-gradient(45deg, #dc3545, #e83e8c) !important;
+    }
+
+    .badge.bg-info {
+        background: linear-gradient(45deg, #17a2b8, #6f42c1) !important;
+    }
+
+    .badge.bg-secondary {
+        background: linear-gradient(45deg, #6c757d, #495057) !important;
     }
 </style>
