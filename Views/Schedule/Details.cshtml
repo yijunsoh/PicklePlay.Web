@@ -1,7 +1,9 @@
 @model Schedule
 @using PicklePlay.Models
 @using Microsoft.AspNetCore.Http
+@using Microsoft.EntityFrameworkCore
 @inject IHttpContextAccessor HttpContextAccessor
+@inject PicklePlay.Data.ApplicationDbContext _context
 
 
 @{
@@ -50,6 +52,109 @@
 
     // *** Get bookmark status from ViewBag (set in ScheduleController) ***
     bool isBookmarked = ViewBag.IsBookmarked ?? false;
+// ============================================================
+    // ⬇️ NEW: RESTRICTION VALIDATION LOGIC
+    // ============================================================
+    bool isEligible = true;
+    List<string> restrictionReasons = new List<string>();
+
+    if (currentUserId.HasValue)
+    {
+        // Fetch full user details including Rank
+        var currentUser = _context.Users
+            .Include(u => u.Rank) // Assuming 'Rank' navigation property exists
+            .AsNoTracking()
+            .FirstOrDefault(u => u.UserId == currentUserId.Value);
+
+        if (currentUser != null)
+        {
+            // 1. Gender Check
+            if (Model.GenderRestriction != GenderRestriction.None)
+            {
+                string userGender = currentUser.Gender?.Trim() ?? "";
+                if (Model.GenderRestriction == GenderRestriction.Male && !userGender.Equals("Male", StringComparison.OrdinalIgnoreCase))
+                {
+                    isEligible = false;
+                    restrictionReasons.Add("This game is restricted to Male players.");
+                }
+                else if (Model.GenderRestriction == GenderRestriction.Female && !userGender.Equals("Female", StringComparison.OrdinalIgnoreCase))
+                {
+                    isEligible = false;
+                    restrictionReasons.Add("This game is restricted to Female players.");
+                }
+            }
+
+            // 2. Age Check
+            if (Model.AgeGroupRestriction != AgeGroupRestriction.None)
+            {
+                // Calculate Age: Prefer DOB, fallback to Age field, fallback to 0
+                int userAge = 0;
+                if (currentUser.DateOfBirth.HasValue)
+                {
+                    var today = DateTime.Today;
+                    userAge = today.Year - currentUser.DateOfBirth.Value.Year;
+                    if (currentUser.DateOfBirth.Value.Date > today.AddYears(-userAge)) userAge--;
+                }
+                else
+                {
+                    userAge = currentUser.Age ?? 0;
+                }
+
+                if (userAge == 0)
+                {
+                    // Optional: Block if age unknown, or allow warning. Here we restrict.
+                    isEligible = false;
+                    restrictionReasons.Add("Please update your Date of Birth or Age in your profile to join.");
+                }
+                else
+                {
+                    if (Model.AgeGroupRestriction == AgeGroupRestriction.Junior && userAge >= 18)
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("This game is for Juniors (Under 18).");
+                    }
+                    else if (Model.AgeGroupRestriction == AgeGroupRestriction.Adult && (userAge < 18 || userAge >= 60))
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("This game is for Adults (18-59).");
+                    }
+                    else if (Model.AgeGroupRestriction == AgeGroupRestriction.Senior && userAge < 60)
+                    {
+                        isEligible = false;
+                        restrictionReasons.Add("This game is for Seniors (60+).");
+                    }
+                }
+            }
+
+            // 3. Rank/Rating Check
+            // Assuming PlayerRank has a 'Rating' property of type decimal
+            // If user has no rank, treat as 0.000
+            decimal userRating = 0.000m; 
+            // Note: Adjust '.Rating' below if your property name is different (e.g. Score, Points)
+            if (currentUser.Rank != null) 
+            {
+                 userRating = currentUser.Rank.Rating; // Uncomment if you have a Rating property
+            }
+
+            if (Model.MinRankRestriction.HasValue && Model.MinRankRestriction.Value > 0)
+            {
+                if (userRating < Model.MinRankRestriction.Value)
+                {
+                    isEligible = false;
+                    restrictionReasons.Add($"Minimum RANK requirement is {Model.MinRankRestriction.Value:0.000}. Your current RANK is {userRating:0.000}.");
+                }
+            }
+
+            if (Model.MaxRankRestriction.HasValue && Model.MaxRankRestriction.Value > 0)
+            {
+                if (userRating > Model.MaxRankRestriction.Value)
+                {
+                    isEligible = false;
+                    restrictionReasons.Add($"Maximum RANK limit is {Model.MaxRankRestriction.Value:0.00}. Your RANK is {userRating:0.00}.");
+                }
+            }
+        }
+    }
 }
 
 <style>
@@ -437,13 +542,45 @@
                     </p>
 
                     <div class="d-grid gap-2 mt-4">
-                        @if (currentUserParticipation == null && currentUserId.HasValue &&
-                                                !(organizers.Any(o => o.UserId == currentUserId) && Model.HostRole == HostRole.HostOnly))
+                        @* LOGIC FLOW FOR BUTTONS *@
+                        @if (!currentUserId.HasValue)
                         {
-                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
-                                data-bs-target="#joinGameModal">
-                                <i class="bi bi-person-plus-fill"></i> Join Game
-                            </button>
+                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-success btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Log in to Join
+                            </a>
+                        }
+                        else if (currentUserParticipation == null && currentUserId.HasValue)
+                        {
+                            bool isOrganizer = organizers.Any(o => o.UserId == currentUserId);
+                            
+                            if (isOrganizer && Model.HostRole == HostRole.HostOnly)
+                            {
+                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                                    <i class="bi bi-person-plus-fill"></i> Host and Play
+                                </button>
+                            }
+                            // ⬇️ NEW: CHECK ELIGIBILITY BEFORE SHOWING JOIN BUTTON
+                            else if (!isEligible)
+                            {
+                                <button class="btn btn-secondary btn-lg" disabled>
+                                    <i class="bi bi-slash-circle"></i> Not Eligible
+                                </button>
+                                <div class="alert alert-warning mt-2 p-2 small">
+                                    <strong>Requirements not met:</strong>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach(var reason in restrictionReasons)
+                                        {
+                                            <li>@reason</li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinGameModal">
+                                    <i class="bi bi-person-plus-fill"></i> Join Game
+                                </button>
+                            }
                         }
                         else if (currentUserParticipation?.Status == ParticipantStatus.OnHold)
                         {
