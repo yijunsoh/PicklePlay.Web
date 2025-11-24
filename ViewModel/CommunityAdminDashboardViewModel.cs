@@ -48,6 +48,10 @@ namespace PicklePlay.ViewModels
             public DateTime PostDate { get; set; }
             public int PosterUserId { get; set; }
             public string PosterName { get; set; } = string.Empty;
+            public DateTime? ExpiryDate { get; set; }
+
+            public bool IsHidden { get; set; }
+            public bool IsVisible { get; set; }
         }
 
         public class MemberItem

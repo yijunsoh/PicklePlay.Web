@@ -43,6 +43,18 @@
     var currentCommunityId = ViewData["CurrentCommunityId"] as int?;
 
     var today = DateTime.Today;
+    var mytZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+    var nowMyt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, mytZone);
+
+    // 2. Get Raw List
+    var allAnnouncements = ViewData["Announcements"] as List<CommunityAnnouncement> ?? new List<CommunityAnnouncement>();
+
+    // 3. Filter List ONCE (Not Hidden AND (No Expiry OR Future Expiry))
+    var visibleAnnouncements = allAnnouncements
+    .Where(a => !a.IsHidden && (!a.ExpiryDate.HasValue || a.ExpiryDate > nowMyt))
+    .OrderByDescending(a => a.PostDate)
+    .ToList();
+
     var yearVal = Context.Request.Query["year"];
     var monthVal = Context.Request.Query["month"];
 
@@ -145,7 +157,7 @@
     var announcements = ViewData["Announcements"] as List<CommunityAnnouncement> ?? new List<CommunityAnnouncement>();
     var communityMembers = ViewData["CommunityMembers"] as List<CommunityMember> ?? new List<CommunityMember>();
 
-    
+
 }
 @* --- UPDATED COMMUNITY HEADER (Exact same as Admin Dashboard) --- *@
 @if (currentCommunity != null)
@@ -316,12 +328,13 @@ else
                             </div>
 
                             @* --- UPDATED LEGEND --- *@
-<div class="d-flex justify-content-start align-items-center mb-2 small">
-    <span class="me-2"><span class="cal-legend cal-event-game"></span> Game</span>
-    <span class="me-2"><span class="cal-legend cal-event-comp"></span> Competition</span>
-    <span class="me-2"><span class="cal-legend cal-event-pending"></span> Pending Setup</span>
-    <span class="me-2"><span class="cal-legend cal-event-past"></span> Past/Completed</span>
-</div>
+                            <div class="d-flex justify-content-start align-items-center mb-2 small">
+                                <span class="me-2"><span class="cal-legend cal-event-game"></span> Game</span>
+                                <span class="me-2"><span class="cal-legend cal-event-comp"></span> Competition</span>
+                                <span class="me-2"><span class="cal-legend cal-event-pending"></span> Pending
+                                    Setup</span>
+                                <span class="me-2"><span class="cal-legend cal-event-past"></span> Past/Completed</span>
+                            </div>
 
                             <div class="table-responsive">
                                 <table class="table table-bordered calendar-table" style="table-layout: fixed;">
@@ -713,126 +726,123 @@ else
 
                 @* --- CHAT TAB PANE (Placeholder) --- *@
                 <div class="tab-pane fade" id="chat-tab-pane" role="tabpanel" aria-labelledby="chat-tab" tabindex="0">
-    <div class="card shadow-sm" style="height: 600px; display: flex; flex-direction: column;">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="bi bi-chat-dots"></i> Community Chat Room
-            </h5>
-            <small id="onlineMembersStatus">
-                <i class="bi bi-circle-fill text-light"></i> 
-                <span id="onlineCount">0</span> members online
-            </small>
-        </div>
-        
-        <!-- Chat Messages Area -->
-        <div class="card-body overflow-auto" id="chatMessages" style="flex: 1; background-color: #f8f9fa;">
-            <div class="text-center py-5 text-muted">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Loading chat history...</p>
-            </div>
-        </div>
+                    <div class="card shadow-sm" style="height: 600px; display: flex; flex-direction: column;">
+                        <div
+                            class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-chat-dots"></i> Community Chat Room
+                            </h5>
+                            <small id="onlineMembersStatus">
+                                <i class="bi bi-circle-fill text-light"></i>
+                                <span id="onlineCount">0</span> members online
+                            </small>
+                        </div>
 
-        <!-- Typing Indicator -->
-        <div id="typingIndicator" class="px-3 py-2" style="display: none; background-color: #f8f9fa; border-top: 1px solid #dee2e6;">
-            <small class="text-muted">
-                <i class="bi bi-three-dots"></i> Someone is typing...
-            </small>
-        </div>
+                        <!-- Chat Messages Area -->
+                        <div class="card-body overflow-auto" id="chatMessages"
+                            style="flex: 1; background-color: #f8f9fa;">
+                            <div class="text-center py-5 text-muted">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading chat history...</p>
+                            </div>
+                        </div>
 
-        <!-- Chat Input Area -->
-        <div class="card-footer bg-white">
-            <form id="chatForm" onsubmit="sendCommunityMessage(event); return false;">
-                @Html.AntiForgeryToken()
-                <div class="input-group">
-                    <input type="text" 
-                           class="form-control" 
-                           id="chatInput" 
-                           placeholder="Type your message..." 
-                           maxlength="2000"
-                           required>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-send-fill"></i> Send
-                    </button>
+                        <!-- Typing Indicator -->
+                        <div id="typingIndicator" class="px-3 py-2"
+                            style="display: none; background-color: #f8f9fa; border-top: 1px solid #dee2e6;">
+                            <small class="text-muted">
+                                <i class="bi bi-three-dots"></i> Someone is typing...
+                            </small>
+                        </div>
+
+                        <!-- Chat Input Area -->
+                        <div class="card-footer bg-white">
+                            <form id="chatForm" onsubmit="sendCommunityMessage(event); return false;">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="chatInput"
+                                        placeholder="Type your message..." maxlength="2000" required>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-send-fill"></i> Send
+                                    </button>
+                                </div>
+                                <small class="text-muted">Press Enter to send • Max 2000 characters</small>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <small class="text-muted">Press Enter to send • Max 2000 characters</small>
-            </form>
-        </div>
-    </div>
-</div>
 
                 @* --- UPDATED MEMBERS TAB PANE (Moved from right column) --- *@
                 <div class="tab-pane fade" id="members-tab-pane" role="tabpanel" aria-labelledby="members-tab"
-    tabindex="0">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="mb-0">Community Members</h4>
-                <span class="badge bg-success fs-6">@communityMembers.Count members</span>
-            </div>
-
-            @if (communityMembers.Any())
-            {
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                    @foreach (var member in communityMembers)
-                    {
-                        <div class="col">
-                            <div class="card h-100 shadow-sm member-card">
-                                <div class="card-body text-center">
-                                    <div class="member-avatar mb-3" 
-                                         onclick="showUserProfilePreview(@member.UserId)" 
-                                         style="cursor: pointer;"
-                                         title="View @member.User?.Username's profile">
-                                        @if (!string.IsNullOrEmpty(member.User?.ProfilePicture))
-                                        {
-                                            <img src="@member.User.ProfilePicture" 
-                                                 alt="@member.User.Username"
-                                                 class="img-fluid rounded-circle member-profile-pic"
-                                                 style="width: 80px; height: 80px; object-fit: cover;">
-                                        }
-                                        else
-                                        {
-                                            <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center member-placeholder"
-                                                style="width: 80px; height: 80px;">
-                                                <i class="fas fa-user fa-2x"></i>
-                                            </div>
-                                        }
-                                    </div>
-                                    <h5 class="card-title mb-1 member-username" 
-                                        onclick="showUserProfilePreview(@member.UserId)" 
-                                        style="cursor: pointer;"
-                                        title="View profile">
-                                        @member.User?.Username
-                                    </h5>
-                                    <p class="card-text">
-                                        <span class="badge @(member.CommunityRole == "Admin" ? "bg-warning text-dark" : member.CommunityRole == "Moderator" ? "bg-primary" : "bg-secondary")">
-                                            @member.CommunityRole
-                                        </span>
-                                    </p>
-                                    <small class="text-muted">Member since @member.JoinDate.ToString("MMM yyyy")</small>
-                                </div>
+                    tabindex="0">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h4 class="mb-0">Community Members</h4>
+                                <span class="badge bg-success fs-6">@communityMembers.Count members</span>
                             </div>
+
+                            @if (communityMembers.Any())
+                            {
+                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                                    @foreach (var member in communityMembers)
+                                    {
+                                        <div class="col">
+                                            <div class="card h-100 shadow-sm member-card">
+                                                <div class="card-body text-center">
+                                                    <div class="member-avatar mb-3"
+                                                        onclick="showUserProfilePreview(@member.UserId)"
+                                                        style="cursor: pointer;" title="View @member.User?.Username's profile">
+                                                        @if (!string.IsNullOrEmpty(member.User?.ProfilePicture))
+                                                        {
+                                                            <img src="@member.User.ProfilePicture" alt="@member.User.Username"
+                                                                class="img-fluid rounded-circle member-profile-pic"
+                                                                style="width: 80px; height: 80px; object-fit: cover;">
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center member-placeholder"
+                                                                style="width: 80px; height: 80px;">
+                                                                <i class="fas fa-user fa-2x"></i>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                    <h5 class="card-title mb-1 member-username"
+                                                        onclick="showUserProfilePreview(@member.UserId)"
+                                                        style="cursor: pointer;" title="View profile">
+                                                        @member.User?.Username
+                                                    </h5>
+                                                    <p class="card-text">
+                                                        <span
+                                                            class="badge @(member.CommunityRole == "Admin" ? "bg-warning text-dark" : member.CommunityRole == "Moderator" ? "bg-primary" : "bg-secondary")">
+                                                            @member.CommunityRole
+                                                        </span>
+                                                    </p>
+                                                    <small class="text-muted">Member since @member.JoinDate.ToString("MMM            yyyy")</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-5">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No members yet</h5>
+                                    <p class="text-muted">Be the first to join this community!</p>
+                                </div>
+                            }
                         </div>
-                    }
+                    </div>
                 </div>
-            }
-            else
-            {
-                <div class="text-center py-5">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No members yet</h5>
-                    <p class="text-muted">Be the first to join this community!</p>
-                </div>
-            }
-        </div>
-    </div>
-</div>
 
             </div> @* End Main Tab Content *@
         </div> @* End Center Column *@
 
-         @* --- UPDATED Right Column (Only Announcements now) --- *@
+        @* --- UPDATED Right Column (Only Announcements now) --- *@
         <div class="col-lg-3 d-none d-lg-block">
             <div style="position: sticky; top: 80px;">
                 @* Announcements Section *@
@@ -840,20 +850,32 @@ else
                     <div class="card-body">
                         <h5 class="card-title d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-bullhorn me-2"></i>Announcements</span>
-                            <span class="badge bg-primary">@announcements.Count</span>
+
+                            @* UPDATED: Use the filtered count *@
+                            <span class="badge bg-primary">@visibleAnnouncements.Count</span>
                         </h5>
 
-                        @if (announcements.Any())
+                        @if (visibleAnnouncements.Any())
                         {
                             <div class="announcements-list" style="max-height: 500px; overflow-y: auto;">
-                                @foreach (var announcement in announcements.OrderByDescending(a => a.PostDate).Take(8))
+                                @* UPDATED: Loop through the pre-filtered list *@
+                                @foreach (var announcement in visibleAnnouncements.Take(8))
                                 {
                                     <div class="announcement-item border-start border-primary ps-3 mb-3">
                                         <h6 class="mb-1">@announcement.Title</h6>
                                         <p class="small text-muted mb-1">@announcement.Content</p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <small class="text-muted">@announcement.Poster?.Username</small>
-                                            <small class="text-muted">@announcement.PostDate.ToString("MMM dd")</small>
+                                            <div class="text-end">
+                                                <small class="text-muted d-block">@announcement.PostDate.ToString("MMM         dd")</small>
+                                                @if (announcement.ExpiryDate.HasValue)
+                                                {
+                                                    <small class="text-danger" style="font-size: 0.75rem;">
+                                                        <i
+                                                            class="fas fa-hourglass-end me-1"></i>@announcement.ExpiryDate.Value.ToString("MMM                 dd, hh:mm tt")
+                                                    </small>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
                                 }
@@ -863,15 +885,17 @@ else
                         {
                             <div class="text-center text-muted py-3">
                                 <i class="fas fa-bullhorn fa-2x mb-2"></i>
-                                <p class="small mb-0">No announcements yet</p>
+                                <p class="small mb-0">No active announcements</p>
                             </div>
                         }
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-    </div> @* End Row *@
+</div> @* End Row *@
 </div> @* End Container *@
 
 @* --- UPDATED CSS Styles for Calendar and New Components --- *@
@@ -1091,7 +1115,8 @@ else
         background-color: #e2e3e5;
         border-color: #d3d6d8;
         color: #636c72;
-        opacity: 0.8; /* Slight fade to indicate inactivity */
+        opacity: 0.8;
+        /* Slight fade to indicate inactivity */
     }
 
     /* Legend CSS */
@@ -1177,672 +1202,674 @@ else
     }
 
     /* Members Styling */
- .member-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
+    .member-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
 
-.member-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
-}
+    .member-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+    }
 
-.member-avatar {
-    transition: transform 0.3s ease;
-}
+    .member-avatar {
+        transition: transform 0.3s ease;
+    }
 
-.member-avatar:hover {
-    transform: scale(1.1);
-}
+    .member-avatar:hover {
+        transform: scale(1.1);
+    }
 
-.member-profile-pic {
-    border: 3px solid #2E8B57;
-    transition: border-color 0.3s ease, transform 0.3s ease;
-}
+    .member-profile-pic {
+        border: 3px solid #2E8B57;
+        transition: border-color 0.3s ease, transform 0.3s ease;
+    }
 
-.member-profile-pic:hover {
-    border-color: #1E5B32;
-    transform: scale(1.05);
-}
+    .member-profile-pic:hover {
+        border-color: #1E5B32;
+        transform: scale(1.05);
+    }
 
-.member-placeholder {
-    transition: all 0.3s ease;
-}
+    .member-placeholder {
+        transition: all 0.3s ease;
+    }
 
-.member-placeholder:hover {
-    background: linear-gradient(135deg, #2E8B57 0%, #1E5B32 100%);
-    transform: scale(1.05);
-}
+    .member-placeholder:hover {
+        background: linear-gradient(135deg, #2E8B57 0%, #1E5B32 100%);
+        transform: scale(1.05);
+    }
 
-.member-username {
-    transition: color 0.2s ease;
-}
+    .member-username {
+        transition: color 0.2s ease;
+    }
 
-.member-username:hover {
-    color: #2E8B57;
-}
-/* Chat Component Styling */
+    .member-username:hover {
+        color: #2E8B57;
+    }
+
+    /* Chat Component Styling */
     .chat-message {
-    margin-bottom: 15px;
-    display: flex;
-    align-items: flex-start;
-}
+        margin-bottom: 15px;
+        display: flex;
+        align-items: flex-start;
+    }
 
-.chat-message.own-message {
-    flex-direction: row-reverse;
-}
+    .chat-message.own-message {
+        flex-direction: row-reverse;
+    }
 
-.chat-message-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin: 0 10px;
-    flex-shrink: 0;
-    border: 2px solid #dee2e6;
-}
+    .chat-message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 10px;
+        flex-shrink: 0;
+        border: 2px solid #dee2e6;
+    }
 
-/* ⬇️ ADD THIS: Hover effect for avatar */
-.chat-message-avatar:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    border-color: #2E8B57;
-}
+    /* ⬇️ ADD THIS: Hover effect for avatar */
+    .chat-message-avatar:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border-color: #2E8B57;
+    }
 
-.chat-message-sender {
-    font-weight: 600;
-    font-size: 14px;
-    color: #2E8B57;
-    cursor: pointer; /* ⬅️ ADD THIS */
-    transition: color 0.2s ease; /* ⬅️ ADD THIS */
-}
+    .chat-message-sender {
+        font-weight: 600;
+        font-size: 14px;
+        color: #2E8B57;
+        cursor: pointer;
+        /* ⬅️ ADD THIS */
+        transition: color 0.2s ease;
+        /* ⬅️ ADD THIS */
+    }
 
-/* ⬇️ ADD THIS: Hover effect for sender name */
-.chat-message-sender:hover {
-    color: #1E5B32;
-    text-decoration: underline;
-}
+    /* ⬇️ ADD THIS: Hover effect for sender name */
+    .chat-message-sender:hover {
+        color: #1E5B32;
+        text-decoration: underline;
+    }
 
-.chat-message-content {
-    max-width: 70%;
-}
+    .chat-message-content {
+        max-width: 70%;
+    }
 
-.chat-message-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-    gap: 8px;
-}
+    .chat-message-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        gap: 8px;
+    }
 
 
 
-.chat-message-role {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    background-color: #6c757d;
-    color: #fff;
-}
+    .chat-message-role {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background-color: #6c757d;
+        color: #fff;
+    }
 
-.chat-message-role.admin {
-    background-color: #dc3545;
-    color: #fff;
-}
+    .chat-message-role.admin {
+        background-color: #dc3545;
+        color: #fff;
+    }
 
-.chat-message-role.moderator {
-    background-color: #0d6efd;
-    color: #fff;
-}
+    .chat-message-role.moderator {
+        background-color: #0d6efd;
+        color: #fff;
+    }
 
-.chat-message-time {
-    font-size: 11px;
-    color: #6c757d;
-}
+    .chat-message-time {
+        font-size: 11px;
+        color: #6c757d;
+    }
 
-.chat-message-bubble {
-    padding: 10px 15px;
-    border-radius: 18px;
-    background-color: #e9ecef;
-    word-wrap: break-word;
-    position: relative;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
+    .chat-message-bubble {
+        padding: 10px 15px;
+        border-radius: 18px;
+        background-color: #e9ecef;
+        word-wrap: break-word;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
 
-.chat-message.own-message .chat-message-bubble {
-    background-color: #2E8B57;
-    color: white;
-}
+    .chat-message.own-message .chat-message-bubble {
+        background-color: #2E8B57;
+        color: white;
+    }
 
-.chat-message.own-message .chat-message-header {
-    flex-direction: row-reverse;
-}
+    .chat-message.own-message .chat-message-header {
+        flex-direction: row-reverse;
+    }
 
-.chat-message.own-message .chat-message-sender {
-    color: #2E8B57;
-}
+    .chat-message.own-message .chat-message-sender {
+        color: #2E8B57;
+    }
 
-.chat-message-delete {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
-    font-weight: bold;
-    display: none;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-    z-index: 10;
-}
+    .chat-message-delete {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+        font-weight: bold;
+        display: none;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
 
-.chat-message:hover .chat-message-delete {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    .chat-message:hover .chat-message-delete {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.chat-message-delete:hover {
-    background: #bb2d3b;
-    transform: scale(1.15);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
+    .chat-message-delete:hover {
+        background: #bb2d3b;
+        transform: scale(1.15);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
 
-.chat-message-delete:active {
-    transform: scale(0.95);
-}
+    .chat-message-delete:active {
+        transform: scale(0.95);
+    }
 
-.system-message {
-    text-align: center;
-    color: #6c757d;
-    font-size: 12px;
-    margin: 10px 0;
-    font-style: italic;
-}
+    .system-message {
+        text-align: center;
+        color: #6c757d;
+        font-size: 12px;
+        margin: 10px 0;
+        font-style: italic;
+    }
 
-#chatMessages {
-    scroll-behavior: smooth;
-}
+    #chatMessages {
+        scroll-behavior: smooth;
+    }
 
-#chatMessages::-webkit-scrollbar {
-    width: 8px;
-}
+    #chatMessages::-webkit-scrollbar {
+        width: 8px;
+    }
 
-#chatMessages::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
+    #chatMessages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
 
-#chatMessages::-webkit-scrollbar-thumb {
-    background: #2E8B57;
-    border-radius: 10px;
-}
+    #chatMessages::-webkit-scrollbar-thumb {
+        background: #2E8B57;
+        border-radius: 10px;
+    }
 
-#chatMessages::-webkit-scrollbar-thumb:hover {
-    background: #1E5B32;
-}
+    #chatMessages::-webkit-scrollbar-thumb:hover {
+        background: #1E5B32;
+    }
 
-.chat-input-form {
-    width: 100%;
-}
+    .chat-input-form {
+        width: 100%;
+    }
 
-#chatInput {
-    border: 2px solid #dee2e6;
-    transition: border-color 0.2s ease;
-}
+    #chatInput {
+        border: 2px solid #dee2e6;
+        transition: border-color 0.2s ease;
+    }
 
-#chatInput:focus {
-    border-color: #2E8B57;
-    box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
-}
+    #chatInput:focus {
+        border-color: #2E8B57;
+        box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
+    }
 
-/* Enable Chat Tab */
-#chat-tab.disabled {
-    pointer-events: auto !important;
-    opacity: 1 !important;
-}
-
+    /* Enable Chat Tab */
+    #chat-tab.disabled {
+        pointer-events: auto !important;
+        opacity: 1 !important;
+    }
 </style>
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
-      <script>  
-      (function() {
-    'use strict';
-    
-    console.log('🔵 Community Activity Page Loaded');
+    <script>
+        (function () {
+            'use strict';
 
-    // Get community ID from ViewBag
-    const communityId = @(currentCommunityId ?? 0);
-    const currentUserId = @(Context.Session.GetInt32("UserId") ?? 0);
-    const userRole = '@ViewBag.UserRole';
-    
-    // Chat state variables
-    let communityChatConnection = null;
-    let isConnected = false;
-    let isChatInitialized = false;
-    let hasLoadedHistory = false;
+            console.log('🔵 Community Activity Page Loaded');
 
-    // ==================== SIGNALR INITIALIZATION ====================
-    async function initializeCommunityChatHub() {
-        if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connected) {
-            console.log('✓ Community Chat already connected');
-            return;
-        }
+            // Get community ID from ViewBag
+            const communityId = @(currentCommunityId ?? 0);
+            const currentUserId = @(Context.Session.GetInt32("UserId") ?? 0);
+            const userRole = '@ViewBag.UserRole';
 
-        if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connecting) {
-            console.log('⏳ Community Chat connection in progress...');
-            return;
-        }
+            // Chat state variables
+            let communityChatConnection = null;
+            let isConnected = false;
+            let isChatInitialized = false;
+            let hasLoadedHistory = false;
 
-        try {
-            communityChatConnection = new signalR.HubConnectionBuilder()
-                .withUrl("/communityChatHub")
-                .withAutomaticReconnect()
-                .build();
-
-            // Handle incoming messages
-            communityChatConnection.on("ReceiveCommunityMessage", (data) => {
-                console.log("Community message received:", data);
-                appendChatMessage(data);
-                
-                // Show notification badge if chat tab is not active
-                const chatTab = document.getElementById('chat-tab');
-                if (chatTab && !chatTab.classList.contains('active')) {
-                    showChatNotification();
+            // ==================== SIGNALR INITIALIZATION ====================
+            async function initializeCommunityChatHub() {
+                if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connected) {
+                    console.log('✓ Community Chat already connected');
+                    return;
                 }
-            });
 
-            // Handle user joined
-            communityChatConnection.on("UserJoinedChat", (data) => {
-                console.log("User joined chat:", data);
-                appendSystemMessage(`${data.username} joined the chat`);
-                updateOnlineCount();
-            });
+                if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connecting) {
+                    console.log('⏳ Community Chat connection in progress...');
+                    return;
+                }
 
-            // Handle user left
-            communityChatConnection.on("UserLeftChat", (data) => {
-                console.log("User left chat:", data);
-                updateOnlineCount();
-            });
+                try {
+                    communityChatConnection = new signalR.HubConnectionBuilder()
+                        .withUrl("/communityChatHub")
+                        .withAutomaticReconnect()
+                        .build();
 
-            // Handle join confirmation
-            communityChatConnection.on("JoinedCommunityChat", (data) => {
-                console.log("Successfully joined community chat:", data);
-                isConnected = true;
-            });
+                    // Handle incoming messages
+                    communityChatConnection.on("ReceiveCommunityMessage", (data) => {
+                        console.log("Community message received:", data);
+                        appendChatMessage(data);
 
-            // Handle online members count
-            communityChatConnection.on("OnlineMembersCount", (data) => {
-                console.log("Online members count:", data);
-                updateOnlineCountDisplay(data.count);
-            });
+                        // Show notification badge if chat tab is not active
+                        const chatTab = document.getElementById('chat-tab');
+                        if (chatTab && !chatTab.classList.contains('active')) {
+                            showChatNotification();
+                        }
+                    });
 
-            // Handle errors
-            communityChatConnection.on("Error", (message) => {
-                console.error("SignalR Error:", message);
-                alert(message);
-            });
+                    // Handle user joined
+                    communityChatConnection.on("UserJoinedChat", (data) => {
+                        console.log("User joined chat:", data);
+                        appendSystemMessage(`${data.username} joined the chat`);
+                        updateOnlineCount();
+                    });
 
-            await communityChatConnection.start();
-            console.log("✓ Community Chat SignalR Connected");
+                    // Handle user left
+                    communityChatConnection.on("UserLeftChat", (data) => {
+                        console.log("User left chat:", data);
+                        updateOnlineCount();
+                    });
 
-        } catch (error) {
-            console.error("Community Chat SignalR Connection Error:", error);
-        }
-    }
+                    // Handle join confirmation
+                    communityChatConnection.on("JoinedCommunityChat", (data) => {
+                        console.log("Successfully joined community chat:", data);
+                        isConnected = true;
+                    });
 
-    // ==================== CHAT ROOM FUNCTIONS ====================
-    async function joinCommunityChatRoom() {
-        if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
-            console.log('SignalR not connected, initializing...');
-            await initializeCommunityChatHub();
-        }
+                    // Handle online members count
+                    communityChatConnection.on("OnlineMembersCount", (data) => {
+                        console.log("Online members count:", data);
+                        updateOnlineCountDisplay(data.count);
+                    });
 
-        try {
-            await communityChatConnection.invoke("JoinCommunityChat", communityId);
-            console.log(`Joined community chat room: ${communityId}`);
-            
-            // Get online members count
-            await communityChatConnection.invoke("GetOnlineMembers", communityId);
-        } catch (error) {
-            console.error("Error joining community chat:", error);
-        }
-    }
+                    // Handle errors
+                    communityChatConnection.on("Error", (message) => {
+                        console.error("SignalR Error:", message);
+                        alert(message);
+                    });
 
-    async function leaveCommunityChatRoom() {
-        if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
-            return;
-        }
+                    await communityChatConnection.start();
+                    console.log("✓ Community Chat SignalR Connected");
 
-        try {
-            await communityChatConnection.invoke("LeaveCommunityChat", communityId);
-            console.log(`Left community chat room: ${communityId}`);
-        } catch (error) {
-            console.error("Error leaving community chat:", error);
-        }
-    }
+                } catch (error) {
+                    console.error("Community Chat SignalR Connection Error:", error);
+                }
+            }
 
-    // Load chat history
-    async function loadChatHistory() {
-        if (hasLoadedHistory) {
-            console.log('Chat history already loaded');
-            return;
-        }
+            // ==================== CHAT ROOM FUNCTIONS ====================
+            async function joinCommunityChatRoom() {
+                if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    console.log('SignalR not connected, initializing...');
+                    await initializeCommunityChatHub();
+                }
 
-        try {
-            const response = await fetch(`/Communities/GetCommunityChatHistory?communityId=${communityId}&skip=0&take=50`);
-            const result = await response.json();
+                try {
+                    await communityChatConnection.invoke("JoinCommunityChat", communityId);
+                    console.log(`Joined community chat room: ${communityId}`);
 
-            if (result.success) {
-                const messagesContainer = document.getElementById('chatMessages');
-                if (!messagesContainer) return;
-                
-                messagesContainer.innerHTML = '';
+                    // Get online members count
+                    await communityChatConnection.invoke("GetOnlineMembers", communityId);
+                } catch (error) {
+                    console.error("Error joining community chat:", error);
+                }
+            }
 
-                if (result.data.messages.length === 0) {
-                    messagesContainer.innerHTML = `
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-chat-dots fs-1"></i>
-                            <p class="mt-2">No messages yet. Start the conversation!</p>
+            async function leaveCommunityChatRoom() {
+                if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    return;
+                }
+
+                try {
+                    await communityChatConnection.invoke("LeaveCommunityChat", communityId);
+                    console.log(`Left community chat room: ${communityId}`);
+                } catch (error) {
+                    console.error("Error leaving community chat:", error);
+                }
+            }
+
+            // Load chat history
+            async function loadChatHistory() {
+                if (hasLoadedHistory) {
+                    console.log('Chat history already loaded');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/Communities/GetCommunityChatHistory?communityId=${communityId}&skip=0&take=50`);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const messagesContainer = document.getElementById('chatMessages');
+                        if (!messagesContainer) return;
+
+                        messagesContainer.innerHTML = '';
+
+                        if (result.data.messages.length === 0) {
+                            messagesContainer.innerHTML = `
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-chat-dots fs-1"></i>
+                                <p class="mt-2">No messages yet. Start the conversation!</p>
+                            </div>
+                        `;
+                        } else {
+                            result.data.messages.forEach(msg => {
+                                appendChatMessage(msg, false);
+                            });
+
+                            // Scroll to bottom
+                            scrollToBottom();
+                        }
+
+                        hasLoadedHistory = true;
+                    } else {
+                        console.error('Error loading chat history:', result.message);
+                    }
+                } catch (error) {
+                    console.error('Error loading chat history:', error);
+                    const messagesContainer = document.getElementById('chatMessages');
+                    if (messagesContainer) {
+                        messagesContainer.innerHTML = `
+                        <div class="text-center py-5 text-danger">
+                            <i class="bi bi-exclamation-circle fs-1"></i>
+                            <p class="mt-2">Failed to load chat history. Please refresh the page.</p>
                         </div>
                     `;
-                } else {
-                    result.data.messages.forEach(msg => {
-                        appendChatMessage(msg, false);
-                    });
-                    
-                    // Scroll to bottom
-                    scrollToBottom();
+                    }
+                }
+            }
+
+            // Send message
+            window.sendCommunityMessage = async function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const input = document.getElementById('chatInput');
+                if (!input) return;
+
+                const message = input.value.trim();
+
+                if (!message) return;
+
+                if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
+                    alert('Not connected to chat. Please refresh the page.');
+                    return;
                 }
 
-                hasLoadedHistory = true;
-            } else {
-                console.error('Error loading chat history:', result.message);
-            }
-        } catch (error) {
-            console.error('Error loading chat history:', error);
-            const messagesContainer = document.getElementById('chatMessages');
-            if (messagesContainer) {
-                messagesContainer.innerHTML = `
-                    <div class="text-center py-5 text-danger">
-                        <i class="bi bi-exclamation-circle fs-1"></i>
-                        <p class="mt-2">Failed to load chat history. Please refresh the page.</p>
+                try {
+                    await communityChatConnection.invoke("SendCommunityMessage", communityId, message);
+                    input.value = '';
+                } catch (error) {
+                    console.error("Error sending message:", error);
+                    alert("Failed to send message. Please try again.");
+                }
+
+                return false;
+            };
+
+            // Append chat message to UI
+            function appendChatMessage(data, shouldScroll = true) {
+                const messagesContainer = document.getElementById('chatMessages');
+                if (!messagesContainer) return;
+
+                const placeholder = messagesContainer.querySelector('.text-center.py-5');
+                if (placeholder) {
+                    placeholder.remove();
+                }
+
+                const isMine = data.senderId === currentUserId;
+
+                const roleBadge = data.isAdmin
+                    ? '<span class="chat-message-role admin">ADMIN</span>'
+                    : data.isModerator
+                        ? '<span class="chat-message-role moderator">MOD</span>'
+                        : '';
+
+                const canDelete = isMine || userRole === 'Admin' || userRole === 'Moderator';
+                const deleteButton = canDelete
+                    ? `<button class="chat-message-delete" onclick="deleteCommunityMessage(${data.messageId})" title="Delete message">×</button>`
+                    : '';
+
+                const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const messageHtml = `
+            <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
+                <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
+                     class="chat-message-avatar" 
+                     alt="${data.senderName}"
+                     onclick="showUserProfilePreview(${data.senderId})"
+                     style="cursor: pointer;"
+                     title="View ${data.senderName}'s profile"
+                     onerror="this.src='/images/profile_image.jpg'">
+                <div class="chat-message-content">
+                    <div class="chat-message-header">
+                        <span class="chat-message-sender" 
+                              onclick="showUserProfilePreview(${data.senderId})" 
+                              style="cursor: pointer;"
+                              title="View profile">
+                            ${escapeHtml(data.senderName)}
+                        </span>
+                        ${roleBadge}
+                        <span class="chat-message-time">${messageTime}</span>
                     </div>
-                `;
-            }
-        }
-    }
-
-    // Send message
-    window.sendCommunityMessage = async function(event) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const input = document.getElementById('chatInput');
-        if (!input) return;
-
-        const message = input.value.trim();
-
-        if (!message) return;
-
-        if (!communityChatConnection || communityChatConnection.state !== signalR.HubConnectionState.Connected) {
-            alert('Not connected to chat. Please refresh the page.');
-            return;
-        }
-
-        try {
-            await communityChatConnection.invoke("SendCommunityMessage", communityId, message);
-            input.value = '';
-        } catch (error) {
-            console.error("Error sending message:", error);
-            alert("Failed to send message. Please try again.");
-        }
-
-        return false;
-    };
-
-    // Append chat message to UI
- function appendChatMessage(data, shouldScroll = true) {
-    const messagesContainer = document.getElementById('chatMessages');
-    if (!messagesContainer) return;
-
-    const placeholder = messagesContainer.querySelector('.text-center.py-5');
-    if (placeholder) {
-        placeholder.remove();
-    }
-
-    const isMine = data.senderId === currentUserId;
-    
-    const roleBadge = data.isAdmin 
-        ? '<span class="chat-message-role admin">ADMIN</span>' 
-        : data.isModerator 
-            ? '<span class="chat-message-role moderator">MOD</span>' 
-            : '';
-
-    const canDelete = isMine || userRole === 'Admin' || userRole === 'Moderator';
-    const deleteButton = canDelete
-        ? `<button class="chat-message-delete" onclick="deleteCommunityMessage(${data.messageId})" title="Delete message">×</button>`
-        : '';
-
-    const messageTime = new Date(data.sentAt).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-
-    const messageHtml = `
-        <div class="chat-message ${isMine ? 'own-message' : ''}" data-message-id="${data.messageId}">
-            <img src="${data.senderProfilePicture || '/images/profile_image.jpg'}" 
-                 class="chat-message-avatar" 
-                 alt="${data.senderName}"
-                 onclick="showUserProfilePreview(${data.senderId})"
-                 style="cursor: pointer;"
-                 title="View ${data.senderName}'s profile"
-                 onerror="this.src='/images/profile_image.jpg'">
-            <div class="chat-message-content">
-                <div class="chat-message-header">
-                    <span class="chat-message-sender" 
-                          onclick="showUserProfilePreview(${data.senderId})" 
-                          style="cursor: pointer;"
-                          title="View profile">
-                        ${escapeHtml(data.senderName)}
-                    </span>
-                    ${roleBadge}
-                    <span class="chat-message-time">${messageTime}</span>
+                    <div class="chat-message-bubble">
+                        ${escapeHtml(data.content)}
+                        ${deleteButton}
+                    </div>
                 </div>
-                <div class="chat-message-bubble">
-                    ${escapeHtml(data.content)}
-                    ${deleteButton}
-                </div>
-            </div>
-        </div>
-    `;
-
-    messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
-
-    if (shouldScroll) {
-        scrollToBottom();
-    }
-}
-
-    // Append system message
-    function appendSystemMessage(message) {
-        const messagesContainer = document.getElementById('chatMessages');
-        if (!messagesContainer) return;
-
-        const systemMessageHtml = `
-            <div class="system-message">
-                <i class="bi bi-info-circle"></i> ${escapeHtml(message)}
             </div>
         `;
 
-        messagesContainer.insertAdjacentHTML('beforeend', systemMessageHtml);
-        scrollToBottom();
-    }
+                messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
 
-    // Delete message
-    window.deleteCommunityMessage = async function(messageId) {
-        if (!confirm('Are you sure you want to delete this message?')) return;
+                if (shouldScroll) {
+                    scrollToBottom();
+                }
+            }
 
-        try {
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            
-            const response = await fetch('/Communities/DeleteCommunityMessage', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    messageId: messageId,
-                    communityId: communityId,
-                    __RequestVerificationToken: token
-                })
+            // Append system message
+            function appendSystemMessage(message) {
+                const messagesContainer = document.getElementById('chatMessages');
+                if (!messagesContainer) return;
+
+                const systemMessageHtml = `
+                <div class="system-message">
+                    <i class="bi bi-info-circle"></i> ${escapeHtml(message)}
+                </div>
+            `;
+
+                messagesContainer.insertAdjacentHTML('beforeend', systemMessageHtml);
+                scrollToBottom();
+            }
+
+            // Delete message
+            window.deleteCommunityMessage = async function (messageId) {
+                if (!confirm('Are you sure you want to delete this message?')) return;
+
+                try {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+                    const response = await fetch('/Communities/DeleteCommunityMessage', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams({
+                            messageId: messageId,
+                            communityId: communityId,
+                            __RequestVerificationToken: token
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Remove message from UI with animation
+                        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+                        if (messageElement) {
+                            messageElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                            messageElement.style.opacity = '0';
+                            messageElement.style.transform = 'translateX(-20px)';
+                            setTimeout(() => {
+                                messageElement.remove();
+
+                                // ⬇️ NEW: Show system message if admin/mod deleted someone else's message
+                                if (userRole === 'Admin' || userRole === 'Moderator') {
+                                    appendSystemMessage('A message was deleted by a moderator');
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        alert(result.message || 'Failed to delete message');
+                    }
+                } catch (error) {
+                    console.error('Error deleting message:', error);
+                    alert('An error occurred while deleting the message');
+                }
+            };
+
+            // Update online count
+            async function updateOnlineCount() {
+                if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connected) {
+                    try {
+                        await communityChatConnection.invoke("GetOnlineMembers", communityId);
+                    } catch (error) {
+                        console.error('Error getting online count:', error);
+                    }
+                }
+            }
+
+            // Update online count display
+            function updateOnlineCountDisplay(count) {
+                const onlineCountEl = document.getElementById('onlineCount');
+                if (onlineCountEl) {
+                    onlineCountEl.textContent = count;
+                }
+            }
+
+            // Show chat notification
+            function showChatNotification() {
+                const chatTab = document.getElementById('chat-tab');
+                if (chatTab && !chatTab.textContent.includes('🔴')) {
+                    chatTab.innerHTML = chatTab.innerHTML + ' <span class="badge bg-danger">New</span>';
+                }
+            }
+
+            // Clear chat notifications
+            function clearChatNotifications() {
+                const chatTab = document.getElementById('chat-tab');
+                if (chatTab) {
+                    const badge = chatTab.querySelector('.badge');
+                    if (badge) {
+                        badge.remove();
+                    }
+                }
+            }
+
+            // Scroll to bottom
+            function scrollToBottom() {
+                const messagesContainer = document.getElementById('chatMessages');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }
+
+            // Escape HTML
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // ==================== EVENT LISTENERS ====================
+
+            // Handle chat tab shown
+            const chatTabButton = document.getElementById('chat-tab');
+            if (chatTabButton) {
+                // Enable the chat tab (remove disabled class)
+                chatTabButton.classList.remove('disabled');
+
+                chatTabButton.addEventListener('shown.bs.tab', async function () {
+                    if (!isChatInitialized && communityId > 0) {
+                        console.log('🚀 Initializing community chat...');
+
+                        await initializeCommunityChatHub();
+                        await loadChatHistory();
+                        await joinCommunityChatRoom();
+
+                        isChatInitialized = true;
+                    }
+
+                    clearChatNotifications();
+                    scrollToBottom();
+                });
+            }
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', function () {
+                if (isConnected) {
+                    leaveCommunityChatRoom();
+                }
             });
 
-            const result = await response.json();
+            // Tab activation from URL hash (existing code)
+            document.addEventListener('DOMContentLoaded', function () {
+                var hash = window.location.hash;
+                if (hash) {
+                    // Try to activate main tabs
+                    var triggerEl = document.querySelector('#communityMainTabs button[data-bs-target="' + hash + '"]');
+                    if (triggerEl) {
+                        var tab = new bootstrap.Tab(triggerEl);
+                        tab.show();
+                    }
 
-            if (result.success) {
-                // Remove message from UI with animation
-                const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-                if (messageElement) {
-                    messageElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    messageElement.style.opacity = '0';
-                    messageElement.style.transform = 'translateX(-20px)';
-                    setTimeout(() => {
-                        messageElement.remove();
-                        
-                        // ⬇️ NEW: Show system message if admin/mod deleted someone else's message
-                        if (userRole === 'Admin' || userRole === 'Moderator') {
-                            appendSystemMessage('A message was deleted by a moderator');
+                    // Try to activate activity sub-tabs
+                    var subTriggerEl = document.querySelector('#activitySubTabs button[data-bs-target="' + hash + '"]');
+                    if (subTriggerEl) {
+                        var subTab = new bootstrap.Tab(subTriggerEl);
+                        subTab.show();
+
+                        // Also ensure the parent 'Activity' tab is active
+                        var parentTabTrigger = document.querySelector('#activity-tab');
+                        if (parentTabTrigger) {
+                            var parentTab = new bootstrap.Tab(parentTabTrigger);
+                            parentTab.show();
                         }
-                    }, 300);
+                    }
                 }
-            } else {
-                alert(result.message || 'Failed to delete message');
-            }
-        } catch (error) {
-            console.error('Error deleting message:', error);
-            alert('An error occurred while deleting the message');
-        }
-    };
+            });
 
-    // Update online count
-    async function updateOnlineCount() {
-        if (communityChatConnection && communityChatConnection.state === signalR.HubConnectionState.Connected) {
-            try {
-                await communityChatConnection.invoke("GetOnlineMembers", communityId);
-            } catch (error) {
-                console.error('Error getting online count:', error);
-            }
-        }
-    }
-
-    // Update online count display
-    function updateOnlineCountDisplay(count) {
-        const onlineCountEl = document.getElementById('onlineCount');
-        if (onlineCountEl) {
-            onlineCountEl.textContent = count;
-        }
-    }
-
-    // Show chat notification
-    function showChatNotification() {
-        const chatTab = document.getElementById('chat-tab');
-        if (chatTab && !chatTab.textContent.includes('🔴')) {
-            chatTab.innerHTML = chatTab.innerHTML + ' <span class="badge bg-danger">New</span>';
-        }
-    }
-
-    // Clear chat notifications
-    function clearChatNotifications() {
-        const chatTab = document.getElementById('chat-tab');
-        if (chatTab) {
-            const badge = chatTab.querySelector('.badge');
-            if (badge) {
-                badge.remove();
-            }
-        }
-    }
-
-    // Scroll to bottom
-    function scrollToBottom() {
-        const messagesContainer = document.getElementById('chatMessages');
-        if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-    }
-
-    // Escape HTML
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ==================== EVENT LISTENERS ====================
-
-    // Handle chat tab shown
-    const chatTabButton = document.getElementById('chat-tab');
-    if (chatTabButton) {
-        // Enable the chat tab (remove disabled class)
-        chatTabButton.classList.remove('disabled');
-        
-        chatTabButton.addEventListener('shown.bs.tab', async function() {
-            if (!isChatInitialized && communityId > 0) {
-                console.log('🚀 Initializing community chat...');
-                
-                await initializeCommunityChatHub();
-                await loadChatHistory();
-                await joinCommunityChatRoom();
-                
-                isChatInitialized = true;
-            }
-            
-            clearChatNotifications();
-            scrollToBottom();
-        });
-    }
-
-    // Clean up on page unload
-    window.addEventListener('beforeunload', function() {
-        if (isConnected) {
-            leaveCommunityChatRoom();
-        }
-    });
-
-    // Tab activation from URL hash (existing code)
-    document.addEventListener('DOMContentLoaded', function () {
-        var hash = window.location.hash;
-        if (hash) {
-            // Try to activate main tabs
-            var triggerEl = document.querySelector('#communityMainTabs button[data-bs-target="' + hash + '"]');
-            if (triggerEl) {
-                var tab = new bootstrap.Tab(triggerEl);
-                tab.show();
-            }
-
-            // Try to activate activity sub-tabs
-            var subTriggerEl = document.querySelector('#activitySubTabs button[data-bs-target="' + hash + '"]');
-            if (subTriggerEl) {
-                var subTab = new bootstrap.Tab(subTriggerEl);
-                subTab.show();
-
-                // Also ensure the parent 'Activity' tab is active
-                var parentTabTrigger = document.querySelector('#activity-tab');
-                if (parentTabTrigger) {
-                    var parentTab = new bootstrap.Tab(parentTabTrigger);
-                    parentTab.show();
-                }
-            }
-        }
-    });
-
-    console.log('✓ Community Activity module loaded');
-})();
-      // Optional: Activate tab from URL hash if needed
+            console.log('✓ Community Activity module loaded');
+        })();
+        // Optional: Activate tab from URL hash if needed
         document.addEventListener('DOMContentLoaded', function () {
             var hash = window.location.hash;
             if (hash) {

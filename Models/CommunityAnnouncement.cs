@@ -33,6 +33,9 @@ namespace PicklePlay.Models
         [Column("expiry_date")]
         public DateTime? ExpiryDate { get; set; } // Optional: for automatic removal
 
+        [Column("is_hidden")]
+        public bool IsHidden { get; set; } = false;
+
         // Navigation Properties
         [ForeignKey("CommunityId")]
         public virtual Community Community { get; set; } = null!;

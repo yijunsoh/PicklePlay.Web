@@ -630,7 +630,10 @@ namespace PicklePlay.Controllers
                         Content = a.Content,
                         PostDate = a.PostDate,
                         PosterUserId = a.PosterUserId,
-                        PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}"
+                        PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}",
+                        ExpiryDate = a.ExpiryDate,
+                        IsHidden = a.IsHidden,
+                        IsVisible = !a.IsHidden && (!a.ExpiryDate.HasValue || a.ExpiryDate > NowMYT())
                     }).ToList() ?? new List<CommunityAdminDashboardViewModel.AnnouncementItem>(),
 
                 Members = c.Memberships
@@ -655,7 +658,6 @@ namespace PicklePlay.Controllers
                         RequestedDate = m.JoinDate
                     }).ToList(),
 
-                // *** ADDED: Populate BlockedUsers ***
                 BlockedUsers = c.BlockedUsers?
                     .Where(b => b.Status == "Active")
                     .OrderByDescending(b => b.BlockDate)
@@ -697,7 +699,6 @@ namespace PicklePlay.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCommunityAdminData(int communityId)
         {
-
             int currentUserId = HttpContext.Session.GetInt32("UserId") ?? 0;
 
             if (currentUserId == 0)
@@ -717,14 +718,15 @@ namespace PicklePlay.Controllers
                         .FirstOrDefaultAsync();
                 }
             }
+
             var community = await _context.Communities
                 .Include(c => c.Creator)
                 .Include(c => c.Memberships)
                     .ThenInclude(m => m.User)
                 .Include(c => c.BlockedUsers)
-                    .ThenInclude(b => b.BlockedUser) // Include blocked user details
+                    .ThenInclude(b => b.BlockedUser)
                 .Include(c => c.BlockedUsers)
-                    .ThenInclude(b => b.BlockingAdmin) // Include admin who blocked
+                    .ThenInclude(b => b.BlockingAdmin)
                 .Include(c => c.Announcements)
                     .ThenInclude(a => a.Poster)
                 .FirstOrDefaultAsync(c => c.CommunityId == communityId);
@@ -750,7 +752,7 @@ namespace PicklePlay.Controllers
                 MemberCountTotal = community.Memberships.Count(),
                 AdminCount = community.Memberships.Count(m => m.CommunityRole == "Admin" && m.Status == "Active"),
                 ModeratorCount = community.Memberships.Count(m => m.CommunityRole == "Moderator" && m.Status == "Active"),
-                BlockedUserCount = community.BlockedUsers.Count(b => b.Status == "Active"), // Only count active blocks
+                BlockedUserCount = community.BlockedUsers.Count(b => b.Status == "Active"),
                 AnnouncementCount = community.Announcements.Count(),
 
                 LatestAnnouncements = community.Announcements
@@ -763,11 +765,13 @@ namespace PicklePlay.Controllers
                         Content = a.Content,
                         PostDate = a.PostDate,
                         PosterUserId = a.PosterUserId,
-                        PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}"
+                        PosterName = a.Poster?.Username ?? $"User #{a.PosterUserId}",
+                        ExpiryDate = a.ExpiryDate,
+                        IsHidden = a.IsHidden,
+                        IsVisible = !a.IsHidden && (!a.ExpiryDate.HasValue || a.ExpiryDate > NowMYT())
                     })
                     .ToList(),
 
-                // --- AMENDED: Include the full Members list for client-side table refresh ---
                 Members = community.Memberships
                     .OrderByDescending(m => m.JoinDate)
                     .Select(m => new CommunityAdminDashboardViewModel.MemberItem
@@ -779,7 +783,6 @@ namespace PicklePlay.Controllers
                         JoinDate = m.JoinDate
                     })
                     .ToList(),
-                // --------------------------------------------------------------------------
 
                 LatestMembers = community.Memberships
                     .OrderByDescending(m => m.JoinDate)
@@ -789,7 +792,7 @@ namespace PicklePlay.Controllers
                         UserId = m.UserId,
                         UserName = m.User?.Username ?? $"User #{m.UserId}",
                         Role = m.CommunityRole,
-                        Status = m.Status, // Added status for consistency
+                        Status = m.Status,
                         JoinDate = m.JoinDate
                     })
                     .ToList(),
@@ -806,9 +809,8 @@ namespace PicklePlay.Controllers
                     })
                     .ToList(),
 
-                // --- ADDED: Blocked Users List ---
                 BlockedUsers = community.BlockedUsers
-                    .Where(b => b.Status == "Active") // Only show active blocks
+                    .Where(b => b.Status == "Active")
                     .OrderByDescending(b => b.BlockDate)
                     .Select(b => new CommunityAdminDashboardViewModel.BlockedUserItem
                     {
@@ -820,7 +822,6 @@ namespace PicklePlay.Controllers
                         BlockDate = b.BlockDate
                     })
                     .ToList()
-
             };
 
             return Ok(new { success = true, data = vm });
@@ -832,53 +833,48 @@ namespace PicklePlay.Controllers
         public async Task<IActionResult> CreateAnnouncement([FromForm] CommunityAdminDashboardViewModel.CreateAnnouncementViewModel model)
         {
             if (!ModelState.IsValid)
-            {
-                return BadRequest(new { success = false, message = "Invalid data submitted.", errors = ModelState.Values.SelectMany(v => v.Errors) });
-            }
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
 
             var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
             if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-            {
                 return Unauthorized(new { success = false, message = "User not authenticated." });
-            }
 
             int userId = currentUserIdInt.Value;
 
             try
             {
+                // 1. Validate Expiry Date using MYT (Fix: Compare against Local MYT, not UTC)
+                if (model.ExpiryDate.HasValue && model.ExpiryDate.Value < NowMYT())
+                {
+                    return BadRequest(new { success = false, message = "Expiry date cannot be in the past (Malaysia Time)." });
+                }
+
                 var community = await _context.Communities
                     .FirstOrDefaultAsync(c => c.CommunityId == model.CommunityId);
 
                 if (community == null)
-                {
                     return NotFound(new { success = false, message = "Community not found." });
-                }
 
                 var userMembership = await _context.CommunityMembers
                     .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
-                                             cm.UserId == userId &&
-                                             cm.Status == "Active" &&
-                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+                                                cm.UserId == userId &&
+                                                cm.Status == "Active" &&
+                                                (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
 
                 var isCreator = community.CreateByUserId == userId;
 
                 if (userMembership == null && !isCreator)
-                {
-                    return Forbid("You don't have permission to create announcements in this community.");
-                }
+                    return Forbid("You don't have permission to create announcements.");
 
-                // Set Malaysia timezone (UTC+8)
-                var malaysiaTime = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kuala_Lumpur");
-                var malaysiaNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, malaysiaTime);
-
+                // 2. Save using MYT (Fix: Do NOT convert to UTC)
                 var announcement = new CommunityAnnouncement
                 {
                     CommunityId = model.CommunityId,
                     PosterUserId = userId,
                     Title = model.Title.Trim(),
                     Content = model.Content.Trim(),
-                    PostDate = malaysiaNow,
-                    ExpiryDate = model.ExpiryDate?.ToUniversalTime() // Store expiry date in UTC
+                    PostDate = NowMYT(),            // Fix: Use MYT
+                    ExpiryDate = model.ExpiryDate   // Fix: Save exact input without conversion
                 };
 
                 _context.CommunityAnnouncements.Add(announcement);
@@ -891,14 +887,75 @@ namespace PicklePlay.Controllers
                     announcementId = announcement.AnnouncementId
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Database error creating announcement: {ex.Message}");
-                return StatusCode(500, new
+                return StatusCode(500, new { success = false, message = "An error occurred." });
+            }
+        }
+
+        // POST: /Communities/EditAnnouncement
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditAnnouncement([FromForm] CommunityAdminDashboardViewModel.EditAnnouncementViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, message = "Invalid data submitted." });
+
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+
+            int userId = currentUserIdInt.Value;
+
+            try
+            {
+                // 1. Validate Expiry Date using MYT (Fix: Compare against Local MYT)
+                if (model.ExpiryDate.HasValue && model.ExpiryDate.Value < NowMYT().AddMinutes(-1))
                 {
-                    success = false,
-                    message = "An unexpected error occurred while creating the announcement."
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Invalid Expiry Date: The date cannot be in the past (Malaysia Time)."
+                    });
+                }
+
+                var announcement = await _context.CommunityAnnouncements
+                    .FirstOrDefaultAsync(a => a.AnnouncementId == model.AnnouncementId && a.CommunityId == model.CommunityId);
+
+                if (announcement == null)
+                    return NotFound(new { success = false, message = "Announcement not found." });
+
+                // Verify Permission
+                var userMembership = await _context.CommunityMembers
+                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+                                                cm.UserId == userId &&
+                                                cm.Status == "Active" &&
+                                                (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+
+                var isCreator = announcement.PosterUserId == userId;
+                var isCommunityCreator = await _context.Communities.AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+
+                if (userMembership == null && !isCreator && !isCommunityCreator)
+                    return Forbid("You don't have permission to edit this announcement.");
+
+                // 2. Update Fields (Fix: Do NOT convert to UTC)
+                announcement.Title = model.Title.Trim();
+                announcement.Content = model.Content.Trim();
+                announcement.ExpiryDate = model.ExpiryDate; // Fix: Save exact input
+
+                _context.CommunityAnnouncements.Update(announcement);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Announcement updated successfully!",
+                    announcementId = announcement.AnnouncementId
                 });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { success = false, message = "An error occurred." });
             }
         }
 
@@ -1248,75 +1305,75 @@ namespace PicklePlay.Controllers
             }
         }
 
-        // POST: /Communities/EditAnnouncement
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditAnnouncement([FromForm] CommunityAdminDashboardViewModel.EditAnnouncementViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new { success = false, message = "Invalid data submitted." });
-            }
+        // // POST: /Communities/EditAnnouncement
+        // [HttpPost]
+        // [ValidateAntiForgeryToken]
+        // public async Task<IActionResult> EditAnnouncement([FromForm] CommunityAdminDashboardViewModel.EditAnnouncementViewModel model)
+        // {
+        //     if (!ModelState.IsValid)
+        //     {
+        //         return BadRequest(new { success = false, message = "Invalid data submitted." });
+        //     }
 
-            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-            if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
-            {
-                return Unauthorized(new { success = false, message = "User not authenticated." });
-            }
+        //     var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+        //     if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
+        //     {
+        //         return Unauthorized(new { success = false, message = "User not authenticated." });
+        //     }
 
-            int userId = currentUserIdInt.Value;
+        //     int userId = currentUserIdInt.Value;
 
-            try
-            {
-                var announcement = await _context.CommunityAnnouncements
-                    .FirstOrDefaultAsync(a => a.AnnouncementId == model.AnnouncementId && a.CommunityId == model.CommunityId);
+        //     try
+        //     {
+        //         var announcement = await _context.CommunityAnnouncements
+        //             .FirstOrDefaultAsync(a => a.AnnouncementId == model.AnnouncementId && a.CommunityId == model.CommunityId);
 
-                if (announcement == null)
-                {
-                    return NotFound(new { success = false, message = "Announcement not found." });
-                }
+        //         if (announcement == null)
+        //         {
+        //             return NotFound(new { success = false, message = "Announcement not found." });
+        //         }
 
-                // Verify user has permission to edit this announcement
-                var userMembership = await _context.CommunityMembers
-                    .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
-                                             cm.UserId == userId &&
-                                             cm.Status == "Active" &&
-                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+        //         // Verify user has permission to edit this announcement
+        //         var userMembership = await _context.CommunityMembers
+        //             .FirstOrDefaultAsync(cm => cm.CommunityId == model.CommunityId &&
+        //                                      cm.UserId == userId &&
+        //                                      cm.Status == "Active" &&
+        //                                      (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
 
-                var isCreator = announcement.PosterUserId == userId;
-                var isCommunityCreator = await _context.Communities
-                    .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
+        //         var isCreator = announcement.PosterUserId == userId;
+        //         var isCommunityCreator = await _context.Communities
+        //             .AnyAsync(c => c.CommunityId == model.CommunityId && c.CreateByUserId == userId);
 
-                if (userMembership == null && !isCreator && !isCommunityCreator)
-                {
-                    return Forbid("You don't have permission to edit this announcement.");
-                }
+        //         if (userMembership == null && !isCreator && !isCommunityCreator)
+        //         {
+        //             return Forbid("You don't have permission to edit this announcement.");
+        //         }
 
-                // Update announcement
-                announcement.Title = model.Title.Trim();
-                announcement.Content = model.Content.Trim();
-                announcement.ExpiryDate = model.ExpiryDate?.ToUniversalTime();
+        //         // Update announcement
+        //         announcement.Title = model.Title.Trim();
+        //         announcement.Content = model.Content.Trim();
+        //         announcement.ExpiryDate = model.ExpiryDate?.ToUniversalTime();
 
-                _context.CommunityAnnouncements.Update(announcement);
-                await _context.SaveChangesAsync();
+        //         _context.CommunityAnnouncements.Update(announcement);
+        //         await _context.SaveChangesAsync();
 
-                return Ok(new
-                {
-                    success = true,
-                    message = "Announcement updated successfully!",
-                    announcementId = announcement.AnnouncementId
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Database error editing announcement: {ex.Message}");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "An unexpected error occurred while updating the announcement."
-                });
-            }
-        }
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Announcement updated successfully!",
+        //             announcementId = announcement.AnnouncementId
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine($"Database error editing announcement: {ex.Message}");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             message = "An unexpected error occurred while updating the announcement."
+        //         });
+        //     }
+        // }
 
         // POST: /Communities/DeleteAnnouncement
         [HttpPost]
@@ -1376,12 +1433,12 @@ namespace PicklePlay.Controllers
                 });
             }
         }
-
         // POST: /Communities/ToggleAnnouncementVisibility
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ToggleAnnouncementVisibility(int announcementId, int communityId)
         {
+            // 1. Authentication Check
             var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
             if (!currentUserIdInt.HasValue || currentUserIdInt.Value <= 0)
             {
@@ -1392,6 +1449,7 @@ namespace PicklePlay.Controllers
 
             try
             {
+                // 2. Fetch the announcement
                 var announcement = await _context.CommunityAnnouncements
                     .FirstOrDefaultAsync(a => a.AnnouncementId == announcementId && a.CommunityId == communityId);
 
@@ -1400,12 +1458,12 @@ namespace PicklePlay.Controllers
                     return NotFound(new { success = false, message = "Announcement not found." });
                 }
 
-                // Verify user has permission to modify this announcement
+                // 3. Permission Check
                 var userMembership = await _context.CommunityMembers
                     .FirstOrDefaultAsync(cm => cm.CommunityId == communityId &&
-                                             cm.UserId == userId &&
-                                             cm.Status == "Active" &&
-                                             (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
+                                                cm.UserId == userId &&
+                                                cm.Status == "Active" &&
+                                                (cm.CommunityRole == "Admin" || cm.CommunityRole == "Moderator"));
 
                 var isCreator = announcement.PosterUserId == userId;
                 var isCommunityCreator = await _context.Communities
@@ -1416,28 +1474,20 @@ namespace PicklePlay.Controllers
                     return Forbid("You don't have permission to modify this announcement.");
                 }
 
-                // For simplicity, we'll use ExpiryDate to control visibility
-                // If ExpiryDate is in past, announcement is "hidden"
-                if (announcement.ExpiryDate.HasValue && announcement.ExpiryDate < DateTime.UtcNow)
-                {
-                    // Make visible by clearing expiry date
-                    announcement.ExpiryDate = null;
-                }
-                else
-                {
-                    // Hide by setting expiry to past
-                    announcement.ExpiryDate = DateTime.UtcNow.AddMinutes(-1);
-                }
+                // 4. TOGGLE LOGIC (Uses IsHidden column)
+                announcement.IsHidden = !announcement.IsHidden;
 
+                // 5. Save Changes
                 _context.CommunityAnnouncements.Update(announcement);
                 await _context.SaveChangesAsync();
 
-                var isNowVisible = announcement.ExpiryDate == null || announcement.ExpiryDate > DateTime.UtcNow;
+                // 6. Determine return status using MYT (Fix: Compare against Local MYT)
+                var isNowVisible = !announcement.IsHidden && (!announcement.ExpiryDate.HasValue || announcement.ExpiryDate > NowMYT());
 
                 return Ok(new
                 {
                     success = true,
-                    message = isNowVisible ? "Announcement is now visible!" : "Announcement is now hidden!",
+                    message = isNowVisible ? "Announcement is now visible." : "Announcement is now hidden.",
                     isVisible = isNowVisible
                 });
             }
