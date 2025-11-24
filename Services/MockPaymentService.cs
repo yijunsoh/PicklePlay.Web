@@ -8,11 +8,13 @@ namespace PicklePlay.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<MockPaymentService> _logger;
+        private readonly IPayPalService _payPalService;
 
-        public MockPaymentService(ApplicationDbContext context, ILogger<MockPaymentService> logger)
+        public MockPaymentService(ApplicationDbContext context, ILogger<MockPaymentService> logger, IPayPalService payPalService)
         {
             _context = context;
             _logger = logger;
+            _payPalService = payPalService;
         }
 
         public async Task<PaymentResult> ProcessTopUpAsync(int userId, decimal amount, string paymentMethod, CardInfo? cardInfo = null)
@@ -160,53 +162,67 @@ namespace PicklePlay.Services
             {
                 _logger.LogInformation($"Processing withdrawal for user {userId}, amount: {amount}, method: {withdrawMethod}");
 
-                // Get user's wallet
-                var wallet = await _context.Wallets
-                    .FirstOrDefaultAsync(w => w.UserId == userId);
+                var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+                if (wallet == null) return new PaymentResult { Success = false, Message = "Wallet not found" };
 
-                if (wallet == null)
+                if (amount <= 0) return new PaymentResult { Success = false, Message = "Amount > 0 required" };
+                if (wallet.WalletBalance < amount) return new PaymentResult { Success = false, Message = "Insufficient balance" };
+                if (amount < 10.00m) return new PaymentResult { Success = false, Message = "Min withdrawal RM 10.00" };
+
+                // --- LOGIC SWITCH ---
+                bool withdrawalSuccess = false;
+                string gatewayId = GeneratePaymentReference();
+                string notes = "";
+
+                if (withdrawMethod == "PayPal")
                 {
-                    _logger.LogWarning($"Wallet not found for user {userId}");
-                    return new PaymentResult { Success = false, Message = "Wallet not found" };
-                }
+                    // VALIDATE EMAIL
+                    if (string.IsNullOrEmpty(paymentDetails?.PayPalEmail))
+                        return new PaymentResult { Success = false, Message = "PayPal email required" };
 
-                // Validate amount
-                if (amount <= 0)
+                    // CALL REAL PAYPAL PAYOUTS API
+                    var batchId = await _payPalService.PayoutAsync(
+                        paymentDetails.PayPalEmail, 
+                        amount, 
+                        "MYR", // Using MYR as per your previous files
+                        gatewayId
+                    );
+
+                    if (!string.IsNullOrEmpty(batchId))
+                    {
+                        withdrawalSuccess = true;
+                        gatewayId = batchId; // Store PayPal Batch ID
+                        notes = $"PayPal Payout to {paymentDetails.PayPalEmail}";
+                    }
+                    else
+                    {
+                        return new PaymentResult { Success = false, Message = "PayPal Payout Failed (Check Logs)" };
+                    }
+                }
+                else
                 {
-                    return new PaymentResult { Success = false, Message = "Amount must be greater than 0" };
+                    // Bank / Other (Keep Mock Logic)
+                    await Task.Delay(1000);
+                    withdrawalSuccess = true;
+                    notes = "Bank Transfer";
                 }
-
-                // Check if user has sufficient balance
-                if (wallet.WalletBalance < amount)
-                {
-                    return new PaymentResult { Success = false, Message = "Insufficient balance for withdrawal" };
-                }
-
-                // Validate minimum withdrawal amount
-                if (amount < 10.00m)
-                {
-                    return new PaymentResult { Success = false, Message = "Minimum withdrawal amount is RM 10.00" };
-                }
-
-                // Mock withdrawal processing - always success for demo (like your topup)
-                var withdrawalSuccess = await ProcessMockWithdrawal(amount, withdrawMethod);
 
                 if (withdrawalSuccess)
                 {
-                    // Update wallet balance (REAL database update)
+                    // Update wallet balance
                     wallet.WalletBalance -= amount;
                     wallet.TotalSpent += amount;
                     wallet.LastUpdated = DateTime.UtcNow;
 
-                    // Create withdrawal transaction record (REAL database insert)
                     var withdrawalTransaction = new Transaction
                     {
                         WalletId = wallet.WalletId,
                         TransactionType = "Withdraw",
-                        Amount = -amount, // Negative amount for withdrawal
+                        Amount = -amount,
                         PaymentMethod = withdrawMethod,
                         PaymentStatus = "Completed",
-                        PaymentGatewayId = GeneratePaymentReference(),
+                        PaymentGatewayId = gatewayId,
+                        Description = notes, // Added description
                         CardLastFour = GetLastFourDigits(paymentDetails),
                         CreatedAt = DateTime.UtcNow,
                         PaymentCompletedAt = DateTime.UtcNow
@@ -215,20 +231,16 @@ namespace PicklePlay.Services
                     _context.Transactions.Add(withdrawalTransaction);
                     await _context.SaveChangesAsync();
 
-                    _logger.LogInformation($"Withdrawal successful for user {userId}. Transaction ID: {withdrawalTransaction.TransactionId}, New Balance: {wallet.WalletBalance}");
-
                     return new PaymentResult
                     {
                         Success = true,
-                        Message = "Withdrawal processed successfully",
+                        Message = "Withdrawal successful",
                         TransactionId = withdrawalTransaction.TransactionId.ToString(),
                         NewBalance = wallet.WalletBalance
                     };
                 }
-                else
-                {
-                    return new PaymentResult { Success = false, Message = "Withdrawal processing failed" };
-                }
+                
+                return new PaymentResult { Success = false, Message = "Withdrawal failed" };
             }
             catch (Exception ex)
             {
