@@ -126,9 +126,6 @@ namespace PicklePlay.Models
         [MaxLength(20)]
         public string EscrowStatus { get; set; } = "Pending";
 
-        [Column("escrow_auto_dispute_time")]
-        public DateTime? EscrowAutoDisputeTime { get; set; }
-
         [Column("total_escrow_amount", TypeName = "decimal(10,2)")]
         public decimal TotalEscrowAmount { get; set; } = 0;
 
