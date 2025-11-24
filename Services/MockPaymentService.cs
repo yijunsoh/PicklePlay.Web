@@ -68,7 +68,8 @@ namespace PicklePlay.Services
                         PaymentGatewayId = Guid.NewGuid().ToString(),
                         CardLastFour = cardInfo?.CardNumber.Length >= 4 ? cardInfo.CardNumber[^4..] : null,
                         PaymentCompletedAt = DateTime.UtcNow,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        Description = $"Top Up via {paymentMethod}"
                     };
 
                     _context.Transactions.Add(transaction);
@@ -204,7 +205,7 @@ namespace PicklePlay.Services
                     // Bank / Other (Keep Mock Logic)
                     await Task.Delay(1000);
                     withdrawalSuccess = true;
-                    notes = "Bank Transfer";
+                    notes = $"Withdrawal to {withdrawMethod}";
                 }
 
                 if (withdrawalSuccess)
@@ -222,10 +223,10 @@ namespace PicklePlay.Services
                         PaymentMethod = withdrawMethod,
                         PaymentStatus = "Completed",
                         PaymentGatewayId = gatewayId,
-                        Description = notes, // Added description
+                        Description = $"Withdraw to {withdrawMethod}",
                         CardLastFour = GetLastFourDigits(paymentDetails),
                         CreatedAt = DateTime.UtcNow,
-                        PaymentCompletedAt = DateTime.UtcNow
+                        PaymentCompletedAt = DateTime.UtcNow,
                     };
 
                     _context.Transactions.Add(withdrawalTransaction);

@@ -57,7 +57,9 @@
     }
 
     @@keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 </style>
 
@@ -144,7 +146,8 @@
             <form id="filterForm" method="get" class="row g-3">
                 <div class="col-md-3">
                     <label for="startDate" class="form-label">Start Date</label>
-                    <input type="date" class="form-control" id="startDate" name="startDate" value="@Model.Filter.StartDate">
+                    <input type="date" class="form-control" id="startDate" name="startDate"
+                        value="@Model.Filter.StartDate">
                 </div>
                 <div class="col-md-3">
                     <label for="endDate" class="form-label">End Date</label>
@@ -155,10 +158,17 @@
                     <select class="form-select" id="transactionType" name="transactionType">
                         <option value="All">All Types</option>
                         <option value="TopUp" selected="@(Model.Filter.TransactionType == "TopUp")">Top Up</option>
-                        <option value="Withdraw" selected="@(Model.Filter.TransactionType == "Withdraw")">Withdraw</option>
-                        <option value="Escrow_Hold" selected="@(Model.Filter.TransactionType == "Escrow_Hold")">Escrow Hold</option>
-                        <option value="Refund" selected="@(Model.Filter.TransactionType == "Refund")">Refund</option>
-                        <option value="Released" selected="@(Model.Filter.TransactionType == "Released")">Released</option>
+                        <option value="Withdraw" selected="@(Model.Filter.TransactionType == "Withdraw")">Withdraw
+                        </option>
+
+                        <option value="Escrow_Hold" selected="@(Model.Filter.TransactionType == "Escrow_Hold")">Escrow
+                            Hold</option>
+                        <option value="Escrow_Released" selected="@(Model.Filter.TransactionType == "Escrow_Released")">
+                            Escrow Released</option>
+                        <option value="Escrow_Receive" selected="@(Model.Filter.TransactionType == "Escrow_Receive")">
+                            Escrow Received</option>
+                        <option value="Refund_Approved" selected="@(Model.Filter.TransactionType == "Refund_Approved")">
+                            Refund Approved</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -166,10 +176,13 @@
                     <select class="form-select" id="paymentStatus" name="paymentStatus">
                         <option value="All">All Status</option>
                         <option value="Pending" selected="@(Model.Filter.PaymentStatus == "Pending")">Pending</option>
-                        <option value="Completed" selected="@(Model.Filter.PaymentStatus == "Completed")">Completed</option>
+                        <option value="Completed" selected="@(Model.Filter.PaymentStatus == "Completed")">Completed
+                        </option>
                         <option value="Failed" selected="@(Model.Filter.PaymentStatus == "Failed")">Failed</option>
-                        <option value="Cancelled" selected="@(Model.Filter.PaymentStatus == "Cancelled")">Cancelled</option>
-                        <option value="Refunded" selected="@(Model.Filter.PaymentStatus == "Refunded")">Refunded</option>
+                        <option value="Cancelled" selected="@(Model.Filter.PaymentStatus == "Cancelled")">Cancelled
+                        </option>
+                        <option value="Refunded" selected="@(Model.Filter.PaymentStatus == "Refunded")">Refunded
+                        </option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -177,9 +190,11 @@
                     <select class="form-select" id="paymentMethod" name="paymentMethod">
                         <option value="All">All Methods</option>
                         <option value="Wallet" selected="@(Model.Filter.PaymentMethod == "Wallet")">Wallet</option>
-                        <option value="CreditCard" selected="@(Model.Filter.PaymentMethod == "CreditCard")">Credit Card</option>
+                        <option value="CreditCard" selected="@(Model.Filter.PaymentMethod == "CreditCard")">Credit Card
+                        </option>
                         <option value="PayPal" selected="@(Model.Filter.PaymentMethod == "PayPal")">PayPal</option>
-                        <option value="BankTransfer" selected="@(Model.Filter.PaymentMethod == "BankTransfer")">Bank Transfer</option>
+                        <option value="BankTransfer" selected="@(Model.Filter.PaymentMethod == "BankTransfer")">Bank
+                            Transfer</option>
                     </select>
                 </div>
                 <div class="col-12">
@@ -229,7 +244,7 @@
                                     "Refunded" => "bg-info",
                                     _ => "bg-secondary"
                                 };
-                                
+
                                 <tr>
                                     <td>@transaction.TransactionId</td>
                                     <td>
@@ -240,7 +255,9 @@
                                         <span class="badge bg-info">@transaction.TransactionType</span>
                                         @if (transaction.IsEscrowRelated)
                                         {
-                                            <br /><small class="text-muted"><i class="fas fa-lock"></i> Escrow</small>
+                                            <br />
+                                
+                                            <small class="text-muted"><i class="fas fa-lock"></i> Escrow</small>
                                         }
                                     </td>
                                     <td>
@@ -258,9 +275,12 @@
                                     <td>@transaction.PaymentMethod</td>
                                     <td>
                                         <span class="badge @statusClass">@transaction.PaymentStatus</span>
-                                        @if (transaction.PaymentStatus == "Pending" && transaction.CreatedAt < DateTime.UtcNow.AddHours(-24))
+                                        @if (transaction.PaymentStatus == "Pending" && transaction.CreatedAt <
+                                                                        DateTime.UtcNow.AddHours(-24))
                                         {
-                                            <br /><small class="text-warning"><i class="fas fa-clock"></i> Stalled</small>
+                                            <br />
+                                
+                                            <small class="text-warning"><i class="fas fa-clock"></i> Stalled</small>
                                         }
                                     </td>
                                     <td>
@@ -268,9 +288,8 @@
                                         <small class="text-muted">@transaction.CreatedAt.ToString("HH:mm")</small>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary view-details-btn" 
-                                                data-transaction-id="@transaction.TransactionId"
-                                                title="View Details">
+                                        <button class="btn btn-sm btn-outline-primary view-details-btn"
+                                            data-transaction-id="@transaction.TransactionId" title="View Details">
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                     </td>
@@ -298,13 +317,13 @@
 @section Scripts {
     <script>
         // Use vanilla JavaScript instead of jQuery
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('DOM loaded - initializing event listeners');
-            
+
             // Reset filters
             var resetBtn = document.getElementById('resetFilters');
             if (resetBtn) {
-                resetBtn.addEventListener('click', function() {
+                resetBtn.addEventListener('click', function () {
                     document.getElementById('filterForm').reset();
                     document.getElementById('filterForm').submit();
                 });
@@ -313,24 +332,24 @@
             // Export functionality with loading state
             var exportBtn = document.getElementById('exportBtn');
             if (exportBtn) {
-                exportBtn.addEventListener('click', function() {
+                exportBtn.addEventListener('click', function () {
                     var btn = this;
                     var originalText = btn.innerHTML;
-                    
+
                     // Show loading state
                     btn.classList.add('loading');
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Exporting...';
-                    
+
                     // Get current filter parameters
                     var params = new URLSearchParams(window.location.search);
-                    
+
                     // Create download link
                     var downloadUrl = '/Admin/ExportTransactions?' + params.toString();
                     window.location.href = downloadUrl;
-                    
+
                     // Restore button state after a short delay
-                    setTimeout(function() {
+                    setTimeout(function () {
                         btn.classList.remove('loading');
                         btn.disabled = false;
                         btn.innerHTML = originalText;
@@ -341,9 +360,9 @@
             // View transaction details - Open modal
             var viewButtons = document.querySelectorAll('.view-details-btn');
             console.log('Found view buttons:', viewButtons.length);
-            
-            viewButtons.forEach(function(button) {
-                button.addEventListener('click', function() {
+
+            viewButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
                     var transactionId = this.getAttribute('data-transaction-id');
                     console.log('View button clicked, transaction ID:', transactionId);
                     loadTransactionDetails(transactionId);
@@ -354,15 +373,15 @@
         // Function to load transaction details into modal
         function loadTransactionDetails(transactionId) {
             console.log('loadTransactionDetails called with ID:', transactionId);
-            
+
             var modal = document.getElementById('transactionDetailsModal');
             var content = document.getElementById('transactionDetailsContent');
-            
+
             if (!modal) {
                 console.error('Modal element not found!');
                 return;
             }
-            
+
             if (!content) {
                 console.error('Modal content element not found!');
                 return;
@@ -370,14 +389,14 @@
 
             // Show loading state
             content.innerHTML = `
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading transaction details...</p>
                     </div>
-                    <p class="mt-2">Loading transaction details...</p>
-                </div>
-            `;
-            
+                `;
+
             // Show modal using Bootstrap
             try {
                 var bootstrapModal = new bootstrap.Modal(modal);
@@ -389,11 +408,11 @@
                 modal.style.display = 'block';
                 modal.classList.add('show');
             }
-            
+
             // Load transaction details via AJAX using fetch API
             var apiUrl = '/Admin/GetTransactionDetails?id=' + transactionId;
             console.log('Making API call to:', apiUrl);
-            
+
             fetch(apiUrl)
                 .then(response => {
                     console.log('Response status:', response.status);
@@ -405,128 +424,128 @@
                 })
                 .then(response => {
                     console.log('Full API response:', response);
-                    
+
                     if (response.success && response.data) {
                         var data = response.data;
                         console.log('Transaction data received:', data);
-                        
+
                         // Use camelCase properties (as shown in your console output)
                         var statusClass = getStatusClass(data.paymentStatus);
                         var amountClass = parseFloat(data.amount) >= 0 ? 'positive' : 'negative';
                         var amountSign = parseFloat(data.amount) >= 0 ? '+' : '';
-                        
+
                         var contentHTML = `
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6 class="border-bottom pb-2 mb-3">Transaction Information</h6>
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td class="fw-bold" style="width: 140px;">Transaction ID:</td>
-                                            <td>#${data.transactionId || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Type:</td>
-                                            <td><span class="badge bg-info">${data.transactionType || 'N/A'}</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Amount:</td>
-                                            <td class="fw-bold ${amountClass}">${amountSign}RM ${data.amount ? parseFloat(data.amount).toFixed(2) : '0.00'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Status:</td>
-                                            <td><span class="badge ${statusClass}">${data.paymentStatus || 'N/A'}</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Created:</td>
-                                            <td>${data.createdAt || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Completed:</td>
-                                            <td>${data.paymentCompletedAt || 'N/A'}</td>
-                                        </tr>
-                                        ${data.escrowId ? `
-                                        <tr>
-                                            <td class="fw-bold">Escrow ID:</td>
-                                            <td>#${data.escrowId}</td>
-                                        </tr>` : ''}
-                                    </table>
-                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="border-bottom pb-2 mb-3">Transaction Information</h6>
+                                        <table class="table table-sm table-borderless">
+                                            <tr>
+                                                <td class="fw-bold" style="width: 140px;">Transaction ID:</td>
+                                                <td>#${data.transactionId || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Type:</td>
+                                                <td><span class="badge bg-info">${data.transactionType || 'N/A'}</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Amount:</td>
+                                                <td class="fw-bold ${amountClass}">${amountSign}RM ${data.amount ? parseFloat(data.amount).toFixed(2) : '0.00'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Status:</td>
+                                                <td><span class="badge ${statusClass}">${data.paymentStatus || 'N/A'}</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Created:</td>
+                                                <td>${data.createdAt || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Completed:</td>
+                                                <td>${data.paymentCompletedAt || 'N/A'}</td>
+                                            </tr>
+                                            ${data.escrowId ? `
+                                            <tr>
+                                                <td class="fw-bold">Escrow ID:</td>
+                                                <td>#${data.escrowId}</td>
+                                            </tr>` : ''}
+                                        </table>
+                                    </div>
                                 
-                                <div class="col-md-6">
-                                    <h6 class="border-bottom pb-2 mb-3">User Information</h6>
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td class="fw-bold" style="width: 140px;">User ID:</td>
-                                            <td>#${data.userId || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Username:</td>
-                                            <td>${data.username || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Email:</td>
-                                            <td>${data.email || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Wallet ID:</td>
-                                            <td>#${data.walletId || 'N/A'}</td>
-                                        </tr>
-                                    </table>
+                                    <div class="col-md-6">
+                                        <h6 class="border-bottom pb-2 mb-3">User Information</h6>
+                                        <table class="table table-sm table-borderless">
+                                            <tr>
+                                                <td class="fw-bold" style="width: 140px;">User ID:</td>
+                                                <td>#${data.userId || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Username:</td>
+                                                <td>${data.username || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Email:</td>
+                                                <td>${data.email || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Wallet ID:</td>
+                                                <td>#${data.walletId || 'N/A'}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
                             
-                            <div class="row mt-4">
-                                <div class="col-12">
-                                    <h6 class="border-bottom pb-2 mb-3">Payment Details</h6>
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td class="fw-bold" style="width: 140px;">Payment Method:</td>
-                                            <td>${data.paymentMethod || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Gateway ID:</td>
-                                            <td>${data.paymentGatewayId || 'N/A'}</td>
-                                        </tr>
-                                        ${data.cardLastFour ? `
-                                        <tr>
-                                            <td class="fw-bold">Card Last 4:</td>
-                                            <td>**** ${data.cardLastFour}</td>
-                                        </tr>` : ''}
-                                    </table>
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <h6 class="border-bottom pb-2 mb-3">Payment Details</h6>
+                                        <table class="table table-sm table-borderless">
+                                            <tr>
+                                                <td class="fw-bold" style="width: 140px;">Payment Method:</td>
+                                                <td>${data.paymentMethod || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Gateway ID:</td>
+                                                <td>${data.paymentGatewayId || 'N/A'}</td>
+                                            </tr>
+                                            ${data.cardLastFour ? `
+                                            <tr>
+                                                <td class="fw-bold">Card Last 4:</td>
+                                                <td>**** ${data.cardLastFour}</td>
+                                            </tr>` : ''}
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
-                        
+                            `;
+
                         content.innerHTML = contentHTML;
                         console.log('Modal content updated successfully');
                     } else {
                         console.log('API returned error:', response.message);
                         content.innerHTML = `
-                            <div class="alert alert-danger text-center">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                Error loading transaction details: ${response.message || 'Unknown error'}
-                                <br><small>Response: ${JSON.stringify(response)}</small>
-                            </div>
-                        `;
+                                <div class="alert alert-danger text-center">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Error loading transaction details: ${response.message || 'Unknown error'}
+                                    <br><small>Response: ${JSON.stringify(response)}</small>
+                                </div>
+                            `;
                     }
                 })
                 .catch(error => {
                     console.log('Fetch error:', error);
                     content.innerHTML = `
-                        <div class="alert alert-danger text-center">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Failed to load transaction details. Please try again.
-                            <br><small>Error: ${error.message}</small>
-                            <br><small>Check browser console for details</small>
-                        </div>
-                    `;
+                            <div class="alert alert-danger text-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Failed to load transaction details. Please try again.
+                                <br><small>Error: ${error.message}</small>
+                                <br><small>Check browser console for details</small>
+                            </div>
+                        `;
                 });
         }
 
         // Helper function to get status badge class
         function getStatusClass(status) {
             if (!status) return 'bg-secondary';
-            
+
             switch (status) {
                 case 'Completed': return 'bg-success';
                 case 'Pending': return 'bg-warning';
