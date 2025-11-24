@@ -589,7 +589,6 @@
 
                         <label for="Description" class="form-label">Description</label>
                         <textarea id="Description" name="Description" class="form-control" rows="4"
-
                             placeholder="Describe your community's purpose, activities, skill levels, and who should join..."
                             maxlength="500"></textarea>
                         <div class="form-text">Tell potential members what makes your community special.</div>
@@ -645,6 +644,9 @@ border: none; border-radius: 12px;">
         </div>
     </div>
 </div>
+<div class="modal fade" id="createCommunityModal" tabindex="-1">
+        </div>
+<partial name="~/Views/Shared/_CommunityDetailModal.cshtml" view-data='@new ViewDataDictionary(ViewData) { { "ModalContext", "community-page" } }' />
 
 @section Scripts {
     <script>
@@ -688,34 +690,34 @@ border: none; border-radius: 12px;">
             const safeLocation = escapeHtml(req.location);
 
             return `
-                    <div class="community-card" id="pending-request-${req.requestId}" data-community-id="${req.requestId}">
-                        <span class="community-badge badge-pending">PENDING</span>
-                        <div class="community-header">
-                            <div class="community-icon" style="background: #FFD700;">
-                                <i class="fas fa-hourglass-half" style="color:#333"></i>
-                            </div>
-                            <h3 class="community-name">${safeName} (Reviewing)</h3>
-                            <p class="community-description">Your request is currently awaiting admin approval. Please check back later!</p>
-                            <div class="community-meta">
-                                <div class="community-stats">
-                                    <div class="stat">
-                                        <i class="fas fa-lock"></i>
-                                        <span>${req.type}</span>
+                        <div class="community-card" id="pending-request-${req.requestId}" data-community-id="${req.requestId}">
+                            <span class="community-badge badge-pending">PENDING</span>
+                            <div class="community-header">
+                                <div class="community-icon" style="background: #FFD700;">
+                                    <i class="fas fa-hourglass-half" style="color:#333"></i>
+                                </div>
+                                <h3 class="community-name">${safeName} (Reviewing)</h3>
+                                <p class="community-description">Your request is currently awaiting admin approval. Please check back later!</p>
+                                <div class="community-meta">
+                                    <div class="community-stats">
+                                        <div class="stat">
+                                            <i class="fas fa-lock"></i>
+                                            <span>${req.type}</span>
+                                        </div>
+                                    </div>
+                                    <div class="community-location">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span>${safeLocation || 'Location Pending'}</span>
                                     </div>
                                 </div>
-                                <div class="community-location">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span>${safeLocation || 'Location Pending'}</span>
-                                </div>
+                            </div>
+                            <div class="community-actions">
+                                <button class="btn-primary-custom" disabled>
+                                    <i class="fas fa-clock me-2"></i>Awaiting Approval
+                                </button>
                             </div>
                         </div>
-                        <div class="community-actions">
-                            <button class="btn-primary-custom" disabled>
-                                <i class="fas fa-clock me-2"></i>Awaiting Approval
-                            </button>
-                        </div>
-                    </div>
-                `;
+                    `;
         }
 
         // Helper function to render a card for a rejected request
@@ -724,37 +726,37 @@ border: none; border-radius: 12px;">
             const safeLocation = escapeHtml(req.location);
 
             return `
-                    <div class="community-card" id="rejected-request-${req.requestId}" data-community-id="${req.requestId}">
-                        <span class="community-badge" style="background: #EF4444; color: white;">REJECTED</span>
-                        <div class="community-header">
-                            <div class="community-icon" style="background: #EF4444;">
-                                <i class="fas fa-times-circle" style="color:white"></i>
-                            </div>
-                            <h3 class="community-name">${safeName} (Rejected)</h3>
-                            <p class="community-description">Your request to join this community was rejected by the admin.</p>
-                            <div class="community-meta">
-                                <div class="community-stats">
-                                    <div class="stat">
-                                        <i class="fas fa-lock"></i>
-                                        <span>${req.type}</span>
+                        <div class="community-card" id="rejected-request-${req.requestId}" data-community-id="${req.requestId}">
+                            <span class="community-badge" style="background: #EF4444; color: white;">REJECTED</span>
+                            <div class="community-header">
+                                <div class="community-icon" style="background: #EF4444;">
+                                    <i class="fas fa-times-circle" style="color:white"></i>
+                                </div>
+                                <h3 class="community-name">${safeName} (Rejected)</h3>
+                                <p class="community-description">Your request to join this community was rejected by the admin.</p>
+                                <div class="community-meta">
+                                    <div class="community-stats">
+                                        <div class="stat">
+                                            <i class="fas fa-lock"></i>
+                                            <span>${req.type}</span>
+                                        </div>
+                                    </div>
+                                    <div class="community-location">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span>${safeLocation || 'Location Unknown'}</span>
                                     </div>
                                 </div>
-                                <div class="community-location">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span>${safeLocation || 'Location Unknown'}</span>
-                                </div>
+                            </div>
+                            <div class="community-actions">
+                                <button class="btn-primary-custom" onclick="removeRejectedRequest(${req.requestId})">
+                                    <i class="fas fa-trash me-2"></i>Remove
+                                </button>
+                                <button class="btn-secondary-custom" onclick="reapplyToCommunity(${req.requestId})">
+                                    <i class="fas fa-redo me-2"></i>Re-apply
+                                </button>
                             </div>
                         </div>
-                        <div class="community-actions">
-                            <button class="btn-primary-custom" onclick="removeRejectedRequest(${req.requestId})">
-                                <i class="fas fa-trash me-2"></i>Remove
-                            </button>
-                            <button class="btn-secondary-custom" onclick="reapplyToCommunity(${req.requestId})">
-                                <i class="fas fa-redo me-2"></i>Re-apply
-                            </button>
-                        </div>
-                    </div>
-                `;
+                    `;
         }
 
         // Render community cards (uses data structure from the API)
@@ -777,80 +779,76 @@ border: none; border-radius: 12px;">
             // Determine action buttons based on user role and community type
             const actionButtons = community.userRole === 'Admin'
                 ? `
-                    <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                        <i class="fas fa-door-open me-2"></i>Enter Community
-                    </button>
-                    <button class="btn-secondary-custom" onclick="manageCommunity(${community.id})">
-                        <i class="fas fa-cog me-2"></i>Manage
-                    </button>
-                  `
+                        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
+                            <i class="fas fa-door-open me-2"></i>Enter Community
+                        </button>
+                        <button class="btn-secondary-custom" onclick="manageCommunity(${community.id})">
+                            <i class="fas fa-cog me-2"></i>Manage
+                        </button>
+                      `
                 : community.userRole === 'Member'
-                ? `
-                    <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                        <i class="fas fa-door-open me-2"></i>Enter Community
-                    </button>
-                    <button class="btn-danger-custom" onclick="leaveCommunity(${community.id})">
-                        <i class="fas fa-sign-out-alt me-2"></i>Leave
-                    </button>
-                `
-                : community.type === 'Private'
-                ? `
-                    <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
-                        <i class="fas fa-user-clock me-2"></i>Request to Join
-                    </button>
-                    <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
-                        <i class="fas fa-info me-2"></i>Details
-                    </button>
-                `
-                : `
-                    <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
-                        <i class="fas fa-user-plus me-2"></i>Join
-                    </button>
-                    <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
-                        <i class="fas fa-info me-2"></i>Details
-                    </button>
-                `;
+                    ? `
+                        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
+                            <i class="fas fa-door-open me-2"></i>Enter Community
+                        </button>
+                        <button class="btn-danger-custom" onclick="leaveCommunity(${community.id})">
+                            <i class="fas fa-sign-out-alt me-2"></i>Leave
+                        </button>
+                    `
+                    : community.type === 'Private'
+                        ? `
+                        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
+                            <i class="fas fa-user-clock me-2"></i>Request to Join
+                        </button>
+                        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
+                            <i class="fas fa-info me-2"></i>Details
+                        </button>
+                    `
+                        : `
+                        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
+                            <i class="fas fa-user-plus me-2"></i>Join
+                        </button>
+                        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
+                            <i class="fas fa-info me-2"></i>Details
+                        </button>
+                    `;
 
             return `
-                    <div class="community-card" data-community-id="${community.id}">
-                        <span class="community-badge ${badgeType}">${badgeText}</span>
-                        <div class="community-header">
-                            <div class="community-icon">
-                                <i class="${iconClass}"></i>
-                            </div>
-                            <h3 class="community-name">${safeName}</h3>
-                            <p class="community-description">${safeDescription || 'No description provided.'}</p>
-                            <div class="community-meta">
-                                <div class="community-stats">
-                                    <div class="stat">
-                                        <i class="fas fa-users"></i>
-                                        <span>${community.memberCount || 0} Members</span>
+                        <div class="community-card" data-community-id="${community.id}">
+                            <span class="community-badge ${badgeType}">${badgeText}</span>
+                            <div class="community-header">
+                                <div class="community-icon">
+                                    <i class="${iconClass}"></i>
+                                </div>
+                                <h3 class="community-name">${safeName}</h3>
+                                <p class="community-description">${safeDescription || 'No description provided.'}</p>
+                                <div class="community-meta">
+                                    <div class="community-stats">
+                                        <div class="stat">
+                                            <i class="fas fa-users"></i>
+                                            <span>${community.memberCount || 0} Members</span>
+                                        </div>
                                     </div>
-                                    <div class="stat">
-                                        <i class="fas fa-calendar"></i>
-                                        <span>${community.gameCount || 0} Games</span>
+                                    <div class="community-location">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span>${safeLocation || 'Location Unknown'}</span>
                                     </div>
                                 </div>
-                                <div class="community-location">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span>${safeLocation || 'Location Unknown'}</span>
-                                </div>
+                                ${isSuggested && community.distance ?
+                    `
+                                        <div class="community-match-info">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle"></i>
+                                                ${community.matchReason} • ${community.distance} away
+                                            </small>
+                                        </div>
+                                    ` : ''}
                             </div>
-                            ${isSuggested && community.distance ?
-                                `
-                                    <div class="community-match-info">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle"></i>
-                                            ${community.matchReason} • ${community.distance} away
-                                        </small>
-                                    </div>
-                                ` : ''}
+                            <div class="community-actions">
+                                ${actionButtons}
+                            </div>
                         </div>
-                        <div class="community-actions">
-                            ${actionButtons}
-                        </div>
-                    </div>
-                `;
+                    `;
         }
 
         // Load communities (Updated to fetch data from API)
@@ -875,7 +873,7 @@ border: none; border-radius: 12px;">
             }
 
             const { pendingRequests, rejectedRequests, activeCommunities, suggestedCommunities } = fetchedData;
-            
+
             // --- Update Stats ---
             const totalActive = activeCommunities.length;
             const totalSuggested = suggestedCommunities.length;
@@ -890,7 +888,7 @@ border: none; border-radius: 12px;">
 
             // --- Render My Communities (Pending + Rejected + Active) ---
             let myCommunitiesHtml = '';
-            
+
             // 1. Render Pending Requests
             if (pendingRequests.length > 0) {
                 myCommunitiesHtml += pendingRequests.map(req => renderPendingRequestCard(req)).join('');
@@ -919,17 +917,17 @@ border: none; border-radius: 12px;">
 
             // --- Render Suggested Communities ---
             if (suggestedCommunities.length > 0) {
-                suggestedCommunitiesGrid.innerHTML = suggestedCommunities.map(community => 
+                suggestedCommunitiesGrid.innerHTML = suggestedCommunities.map(community =>
                     renderCommunityCard(community, true)
                 ).join('');
             } else {
                 // Show default empty state for suggestions
                 suggestedCommunitiesGrid.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-search"></i>
-                            <h4>Finding Communities for You</h4>
-                            <p>We're looking for communities that match your profile...</p>
-                        </div>`;
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <h4>Finding Communities for You</h4>
+                                <p>We're looking for communities that match your profile...</p>
+                            </div>`;
             }
         }
 
@@ -966,48 +964,48 @@ border: none; border-radius: 12px;">
 
         // Function to re-apply to community
         async function reapplyToCommunity(requestId) {
-    // Find the rejected request
-    const rejectedRequest = fetchedData.rejectedRequests.find(req => req.requestId === requestId);
-    if (!rejectedRequest) {
-        alert('Request not found.');
-        return;
-    }
+            // Find the rejected request
+            const rejectedRequest = fetchedData.rejectedRequests.find(req => req.requestId === requestId);
+            if (!rejectedRequest) {
+                alert('Request not found.');
+                return;
+            }
 
-    // Get the community ID - this should now work after controller update
-    const communityId = rejectedRequest.communityId;
-    
-    if (!communityId) {
-        alert('Error: Could not find community information. Please try refreshing the page.');
-        return;
-    }
+            // Get the community ID - this should now work after controller update
+            const communityId = rejectedRequest.communityId;
 
-    if (!confirm(`Are you sure you want to re-apply to join "${rejectedRequest.name}"?`)) {
-        return;
-    }
+            if (!communityId) {
+                alert('Error: Could not find community information. Please try refreshing the page.');
+                return;
+            }
 
-    try {
-        const formData = new FormData();
-        formData.append('communityId', communityId);
-        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+            if (!confirm(`Are you sure you want to re-apply to join "${rejectedRequest.name}"?`)) {
+                return;
+            }
 
-        const response = await fetch(`/Communities/JoinCommunity`, {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
+            try {
+                const formData = new FormData();
+                formData.append('communityId', communityId);
+                formData.append('__RequestVerificationToken', getAntiForgeryToken());
 
-        if (response.ok && data.success) {
-            alert(data.message);
-            // Reload to show the updated status
-            await loadCommunities();
-        } else {
-            alert('Error: ' + (data.message || 'An error occurred.'));
+                const response = await fetch(`/Communities/JoinCommunity`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    alert(data.message);
+                    // Reload to show the updated status
+                    await loadCommunities();
+                } else {
+                    alert('Error: ' + (data.message || 'An error occurred.'));
+                }
+            } catch (error) {
+                console.error('Re-apply Error:', error);
+                alert('A network error occurred while re-applying.');
+            }
         }
-    } catch (error) {
-        console.error('Re-apply Error:', error);
-        alert('A network error occurred while re-applying.');
-    }
-}
 
         // --- UPDATED: Community action functions ---
         function enterCommunity(communityId) {
@@ -1021,12 +1019,12 @@ border: none; border-radius: 12px;">
 
         // Function to handle joining/requesting to join a community via AJAX
         async function joinCommunity(communityId) {
-            const community = fetchedData.suggestedCommunities.find(c => c.id === communityId) || 
-                             fetchedData.activeCommunities.find(c => c.id === communityId);
-            
+            const community = fetchedData.suggestedCommunities.find(c => c.id === communityId) ||
+                fetchedData.activeCommunities.find(c => c.id === communityId);
+
             const isPrivate = community?.type === 'Private';
             const actionText = isPrivate ? 'request to join' : 'join';
-            
+
             if (!confirm(`Are you sure you want to ${actionText} this community?`)) {
                 return;
             }
@@ -1086,8 +1084,18 @@ border: none; border-radius: 12px;">
         }
 
         function viewCommunityDetails(communityId) {
-            alert(`Viewing details for community ${communityId} - In real app, this would show detailed modal`);
+            if (typeof CommunityModalManager !== 'undefined') {
+                // Calls the logic defined in _CommunityDetailModal.cshtml [cite: 49]
+                CommunityModalManager.showCommunityDetails(communityId);
+            } else {
+                console.error('CommunityModalManager is not loaded.');
+                alert('Unable to load community details component.');
+            }
         }
+
+        document.getElementById('communityDetailModal').addEventListener('hidden.bs.modal', function () {
+    loadCommunities();
+});
 
         // Form submission using AJAX
         document.getElementById('createCommunityForm').addEventListener('submit', async function (e) {
@@ -1135,7 +1143,7 @@ border: none; border-radius: 12px;">
                         const modalElement = document.getElementById('createCommunityModal');
                         const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
                         modalInstance.hide();
-                        
+
                         // Add pending request to local data and reload
                         newRequest.requestId = data.requestId;
                         fetchedData.pendingRequests.push(newRequest);
@@ -1146,15 +1154,15 @@ border: none; border-radius: 12px;">
                         toast.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
                         toast.style.zIndex = '1060';
                         toast.innerHTML = `
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-check-circle me-2 fs-4"></i>
-                                <div>
-                                    <strong>Request Submitted!</strong><br>
-                                    <small>${data.message}</small>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-check-circle me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Request Submitted!</strong><br>
+                                        <small>${data.message}</small>
+                                    </div>
+                                    <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
                                 </div>
-                                <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
-                            </div>
-                        `;
+                            `;
                         document.body.appendChild(toast);
 
                         form.reset();
@@ -1183,7 +1191,7 @@ border: none; border-radius: 12px;">
                 card.style.transform = 'translateY(-8px)';
             }
         });
-        
+
         document.addEventListener('mouseout', function (e) {
             if (e.target.closest('.community-card')) {
                 const card = e.target.closest('.community-card');
