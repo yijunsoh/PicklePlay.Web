@@ -61,8 +61,7 @@ namespace PicklePlay.Models
     {
         None = 0,
         Free = 1,
-        [Display(Name = "Auto Split Total")]
-        AutoSplitTotal = 2,
+        
         [Display(Name = "Per Person")]
         PerPerson = 3
     }
@@ -73,11 +72,6 @@ namespace PicklePlay.Models
         Private = 1
     }
 
-    public enum GameFeature
-    {
-        Basic = 0,
-        Ranking = 1
-    }
 
     public enum CancellationFreeze
     {
@@ -90,14 +84,6 @@ namespace PicklePlay.Models
         [Display(Name = "24 hr before")] B24hr = 6
     }
 
-    public enum Repeat
-    {
-        None = 0,
-        [Display(Name = "Repeat for 1 week")] W1 = 1,
-        [Display(Name = "Repeat for 2 weeks")] W2 = 2,
-        [Display(Name = "Repeat for 3 weeks")] W3 = 3,
-        [Display(Name = "Repeat for 4 weeks")] W4 = 4
-    }
 
     // --- NEW ENUMS ADDED FROM YOUR SQL ---
     [Flags]
@@ -114,17 +100,6 @@ namespace PicklePlay.Models
         Sun = 64
     }
 
-    public enum AutoCreateWhen
-    {
-        [Display(Name = "24hr before")] B24hr = 0,
-        [Display(Name = "2d before")] B2d = 1,
-        [Display(Name = "3d before")] B3d = 2,
-        [Display(Name = "4d before")] B4d = 3,
-        [Display(Name = "5d before")] B5d = 4,
-        [Display(Name = "6d before")] B6d = 5,
-        [Display(Name = "1w before")] B1w = 6,
-        [Display(Name = "2w before")] B2w = 7
-    }
     // --- END NEW ENUMS ---
 
     public enum HostRole

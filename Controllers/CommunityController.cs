@@ -160,11 +160,6 @@ namespace PicklePlay.Controllers
                     ModelState.AddModelError("RecurringEndDate", "End date must be in the future");
                 }
 
-                if (!vm.AutoCreateWhen.HasValue)
-                {
-                    ModelState.AddModelError("AutoCreateWhen", "Please select when to auto-create instances");
-                }
-
                 if (!vm.StartTime.HasValue)
                 {
                     ModelState.AddModelError("StartTime", "Please select start time");
@@ -184,7 +179,7 @@ namespace PicklePlay.Controllers
             }
 
             // Fee validation
-            if ((vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) && !vm.FeeAmount.HasValue)
+            if ((vm.FeeType == FeeType.PerPerson) && !vm.FeeAmount.HasValue)
             {
                 ModelState.AddModelError("FeeAmount", "Fee amount is required");
             }
@@ -266,7 +261,7 @@ namespace PicklePlay.Controllers
                 GenderRestriction = vm.GenderRestriction,
                 AgeGroupRestriction = vm.AgeGroupRestriction,
                 FeeType = vm.FeeType,
-                FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
+                FeeAmount = (vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
                 Privacy = vm.Privacy,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
@@ -330,7 +325,6 @@ namespace PicklePlay.Controllers
                 ParentScheduleId = null,
                 RecurringWeek = combinedWeek,
                 RecurringEndDate = vm.RecurringEndDate,
-                AutoCreateWhen = vm.AutoCreateWhen,
                 StartTime = vm.StartTime!.Value,
                 GameName = vm.GameName,
                 Description = vm.Description,
@@ -343,7 +337,7 @@ namespace PicklePlay.Controllers
                 GenderRestriction = vm.GenderRestriction,
                 AgeGroupRestriction = vm.AgeGroupRestriction,
                 FeeType = vm.FeeType,
-                FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
+                FeeAmount = (vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null,
                 Privacy = vm.Privacy,
                 CancellationFreeze = vm.CancellationFreeze,
                 HostRole = vm.HostRole,
@@ -692,14 +686,12 @@ public async Task<IActionResult> ReserveSlot(int scheduleId, int extraSlots)
             // 2. Map ViewModel to Schedule Model
             var newSchedule = new Schedule
             {
-                ScheduleType = ScheduleType.Competition,
-                GameFeature = GameFeature.Ranking,
+                ScheduleType = ScheduleType.Competition,                
                 GameName = vm.GameName,
                 Description = vm.Description,
                 Location = vm.Location,
                 StartTime = vm.StartTime,
-                EndTime = vm.EndTime,
-                ApproxStartTime = vm.ApproxStartTime,
+                EndTime = vm.EndTime,               
                 RegOpen = vm.RegOpen,
                 RegClose = vm.RegClose,
                 EarlyBirdClose = vm.EarlyBirdClose,
@@ -795,8 +787,7 @@ public async Task<IActionResult> ReserveSlot(int scheduleId, int extraSlots)
                 Description = schedule.Description,
                 Location = schedule.Location!,
                 StartTime = schedule.StartTime ?? DateTime.Now, // Handle potential nulls
-                EndTime = schedule.EndTime ?? DateTime.Now,
-                ApproxStartTime = schedule.ApproxStartTime,
+                EndTime = schedule.EndTime ?? DateTime.Now,               
                 RegOpen = schedule.RegOpen ?? DateTime.Now,
                 RegClose = schedule.RegClose ?? DateTime.Now,
                 EarlyBirdClose = schedule.EarlyBirdClose,
@@ -866,8 +857,7 @@ public async Task<IActionResult> ReserveSlot(int scheduleId, int extraSlots)
             scheduleToUpdate.Description = vm.Description;
             scheduleToUpdate.Location = vm.Location;
             scheduleToUpdate.StartTime = vm.StartTime;
-            scheduleToUpdate.EndTime = vm.EndTime;
-            scheduleToUpdate.ApproxStartTime = vm.ApproxStartTime;
+            scheduleToUpdate.EndTime = vm.EndTime;           
             scheduleToUpdate.RegOpen = vm.RegOpen;
             scheduleToUpdate.RegClose = vm.RegClose;
             scheduleToUpdate.EarlyBirdClose = vm.EarlyBirdClose;

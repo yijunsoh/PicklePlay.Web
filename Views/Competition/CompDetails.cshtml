@@ -775,11 +775,6 @@ bool isEligible = true;
                 <div class="col-md-6">
                     <p><strong>Start:</strong> @Model.StartTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
                     <p><strong>End:</strong> @Model.EndTime?.ToString("dd MMM yyyy, hh:mm tt")</p>
-
-                    @if (Model.ApproxStartTime.HasValue)
-                    {
-                        <p><strong>Approx Start:</strong> @Model.ApproxStartTime?.ToString("hh:mm tt")</p>
-                    }
                 </div>
                 <div class="col-md-6">
                     <p><strong>Reg Opens:</strong> @Model.RegOpen?.ToString("dd MMM yyyy, hh:mm tt")</p>

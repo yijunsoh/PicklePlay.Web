@@ -79,7 +79,7 @@
             <select asp-for="FeeType" class="form-select" id="feeSelect" onchange="toggleFeeInput()" asp-items="Html.GetEnumSelectList<FeeType>()"></select>
             <span asp-validation-for="FeeType" class="text-danger"></span>
 
-            <div id="feeInput" class="mt-2" style='display:@((Model.FeeType == FeeType.AutoSplitTotal || Model.FeeType == FeeType.PerPerson) ? "block" : "none");'>
+            <div id="feeInput" class="mt-2" style='display:@((Model.FeeType == FeeType.PerPerson) ? "block" : "none");'>
                 <label asp-for="FeeAmount" class="form-label"></label>
                 <input asp-for="FeeAmount" type="number" class="form-control" placeholder="Enter price (RM)" step="0.01"/>
                 <span asp-validation-for="FeeAmount" class="text-danger"></span>
@@ -125,11 +125,7 @@
                  <span asp-validation-for="HostRole" class="text-danger"></span>
              </div>
         </div>
-         <div class="mb-3">
-             <label asp-for="Repeat" class="form-label"></label>
-             <select asp-for="Repeat" class="form-select" asp-items="Html.GetEnumSelectList<Repeat>()"></select>
-             <span asp-validation-for="Repeat" class="text-danger"></span>
-        </div>
+
 
         <div class="form-check form-switch mb-3">
   <input class="form-check-input" type="checkbox" role="switch" asp-for="RequireOrganizerApproval">

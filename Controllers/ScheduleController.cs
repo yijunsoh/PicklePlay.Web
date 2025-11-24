@@ -137,8 +137,7 @@ namespace PicklePlay.Controllers
 
                 // Recurring specific
                 RecurringWeek = new List<RecurringWeek>(), // Initialize
-                RecurringStartTime = schedule.StartTime.HasValue ? TimeOnly.FromDateTime(schedule.StartTime.Value) : null,
-                AutoCreateWhen = schedule.AutoCreateWhen ?? Models.AutoCreateWhen.B2d
+                RecurringStartTime = schedule.StartTime.HasValue ? TimeOnly.FromDateTime(schedule.StartTime.Value) : null,               
             };
 
             // Deconstruct RecurringWeek flags
@@ -226,11 +225,6 @@ namespace PicklePlay.Controllers
                 {
                     ModelState.AddModelError("RecurringWeek", "Please select at least one day for recurring schedules.");
                 }
-                // Check if AutoCreateWhen is provided (it has [Required] attribute, but good practice)
-                if (!vm.AutoCreateWhen.HasValue)
-                {
-                    ModelState.AddModelError("AutoCreateWhen", "Auto-Create When is required for Recurring schedules.");
-                }
             }
             // --- END VALIDATION ---
 
@@ -263,7 +257,7 @@ namespace PicklePlay.Controllers
             scheduleToUpdate.NumPlayer = vm.NumPlayer;
             scheduleToUpdate.Privacy = vm.Privacy;
             scheduleToUpdate.FeeType = vm.FeeType;
-            scheduleToUpdate.FeeAmount = (vm.FeeType == FeeType.AutoSplitTotal || vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null;
+            scheduleToUpdate.FeeAmount = (vm.FeeType == FeeType.PerPerson) ? vm.FeeAmount : null;
             scheduleToUpdate.MinRankRestriction = vm.MinRankRestriction;
             scheduleToUpdate.MaxRankRestriction = vm.MaxRankRestriction;
             scheduleToUpdate.GenderRestriction = vm.GenderRestriction;
@@ -286,8 +280,7 @@ namespace PicklePlay.Controllers
                 else
                 {
                     scheduleToUpdate.StartTime = null; // Should be caught by validation
-                }
-                scheduleToUpdate.AutoCreateWhen = vm.AutoCreateWhen; // Already checked for null
+                }               
                 RecurringWeek combinedWeek = RecurringWeek.None;
                 if (vm.RecurringWeek != null && vm.RecurringWeek.Count > 0) // Already checked for null/empty
                 {
@@ -300,8 +293,7 @@ namespace PicklePlay.Controllers
             {
                 scheduleToUpdate.StartTime = vm.StartTime; // Already checked for null
 
-                scheduleToUpdate.RecurringWeek = null;
-                scheduleToUpdate.AutoCreateWhen = null;
+                scheduleToUpdate.RecurringWeek = null;                
             }
 
             // --- Recalculate EndTime ---

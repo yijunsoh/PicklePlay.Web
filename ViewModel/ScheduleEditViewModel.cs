@@ -74,7 +74,7 @@ namespace PicklePlay.Models
         
         public DateTime? StartTime { get; set; } // Use DateTime for OneOff edit
 
-        public Repeat Repeat { get; set; } = Repeat.None; // Only for OneOff
+       
 
         // --- Recurring Specific ---
         [Display(Name = "Day of the Week")]
@@ -85,9 +85,7 @@ namespace PicklePlay.Models
         
         public TimeOnly? RecurringStartTime { get; set; } // Use TimeOnly for Recurring edit
 
-        [Display(Name = "Auto-Create When")]
-        [Required] // Required for Recurring
-        public AutoCreateWhen? AutoCreateWhen { get; set; } = Models.AutoCreateWhen.B2d;
+       
 
         // --- ADD THIS NEW PROPERTY ---
 public bool RequireOrganizerApproval { get; set; } = true;

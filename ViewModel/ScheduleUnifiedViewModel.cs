@@ -35,8 +35,6 @@ namespace PicklePlay.Models
         [Display(Name = "Repeat Until")]
         public DateTime? RecurringEndDate { get; set; }
 
-        [Display(Name = "Auto-Create Schedule")]
-        public AutoCreateWhen? AutoCreateWhen { get; set; }
 
         // Players & Privacy
         [Required]

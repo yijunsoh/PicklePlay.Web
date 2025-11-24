@@ -71,9 +71,7 @@ namespace PicklePlay.Models
 
         [Column("privacy")] // Removed TypeName
         public Privacy? Privacy { get; set; } = Models.Privacy.Public;
-
-        [Column("gameFeature")] // Removed TypeName
-        public GameFeature? GameFeature { get; set; } = Models.GameFeature.Basic;
+        
 
         [Column("cancellationfreeze")] // Removed TypeName
         public CancellationFreeze? CancellationFreeze { get; set; } = Models.CancellationFreeze.None;
@@ -83,8 +81,7 @@ namespace PicklePlay.Models
         [Column("recurringWeek")]
         public RecurringWeek? RecurringWeek { get; set; }
 
-        [Column("autoCreateWhen")]
-        public AutoCreateWhen? AutoCreateWhen { get; set; } = Models.AutoCreateWhen.B2d;
+        
         // --- END NEW PROPERTIES ---
 
         [Column("hostrole")] // Removed TypeName
@@ -93,8 +90,7 @@ namespace PicklePlay.Models
         [Column("status")] // Removed TypeName
         public ScheduleStatus? Status { get; set; } = ScheduleStatus.Null;
 
-        [Column("approxStartTime")]
-        public DateTime? ApproxStartTime { get; set; }
+        
 
         [Column("regOpen")]
         public DateTime? RegOpen { get; set; }

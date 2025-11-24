@@ -175,18 +175,7 @@
                             <label asp-for="RecurringEndDate" class="form-label">Repeat Until <span class="text-danger">*</span></label>
                             <input asp-for="RecurringEndDate" type="date" class="form-control" id="recurringEndDate" />
                             <span asp-validation-for="RecurringEndDate" class="text-danger"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="AutoCreateWhen" class="form-label">Auto-Create <span class="text-danger">*</span></label>
-                            <select asp-for="AutoCreateWhen" class="form-select" id="autoCreateWhen">
-                                <option value="">Select when to create</option>
-                                @foreach (AutoCreateWhen acw in Enum.GetValues<AutoCreateWhen>())
-                                {
-                                    <option value="@acw">@acw.ToString().Replace("B", "Before ").Replace("d", " days")</option>
-                                }
-                            </select>
-                            <span asp-validation-for="AutoCreateWhen" class="text-danger"></span>
-                        </div>
+                        </div>               
                     </div>
                 </div>
             </div>

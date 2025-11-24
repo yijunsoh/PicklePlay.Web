@@ -386,7 +386,7 @@ namespace PicklePlay.Controllers
                                 .OrderBy(s => s.StartTime);
                     break;
                 case "paid":
-                    query = query.Where(s => s.FeeType == FeeType.PerPerson || s.FeeType == FeeType.AutoSplitTotal)
+                    query = query.Where(s => s.FeeType == FeeType.PerPerson)
                                 .OrderBy(s => s.StartTime);
                     break;
                 default:
@@ -438,7 +438,7 @@ namespace PicklePlay.Controllers
                     query = query.Where(s => s.FeeType == FeeType.Free || s.FeeType == FeeType.None);
                     break;
                 case "paid":
-                    query = query.Where(s => s.FeeType == FeeType.PerPerson || s.FeeType == FeeType.AutoSplitTotal);
+                    query = query.Where(s => s.FeeType == FeeType.PerPerson);
                     break;
             }
 
