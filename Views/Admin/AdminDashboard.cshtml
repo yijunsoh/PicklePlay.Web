@@ -1,10 +1,11 @@
+@model PicklePlay.ViewModels.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Admin Dashboard";
     Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
 }
 
 <h2>Admin Dashboard</h2>
-<p class="text-muted">Quick overview of the system.</p>
+<p class="text-muted">Real-time overview of the system.</p>
 
 <!-- Stats Cards -->
 <div class="row g-3 mb-4">
@@ -12,7 +13,7 @@
         <div class="card shadow-sm text-center">
             <div class="card-body">
                 <h5>Total Users</h5>
-                <h3 class="text-primary">1,245</h3>
+                <h3 class="text-primary">@Model.TotalUsers.ToString("N0")</h3>
             </div>
         </div>
     </div>
@@ -20,50 +21,86 @@
         <div class="card shadow-sm text-center">
             <div class="card-body">
                 <h5>Active Communities</h5>
-                <h3 class="text-success">85</h3>
+                <h3 class="text-success">@Model.ActiveCommunities.ToString("N0")</h3>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card shadow-sm text-center">
             <div class="card-body">
-                <h5>Pending Reports</h5>
-                <h3 class="text-danger">32</h3>
+                <h5>Pending Requests</h5>
+                <h3 class="text-danger">@Model.TotalPendingRequests.ToString("N0")</h3>
+                <small class="text-muted">
+                    Communities: @Model.PendingCommunityRequestsCount | 
+                    Disputes: @Model.PendingEscrowDisputesCount | 
+                    Refunds: @Model.PendingRefundRequestsCount | 
+                    Suspensions: @Model.PendingSuspensionRequestsCount
+                </small>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card shadow-sm text-center">
             <div class="card-body">
-                <h5>Transactions</h5>
-                <h3 class="text-warning">$5,230</h3>
+                <h5>Total Revenue</h5>
+                <h3 class="text-warning">RM @Model.TotalTransactions.ToString("N2")</h3>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Chart + Recent Reports -->
+<!-- Chart + Recent Activity -->
 <div class="row g-3">
     <!-- Chart -->
     <div class="col-md-7">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5>User Growth</h5>
-                <canvas id="userChart"></canvas>
+                <h5>User Growth (Last 6 Months)</h5>
+                <canvas id="userChart" height="250"></canvas>
             </div>
         </div>
     </div>
-    <!-- Recent Reports -->
+    
+    <!-- Recent Activity -->
     <div class="col-md-5">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5>Recent Reports</h5>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">User <b>john_doe</b> reported for spamming</li>
-                    <li class="list-group-item">Community <b>Pickle Champs</b> inactive for 30 days</li>
-                    <li class="list-group-item">User <b>sarah_k</b> suspended once</li>
-                    <li class="list-group-item">Transaction <b>#TX1023</b> approved</li>
-                </ul>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Recent Activity</h5>
+                    <small class="text-muted">Last 7 days</small>
+                </div>
+                <div class="activity-feed">
+                    @if (Model.RecentActivities.Any())
+                    {
+                        foreach (var activity in Model.RecentActivities)
+                        {
+                            <div class="activity-item mb-3 p-2 border-start border-3 
+                                @(activity.Type.Contains("Dispute") ? "border-danger" : 
+                                  activity.Type.Contains("Refund") ? "border-info" : 
+                                  activity.Type.Contains("Community") ? "border-warning" : "border-secondary")">
+                                <div class="d-flex justify-content-between">
+                                    <small class="fw-bold">@activity.Type</small>
+                                    <small class="text-muted">@activity.CreatedAt.ToString("MMM dd HH:mm")</small>
+                                </div>
+                                <small>@activity.Description</small>
+                                <div class="d-flex justify-content-between mt-1">
+                                    <small class="text-muted">@activity.Username</small>
+                                    <span class="badge 
+                                        @(activity.Status == "Pending" ? "bg-warning" : 
+                                          activity.Status == "Approved" ? "bg-success" : "bg-secondary")">
+                                        @activity.Status
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3">
+                            <small>No recent activity</small>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -71,15 +108,26 @@
 
 @section Scripts {
     <script>
-        // Chart.js Example
+        // Chart.js with single dataset (New Users) and custom tooltip for total users
         const ctx = document.getElementById('userChart');
+        
+        // Prepare data for chart
+        const months = [@Html.Raw(string.Join(", ", Model.MonthlyUserGrowth.Select(m => $"'{m.Month}'")))];
+        const newUsers = [@string.Join(", ", Model.MonthlyUserGrowth.Select(m => m.NewUsers))];
+        const totalUsers = {
+            @foreach (var item in Model.MonthlyTotalUsers)
+            {
+                @:'@item.Key': @item.Value,
+            }
+        };
+
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                labels: months,
                 datasets: [{
                     label: 'New Users',
-                    data: [50, 120, 180, 90, 200, 300],
+                    data: newUsers,
                     borderColor: '#A1D336',
                     backgroundColor: 'rgba(161, 211, 54, 0.3)',
                     tension: 0.4,
@@ -88,8 +136,45 @@
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } }
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const month = months[context.dataIndex];
+                                const total = totalUsers[month] || 0;
+                                return `Total Users: ${total.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
             }
         });
+
+        // Auto-refresh dashboard every 2 minutes
+        setInterval(() => {
+            window.location.reload();
+        }, 120000);
     </script>
+
+    <style>
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .activity-item {
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+    </style>
 }

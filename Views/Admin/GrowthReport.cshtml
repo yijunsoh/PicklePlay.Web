@@ -1,0 +1,278 @@
+@model PicklePlay.ViewModels.GrowthReportViewModel
+
+@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+    ViewData["Title"] = "User Growth Report";
+}
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">@Model.ReportTitle</h1>
+    <div>
+        <button id="export-png-btn" class="btn btn-success btn-sm">
+            <i class="fas fa-download fa-sm text-white-50"></i> Export as PNG
+        </button>
+        <button id="export-pdf-btn" class="btn btn-danger btn-sm ml-2">
+            <i class="fas fa-file-pdf fa-sm text-white-50"></i> Export as PDF
+        </button>
+    </div>
+</div>
+
+<!-- This div is the container that will be captured for export -->
+<div id="report-content">
+    <!-- Export Header - Only visible in exports -->
+    <div id="export-header" style="display: none; background: linear-gradient(135deg, #2E8B57 0%, #1E5B32 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <img src="/images/logoV3.png" alt="PicklePlay Logo" style="height: 40px; margin-right: 15px;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">PicklePlay</h1>
+        </div>
+        <h2 style="margin: 0; font-size: 22px; font-weight: 600;">@Model.ReportTitle</h2>
+        <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">
+            Generated on @DateTime.Now.ToString("MMMM dd, yyyy") at @DateTime.Now.ToString("hh:mm tt")
+        </p>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h2 class="m-0 font-weight-bold text-primary">@Model.ReportTitle</h2>
+        </div>
+        <div class="card-body">
+            <div style="width: 80%; margin: auto;">
+                <canvas id="userGrowthChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Report Summary</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered" style="width: 100%; text-align: left;">
+                <thead class="bg-dark text-white">
+                    <tr>
+                        <th>Data Point</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Peak Growth Month</td>
+                        <td>@Model.Summary.PeakGrowthMonth (@Model.Summary.PeakGrowthValue users)</td>
+                    </tr>
+                    <tr>
+                        <td>Lowest Growth Month</td>
+                        <td>@Model.Summary.LowestGrowthMonth (@Model.Summary.LowestGrowthValue users)</td>
+                    </tr>
+                    <tr>
+                        <td>Total Users Gained (@Model.Summary.Period)</td>
+                        <td>@Model.Summary.TotalUsersGained</td>
+                    </tr>
+                    <tr>
+                        <td>Average Monthly Growth</td>
+                        <td>@Model.Summary.AverageMonthlyGrowth users</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        // 2. Prepare Data from C# Model
+        var monthlyData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthlyData));
+        
+        var labels = monthlyData.map(item => item.Month);
+        var userData = monthlyData.map(item => item.Users);
+
+        // Define the color used in the image
+        var chartColor = 'rgb(255, 165, 0)'; // A bright orange color
+
+        // 3. Configure and Render Chart
+        var ctx = document.getElementById('userGrowthChart').getContext('2d');
+        var userGrowthChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Number of Users',
+                    data: userData,
+                    backgroundColor: chartColor,
+                    borderColor: chartColor,
+                    borderWidth: 1,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false // Hide the legend since there's only one dataset
+                    },
+                    title: {
+                        display: true,
+                        text: '@Model.ReportTitle', // Use the title from the ViewModel
+                        font: {
+                            size: 18
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Number of Users'
+                        },
+                        beginAtZero: true,
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            borderDash: [5, 5]
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            borderDash: [5, 5]
+                        }
+                    }
+                }
+            }
+        });
+
+        // 4. Export Functions
+        document.getElementById('export-png-btn').addEventListener('click', function() {
+            exportAsPNG();
+        });
+
+        document.getElementById('export-pdf-btn').addEventListener('click', function() {
+            exportAsPDF();
+        });
+
+        function exportAsPNG() {
+            const element = document.getElementById('report-content');
+            const exportHeader = document.getElementById('export-header');
+            
+            // Show export header for capture
+            exportHeader.style.display = 'block';
+            
+            // Show loading state
+            const button = document.getElementById('export-png-btn');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            button.disabled = true;
+
+            html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: function(clonedDoc) {
+                    // Ensure header is visible in the cloned document
+                    const clonedHeader = clonedDoc.getElementById('export-header');
+                    if (clonedHeader) {
+                        clonedHeader.style.display = 'block';
+                    }
+                }
+            }).then(canvas => {
+                // Create download link
+                const link = document.createElement('a');
+                const currentDate = new Date().toISOString().split('T')[0];
+                link.download = 'PicklePlay_User_Growth_Report_' + currentDate + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                // Hide export header and restore button state
+                exportHeader.style.display = 'none';
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }).catch(error => {
+                console.error('Error exporting PNG:', error);
+                alert('Error exporting PNG. Please try again.');
+                exportHeader.style.display = 'none';
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+
+        function exportAsPDF() {
+            const element = document.getElementById('report-content');
+            const exportHeader = document.getElementById('export-header');
+            
+            // Show export header for capture
+            exportHeader.style.display = 'block';
+            
+            // Show loading state
+            const button = document.getElementById('export-pdf-btn');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            button.disabled = true;
+
+            html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: function(clonedDoc) {
+                    // Ensure header is visible in the cloned document
+                    const clonedHeader = clonedDoc.getElementById('export-header');
+                    if (clonedHeader) {
+                        clonedHeader.style.display = 'block';
+                    }
+                }
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                // Add the image to the PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                
+                // Generate filename with PicklePlay branding
+                const currentDate = new Date().toISOString().split('T')[0];
+                const filename = 'PicklePlay_User_Growth_Report_' + currentDate + '.pdf';
+                
+                // Save the PDF
+                pdf.save(filename);
+
+                // Hide export header and restore button state
+                exportHeader.style.display = 'none';
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }).catch(error => {
+                console.error('Error exporting PDF:', error);
+                alert('Error exporting PDF. Please try again.');
+                exportHeader.style.display = 'none';
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+
+        // 5. Optional: Add keyboard shortcut (Ctrl+P for PDF, Ctrl+S for PNG)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'p') {
+                    e.preventDefault();
+                    exportAsPDF();
+                } else if (e.key === 's') {
+                    e.preventDefault();
+                    exportAsPNG();
+                }
+            }
+        });
+    </script>
+}
