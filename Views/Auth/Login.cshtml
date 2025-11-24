@@ -51,24 +51,38 @@
                 <h3 class="text-center mb-4">Login</h3>
 
                 <!-- Success Message -->
-                @if (TempData["SuccessMessage"] != null)
+
+                @if (TempData["AuthSuccess"] != null)
                 {
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+                        <i class="fas fa-check-circle"></i> @TempData["AuthSuccess"]
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 }
 
-                <!-- Error Message -->
-                @if (TempData["ErrorMessage"] != null)
+                @if (TempData["AuthError"] != null)
                 {
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+                        <i class="fas fa-exclamation-circle"></i> @TempData["AuthError"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                @if (TempData["LoginSuccess"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle"></i> @TempData["LoginSuccess"]
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 }
 
-                <!-- Display error messages -->
+                @if (ViewData["LoginError"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle"></i> @ViewData["LoginError"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
                 @if (ViewData.ModelState.ContainsKey(""))
                 {
                     <div class="alert alert-danger">
@@ -91,10 +105,6 @@
                             required>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="remember">
-                            <label class="form-check-label" for="remember">Remember me</label>
-                        </div>
                         <a href="@Url.Action("ForgotPassword", "Auth")" class="text-primary text-decoration-none">Forgot
                             Password?</a>
                     </div>

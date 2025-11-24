@@ -30,120 +30,147 @@ namespace PicklePlay.Controllers
             var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
         }
-        // GET: /Communities/GetCommunityData
         [HttpGet]
-        public async Task<IActionResult> GetCommunityData()
+public async Task<IActionResult> GetCommunityData()
+{
+    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+    int currentUserId = currentUserIdInt.GetValueOrDefault(0);
+
+    // --- 1. Fetch Member Counts (Dictionary) ---
+    var communityStats = await _context.CommunityMembers
+        .Where(cm => cm.Status == "Active")
+        .GroupBy(cm => cm.CommunityId)
+        .Select(g => new
         {
-            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-            int currentUserId = currentUserIdInt.GetValueOrDefault(0);
+            CommunityId = g.Key,
+            MemberCount = g.Count()
+        })
+        .ToDictionaryAsync(x => x.CommunityId, x => x.MemberCount);
 
-            // --- 1. Fetch ALL Active Community Member Counts ---
-            var communityStats = await _context.CommunityMembers
-                .Where(cm => cm.Status == "Active")
-                .GroupBy(cm => cm.CommunityId)
-                .Select(g => new
-                {
-                    CommunityId = g.Key,
-                    MemberCount = g.Count()
-                })
-                .ToDictionaryAsync(x => x.CommunityId, x => x.MemberCount);
+    // --- 2. Fetch Pending & Rejected Requests ---
+    var pendingRequests = new List<object>();
+    var rejectedRequests = new List<object>();
 
-            // --- 2. Fetch User's Active Community IDs ---
-            var activeMemberCommunityIds = await _context.CommunityMembers
-                .Where(cm => cm.UserId == currentUserId && cm.Status == "Active")
-                .Select(cm => cm.CommunityId)
-                .ToListAsync();
-
-            // --- 3. Fetch Pending AND Rejected Requests ---
-            var pendingRequests = new List<object>();
-            var rejectedRequests = new List<object>();
-
-            if (currentUserId > 0)
+    if (currentUserId > 0)
+    {
+        pendingRequests = await _context.CommunityMembers
+            .Include(cm => cm.Community)
+            .Where(cm => cm.Status == "Pending" && cm.UserId == currentUserId)
+            .Select(cm => new
             {
-                // Pending requests
-                pendingRequests = await _context.CommunityMembers
-                    .Include(cm => cm.Community)
-                    .Where(cm => cm.Status == "Pending" && cm.UserId == currentUserId)
-                    .Select(cm => new
-                    {
-                        requestId = cm.MemberId,
-                        name = cm.Community.CommunityName,
-                        location = cm.Community.CommunityLocation,
-                        type = cm.Community.CommunityType,
-                        requestDate = cm.JoinDate,
-                        status = cm.Status
-                    })
-                    .ToListAsync<object>();
+                requestId = cm.MemberId,
+                name = cm.Community.CommunityName,
+                location = cm.Community.CommunityLocation,
+                type = cm.Community.CommunityType,
+                requestDate = cm.JoinDate,
+                status = cm.Status
+            })
+            .ToListAsync<object>();
 
-                // Rejected requests (for notification purposes)
-                rejectedRequests = await _context.CommunityMembers
-                    .Include(cm => cm.Community)
-                    .Where(cm => cm.Status == "Rejected" && cm.UserId == currentUserId)
-                    .Select(cm => new
-                    {
-                        requestId = cm.MemberId,
-                        communityId = cm.CommunityId,
-                        name = cm.Community.CommunityName,
-                        location = cm.Community.CommunityLocation,
-                        type = cm.Community.CommunityType,
-                        requestDate = cm.JoinDate,
-                        status = cm.Status
-                    })
-                    .ToListAsync<object>();
-            }
+        rejectedRequests = await _context.CommunityMembers
+            .Include(cm => cm.Community)
+            .Where(cm => cm.Status == "Rejected" && cm.UserId == currentUserId)
+            .Select(cm => new
+            {
+                requestId = cm.MemberId,
+                communityId = cm.CommunityId,
+                name = cm.Community.CommunityName,
+                location = cm.Community.CommunityLocation,
+                type = cm.Community.CommunityType,
+                requestDate = cm.JoinDate,
+                status = cm.Status
+            })
+            .ToListAsync<object>();
+    }
 
-            // --- 4. Fetch Active Communities (Joined or Created by current user) ---
-            var activeCommunities = await _context.CommunityMembers
-                .Where(cm => cm.UserId == currentUserId && cm.Status == "Active")
-                .Select(cm => new
-                {
-                    id = cm.CommunityId,
-                    name = cm.Community.CommunityName,
-                    description = cm.Community.Description,
-                    location = cm.Community.CommunityLocation,
-                    type = cm.Community.CommunityType,
-                    userRole = cm.CommunityRole,
-                    memberCount = communityStats.ContainsKey(cm.CommunityId) ? communityStats[cm.CommunityId] : 0,
-                    gameCount = 0,
-                    icon = "city"
-                })
-                .ToListAsync<object>();
+    // --- 3. Fetch Active Communities (Joined by User) ---
+    // Step A: Get raw data from DB
+    var activeRaw = await _context.CommunityMembers
+        .Where(cm => cm.UserId == currentUserId && cm.Status == "Active")
+        .Select(cm => new
+        {
+            cm.CommunityId,
+            cm.Community.CommunityName,
+            cm.Community.Description,
+            cm.Community.CommunityLocation,
+            cm.Community.CommunityType,
+            cm.CommunityRole
+        })
+        .ToListAsync();
 
-            // --- 5. Fetch and Select Suggested Communities (Max 9, excluding joined/pending/rejected) ---
-            var excludedCommunityIds = await _context.CommunityMembers
+    // Step B: Map in memory (Safe to use Dictionary here)
+    var activeCommunities = activeRaw.Select(c => new
+    {
+        id = c.CommunityId,
+        name = c.CommunityName,
+        description = c.Description,
+        location = c.CommunityLocation,
+        type = c.CommunityType,
+        userRole = c.CommunityRole,
+        memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
+        gameCount = 0,
+        icon = "city"
+    }).ToList();
+
+    // --- 4. Fetch Suggested Communities (Random 9) ---
+    
+    // Step A: Get IDs to exclude (Already Member/Pending/Rejected)
+            var excludedIds = await _context.CommunityMembers
                 .Where(cm => cm.UserId == currentUserId &&
                             (cm.Status == "Active" || cm.Status == "Pending" || cm.Status == "Rejected"))
                 .Select(cm => cm.CommunityId)
                 .ToListAsync();
 
-            var suggestedCommunitiesQuery = _context.Communities
-                .Where(c => !excludedCommunityIds.Contains(c.CommunityId) && c.Status == "Active")
+            // Step B: Fetch ALL Eligible IDs first (Lightweight)
+            var eligibleCommunityIds = await _context.Communities
+                .Where(c => !excludedIds.Contains(c.CommunityId) && c.Status == "Active")
+                .Select(c => c.CommunityId)
+                .ToListAsync();
+
+            // Step C: Shuffle the IDs in C# (This guarantees randomness)
+            var rng = new Random();
+            var selectedIds = eligibleCommunityIds
+                .OrderBy(x => rng.Next()) // Shuffle
+                .Take(9)                  // Take 9
+                .ToList();
+
+            // Step D: Fetch Details for ONLY the selected 9 IDs
+            // Note: We don't need to check excludedIds here because we filtered them in Step B
+            var suggestedRaw = await _context.Communities
+                .Where(c => selectedIds.Contains(c.CommunityId))
                 .Select(c => new
                 {
-                    id = c.CommunityId,
-                    name = c.CommunityName,
-                    description = c.Description,
-                    location = c.CommunityLocation,
-                    type = c.CommunityType,
-                    userRole = (string)null!,
-                    memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
-                    gameCount = 0,
-                    icon = "compass"
-                });
+                    c.CommunityId,
+                    c.CommunityName,
+                    c.Description,
+                    c.CommunityLocation,
+                    c.CommunityType
+                })
+                .ToListAsync();
 
-            var suggestedCommunities = await suggestedCommunitiesQuery
-                .OrderBy(c => Guid.NewGuid())
-                .Take(9)
-                .ToListAsync<object>();
+            // Step E: Map in memory
+            var suggestedCommunities = suggestedRaw.Select(c => new
+            {
+                id = c.CommunityId,
+                name = c.CommunityName,
+                description = c.Description,
+                location = c.CommunityLocation,
+                type = c.CommunityType,
+                userRole = (string?)null, 
+                memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
+                gameCount = 0,
+                icon = "compass"
+            }).ToList();
 
+            // --- 5. Return Result ---
             return Ok(new
             {
                 pendingRequests = pendingRequests,
-                rejectedRequests = rejectedRequests, // Add rejected requests to response
+                rejectedRequests = rejectedRequests,
                 activeCommunities = activeCommunities,
                 suggestedCommunities = suggestedCommunities
             });
-        }
+}
 
 
         // POST: /Communities/JoinCommunity (Handles NEW join or REACTIVATION of Inactive membership)

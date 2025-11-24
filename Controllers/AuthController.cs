@@ -33,44 +33,47 @@ namespace PicklePlay.Controllers
             return View();
         }
 
-        // POST: /Auth/Login
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(string email, string password)
         {
+            // 1. Basic Input Validation
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                ModelState.AddModelError("", "Please enter both email and password.");
+                ViewData["LoginError"] = "Please enter both email and password.";
                 return View();
             }
 
             try
             {
+                // 2. Authenticate
                 var result = await _authService.AuthenticateAsync(email, password);
 
-                if (result.Success && result.User != null) // DOUBLE CHECK - both Success and User
+                if (result.Success && result.User != null)
                 {
                     var user = result.User;
 
+                    // 3. Status Checks
                     if (!user.EmailVerify)
                     {
-                        ModelState.AddModelError("", "Please verify your email before logging in.");
+                        ViewData["LoginError"] = "Please verify your email before logging in.";
                         return View();
                     }
 
                     if (user.Status != "Active" && user.Status != "Suspended")
                     {
-                        ModelState.AddModelError("", "Your account is not active. Please contact support.");
+                        ViewData["LoginError"] = "Your account is not active. Please contact support.";
                         return View();
                     }
 
-                    // Store user info in session
+                    // 4. Session Setup
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserEmail", user.Email);
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserName", user.Username);
                     _httpContextAccessor.HttpContext?.Session?.SetInt32("UserId", user.UserId);
                     _httpContextAccessor.HttpContext?.Session?.SetString("UserRole", user.Role);
                     _httpContextAccessor.HttpContext?.Session?.SetString("ProfileImagePath", user.ProfilePicture ?? "");
 
+                    // 5. Redirect based on Role
                     if (user.Role == "Admin")
                     {
                         return RedirectToAction("AdminDashboard", "Admin");
@@ -82,18 +85,17 @@ namespace PicklePlay.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("", result.Error ?? "Invalid email or password.");
+                    // Auth failed (Wrong password/User not found)
+                    ViewData["LoginError"] = result.Error ?? "Invalid email or password.";
                     return View();
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Login error: {ex.Message}");
-                ModelState.AddModelError("", "An error occurred during login. Please try again.");
+                ViewData["LoginError"] = "An error occurred during login. Please try again.";
                 return View();
             }
-
-
         }
 
         // Add this logout method as well
@@ -171,7 +173,7 @@ namespace PicklePlay.Controllers
                 }
                 // Store email for display on success page
                 TempData["UserEmail"] = model.Email;
-                TempData["SuccessMessage"] = "Registration successful! Please check your email to verify your account.";
+                TempData["AuthSuccess"] = "Registration successful! Please check your email to verify your account.";
 
                 // Redirect to success page
                 return RedirectToAction("SignupSuccess");
@@ -203,7 +205,7 @@ namespace PicklePlay.Controllers
                 {
                     // User already verified, clear session and redirect to login
                     _httpContextAccessor.HttpContext?.Session?.Remove("LastSignupEmail");
-                    TempData["SuccessMessage"] = "Your email is already verified. Please login.";
+                    TempData["AuthSuccess"] = "Your email is already verified. Please login.";
                     return RedirectToAction("Login", "Auth");
                 }
             }
@@ -211,7 +213,7 @@ namespace PicklePlay.Controllers
             // If still no email, redirect to login page
             if (string.IsNullOrEmpty(userEmail))
             {
-                TempData["ErrorMessage"] = "Please complete the signup process first.";
+                TempData["AuthError"] = "Please complete the signup process first.";
                 return RedirectToAction("Login", "Auth");
             }
 
@@ -229,7 +231,7 @@ namespace PicklePlay.Controllers
             // === SECURITY CHECK: Prevent direct URL access without proper parameters ===
             if (userId <= 0 || string.IsNullOrEmpty(token))
             {
-                TempData["ErrorMessage"] = "Invalid verification link. Please use the link from your email.";
+                TempData["AuthError"] = "Invalid verification link. Please use the link from your email.";
                 return RedirectToAction("Login", "Auth");
             }
 
@@ -345,7 +347,7 @@ namespace PicklePlay.Controllers
             // === SECURITY CHECK: Prevent direct URL access ===
             if (string.IsNullOrEmpty(email))
             {
-                TempData["ErrorMessage"] = "Invalid request. Please use the resend button on the verification page.";
+                TempData["AuthError"] = "Invalid request. Please use the resend button on the verification page.";
 
                 // Redirect based on where the invalid request might have come from
                 if (fromPage == "VerifyEmail")
@@ -365,7 +367,7 @@ namespace PicklePlay.Controllers
             if (success)
             {
                 TempData["ResendSuccess"] = true;
-                TempData["SuccessMessage"] = "New verification link has been sent to your email!";
+                TempData["AuthSuccess"] = "New verification link has been sent to your email!";
                 TempData["UserEmail"] = email;
 
                 if (fromPage == "VerifyEmail")
@@ -388,11 +390,11 @@ namespace PicklePlay.Controllers
                 var user = await _authService.GetUserByEmailAsync(email);
                 if (user != null && user.EmailVerify)
                 {
-                    TempData["ErrorMessage"] = "This email is already verified. No need to resend verification.";
+                    TempData["AuthError"] = "This email is already verified. No need to resend verification.";
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "Failed to send verification email. Please try again.";
+                    TempData["AuthError"] = "Failed to send verification email. Please try again.";
                 }
 
                 if (fromPage == "VerifyEmail")
@@ -428,12 +430,12 @@ namespace PicklePlay.Controllers
 
             if (success)
             {
-                TempData["SuccessMessage"] = "Password reset email has been sent successfully! Please check your inbox.";
+                TempData["AuthSuccess"] = "Password reset email has been sent successfully! Please check your inbox.";
                 return RedirectToAction("ForgotPassword");
             }
             else
             {
-                TempData["ErrorMessage"] = "Email not found. Please check your email address.";
+                TempData["AuthError"] = "Email not found. Please check your email address.";
                 return View();
             }
         }
@@ -444,14 +446,14 @@ namespace PicklePlay.Controllers
         {
             if (userId <= 0 || string.IsNullOrEmpty(token))
             {
-                TempData["ErrorMessage"] = "Invalid password reset link.";
+                TempData["AuthError"] = "Invalid password reset link.";
                 return RedirectToAction("Login");
             }
 
             var user = await _authService.ValidatePasswordResetTokenAsync(userId, token);
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Invalid or expired password reset link.";
+                TempData["AuthError"] = "Invalid or expired password reset link.";
                 return RedirectToAction("Login");
             }
 
@@ -486,21 +488,21 @@ namespace PicklePlay.Controllers
 
             if (!userId.HasValue || string.IsNullOrEmpty(token))
             {
-                TempData["ErrorMessage"] = "Invalid password reset request.";
+                TempData["AuthError"] = "Invalid password reset request.";
                 return RedirectToAction("Login");
             }
 
             var user = await _authService.ValidatePasswordResetTokenAsync(userId.Value, token);
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Invalid or expired password reset link.";
+                TempData["AuthError"] = "Invalid or expired password reset link.";
                 return RedirectToAction("Login");
             }
 
             var success = await _authService.ResetPasswordAsync(userId.Value, model.NewPassword);
             if (success)
             {
-                TempData["SuccessMessage"] = "Your password has been reset successfully! You can now login with your new password.";
+                TempData["AuthSuccess"] = "Your password has been reset successfully! You can now login with your new password.";
 
                 // FIX: Redirect to Login action instead of ResetPassword
                 return RedirectToAction("Login");
@@ -537,63 +539,61 @@ namespace PicklePlay.Controllers
             }
         }
 
-        // POST: /Auth/ResendVerificationFromLogin - Specifically for login page
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResendVerificationFromLogin(string email)
         {
             if (string.IsNullOrEmpty(email))
             {
-                TempData["ErrorMessage"] = "Please enter your email address.";
+                TempData["LoginError"] = "Please enter your email address.";
                 TempData["PrefilledEmail"] = email;
                 return RedirectToAction("Login");
             }
 
             try
             {
-                // Check if user exists
+                // 1. Check if user exists
                 var user = await _authService.GetUserByEmailAsync(email);
                 if (user == null)
                 {
-                    // Don't reveal that user doesn't exist for security
-                    TempData["SuccessMessage"] = "If your email is registered, a verification link has been sent to your inbox.";
+                    // Security: Don't reveal user existence, but show success message
+                    TempData["LoginSuccess"] = "If your email is registered, a verification link has been sent to your inbox.";
                     TempData["PrefilledEmail"] = email;
                     return RedirectToAction("Login");
                 }
 
-                // Check if user is already verified
+                // 2. Check if already verified
                 if (user.EmailVerify)
                 {
-                    TempData["SuccessMessage"] = "Your email is already verified. You can login now.";
+                    TempData["LoginSuccess"] = "Your email is already verified. You can login now.";
                     TempData["PrefilledEmail"] = email;
                     return RedirectToAction("Login");
                 }
 
-                // Build verification link function
+                // 3. Define Link Builder
                 string BuildVerificationLink(int userId, string token)
                 {
                     return Url.Action("VerifyEmail", "Auth", new { userId = userId, token = token }, Request.Scheme)!;
                 }
 
-                // Use your existing service method to resend verification
+                // 4. Send Email
                 var success = await _authService.ResendVerificationAsync(email, BuildVerificationLink);
 
                 if (success)
                 {
-                    TempData["SuccessMessage"] = "New verification link has been sent to your email! Please check your inbox.";
+                    TempData["LoginSuccess"] = "New verification link has been sent to your email! Please check your inbox.";
                     TempData["PrefilledEmail"] = email;
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "Failed to send verification email. Please try again.";
+                    TempData["LoginError"] = "Failed to send verification email. Please try again.";
                     TempData["PrefilledEmail"] = email;
                 }
             }
             catch (Exception ex)
             {
-                // Log the error
                 Console.WriteLine($"ResendVerificationFromLogin error: {ex.Message}");
-                TempData["ErrorMessage"] = "An error occurred while sending the verification email. Please try again.";
+                TempData["LoginError"] = "An error occurred while sending the email. Please try again.";
                 TempData["PrefilledEmail"] = email;
             }
 
@@ -606,7 +606,7 @@ namespace PicklePlay.Controllers
         {
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword))
             {
-                TempData["ErrorMessage"] = "Please fill in all password fields.";
+                TempData["AuthError"] = "Please fill in all password fields.";
                 return RedirectToAction("EditProfile", "Home");
             }
 
@@ -616,7 +616,7 @@ namespace PicklePlay.Controllers
                 var authResult = await _authService.AuthenticateAsync(email, currentPassword);
                 if (!authResult.Success)
                 {
-                    TempData["ErrorMessage"] = "Current password is incorrect.";
+                    TempData["AuthError"] = "Current password is incorrect.";
                     return RedirectToAction("EditProfile", "Home");
                 }
 
@@ -624,27 +624,24 @@ namespace PicklePlay.Controllers
                 var user = await _authService.GetUserByEmailAsync(email);
                 if (user == null)
                 {
-                    TempData["ErrorMessage"] = "User not found.";
+                    TempData["AuthError"] = "User not found.";
                     return RedirectToAction("EditProfile", "Home");
                 }
 
                 var success = await _authService.ResetPasswordAsync(user.UserId, newPassword);
                 if (success)
                 {
-                    TempData["SuccessMessage"] = "Password changed successfully!";
+                    TempData["AuthSuccess"] = "Password changed successfully!";
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "Failed to change password. Please try again.";
+                    TempData["AuthError"] = "Failed to change password. Please try again.";
                 }
             }
             catch (Exception)
             {
-                // Simplified - just show generic error without logging
-                TempData["ErrorMessage"] = "An error occurred while changing your password.";
+                TempData["AuthError"] = "An error occurred while changing your password.";
 
-                // Optional: If you want to see the error during development, you can use:
-                // TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
             }
 
             return RedirectToAction("EditProfile", "Home");

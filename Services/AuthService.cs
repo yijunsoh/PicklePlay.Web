@@ -61,7 +61,7 @@ public class AuthService : IAuthService
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
             <h2 style='color: #A1D336; text-align: center;'>Welcome to PicklePlay!</h2>
             <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
-            <p>Please verify your PicklePlay account by clicking the button below (valid for 5 minutes):</p>
+            <p>Please verify your PicklePlay account by clicking the button below (valid for 1 minutes):</p>
             
             <div style='text-align: center; margin: 30px 0;'>
                 <a href='{link}' style='
@@ -96,7 +96,7 @@ public class AuthService : IAuthService
                 border-radius: 5px; 
                 padding: 15px; 
                 margin: 20px 0;'>
-                <strong>⚠️ Important:</strong> This link will expire in 5 minutes.
+                <strong>⚠️ Important:</strong> This link will expire in 1 minutes.
             </div>
             
             <p>If you did not request this account, please ignore this email.</p>
@@ -169,7 +169,7 @@ public class AuthService : IAuthService
     <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
         <h2 style='color: #A1D336; text-align: center;'>New Verification Link</h2>
         <p>Hello <strong>{System.Net.WebUtility.HtmlEncode(user.Username)}</strong>,</p>
-        <p>Here is your new verification link as requested (valid for 5 minutes):</p>
+        <p>Here is your new verification link as requested (valid for 1 minutes):</p>
         
         <div style='text-align: center; margin: 30px 0;'>
             <a href='{link}' style='
@@ -204,7 +204,7 @@ public class AuthService : IAuthService
             border-radius: 5px; 
             padding: 15px; 
             margin: 20px 0;'>
-            <strong>⚠️ Important:</strong> This link will expire in 5 minutes.
+            <strong>⚠️ Important:</strong> This link will expire in 1 minutes.
         </div>
         
         <p>If you did not request a new verification link, please ignore this email.</p>
@@ -440,11 +440,11 @@ public class AuthService : IAuthService
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
-        if (user == null) return false; // Don't reveal if email exists
+        if (user == null) return false; 
 
         // Generate reset token with 1 minute expiry
         user.PasswordResetToken = GenerateSecureToken();
-        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1); // Changed to 1 minute
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1); 
         await _db.SaveChangesAsync();
 
         var resetLink = buildResetLink(user.UserId, user.PasswordResetToken);

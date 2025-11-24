@@ -760,96 +760,110 @@ border: none; border-radius: 12px;">
         }
 
         // Render community cards (uses data structure from the API)
-        function renderCommunityCard(community, isSuggested = false) {
-            const role = community.userRole || 'Member';
-            const badgeType = role.toLowerCase() === 'admin' ?
-                'badge-admin' :
-                role.toLowerCase() === 'member' ?
-                    'badge-member' :
-                    isSuggested ?
-                        'badge-suggested' : community.type.toLowerCase() === 'public' ? 'badge-public' : 'badge-private';
+       // Render community cards (uses data structure from the API)
+function renderCommunityCard(community, isSuggested = false) {
+    // --- START OF FIXED BADGE LOGIC ---
+    // Don't default to 'Member'. If null, it means they haven't joined.
+    const role = community.userRole;
 
-            const badgeText = role === 'Admin' ? 'Admin' : role;
-            const iconClass = community.icon ? `fas fa-${community.icon}` : 'fas fa-users';
+    // Determine Badge Class
+    let badgeType = '';
+    if (role === 'Admin') {
+        badgeType = 'badge-admin';
+    } else if (role === 'Member') {
+        badgeType = 'badge-member';
+    } else if (isSuggested) {
+        // If it's in the suggested list and no role, mark as suggested
+        badgeType = 'badge-suggested';
+    } else {
+        // Fallback: If no role, show Public/Private badge
+        badgeType = community.type === 'Public' ? 'badge-public' : 'badge-private';
+    }
 
-            const safeName = escapeHtml(community.name);
-            const safeDescription = escapeHtml(community.description);
-            const safeLocation = escapeHtml(community.location);
+    // Determine Badge Text
+    // If role exists, show "Admin" or "Member". If not, show "Public" or "Private"
+    const badgeText = role ? role : community.type;
+    // --- END OF FIXED BADGE LOGIC ---
 
-            // Determine action buttons based on user role and community type
-            const actionButtons = community.userRole === 'Admin'
-                ? `
-                        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                            <i class="fas fa-door-open me-2"></i>Enter Community
-                        </button>
-                        <button class="btn-secondary-custom" onclick="manageCommunity(${community.id})">
-                            <i class="fas fa-cog me-2"></i>Manage
-                        </button>
-                      `
-                : community.userRole === 'Member'
-                    ? `
-                        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
-                            <i class="fas fa-door-open me-2"></i>Enter Community
-                        </button>
-                        <button class="btn-danger-custom" onclick="leaveCommunity(${community.id})">
-                            <i class="fas fa-sign-out-alt me-2"></i>Leave
-                        </button>
-                    `
-                    : community.type === 'Private'
-                        ? `
-                        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
-                            <i class="fas fa-user-clock me-2"></i>Request to Join
-                        </button>
-                        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
-                            <i class="fas fa-info me-2"></i>Details
-                        </button>
-                    `
-                        : `
-                        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
-                            <i class="fas fa-user-plus me-2"></i>Join
-                        </button>
-                        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
-                            <i class="fas fa-info me-2"></i>Details
-                        </button>
-                    `;
+    const iconClass = community.icon ? `fas fa-${community.icon}` : 'fas fa-users';
 
-            return `
-                        <div class="community-card" data-community-id="${community.id}">
-                            <span class="community-badge ${badgeType}">${badgeText}</span>
-                            <div class="community-header">
-                                <div class="community-icon">
-                                    <i class="${iconClass}"></i>
-                                </div>
-                                <h3 class="community-name">${safeName}</h3>
-                                <p class="community-description">${safeDescription || 'No description provided.'}</p>
-                                <div class="community-meta">
-                                    <div class="community-stats">
-                                        <div class="stat">
-                                            <i class="fas fa-users"></i>
-                                            <span>${community.memberCount || 0} Members</span>
-                                        </div>
-                                    </div>
-                                    <div class="community-location">
-                                        <i class="fas fa-map-marker-alt"></i>
-                                        <span>${safeLocation || 'Location Unknown'}</span>
-                                    </div>
-                                </div>
-                                ${isSuggested && community.distance ?
-                    `
-                                        <div class="community-match-info">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle"></i>
-                                                ${community.matchReason} • ${community.distance} away
-                                            </small>
-                                        </div>
-                                    ` : ''}
-                            </div>
-                            <div class="community-actions">
-                                ${actionButtons}
-                            </div>
+    const safeName = escapeHtml(community.name);
+    const safeDescription = escapeHtml(community.description);
+    const safeLocation = escapeHtml(community.location);
+
+    // Determine action buttons based on user role and community type
+    const actionButtons = community.userRole === 'Admin' ?
+        `
+        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
+            <i class="fas fa-door-open me-2"></i>Enter Community
+        </button>
+        <button class="btn-secondary-custom" onclick="manageCommunity(${community.id})">
+            <i class="fas fa-cog me-2"></i>Manage
+        </button>
+        ` :
+        community.userRole === 'Member' ?
+        `
+        <button class="btn-primary-custom" onclick="enterCommunity(${community.id})">
+            <i class="fas fa-door-open me-2"></i>Enter Community
+        </button>
+        <button class="btn-danger-custom" onclick="leaveCommunity(${community.id})">
+            <i class="fas fa-sign-out-alt me-2"></i>Leave
+        </button>
+        ` :
+        community.type === 'Private' ?
+        `
+        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
+            <i class="fas fa-user-clock me-2"></i>Request to Join
+        </button>
+        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
+            <i class="fas fa-info me-2"></i>Details
+        </button>
+        ` :
+        `
+        <button class="btn-primary-custom" onclick="joinCommunity(${community.id})">
+            <i class="fas fa-user-plus me-2"></i>Join
+        </button>
+        <button class="btn-secondary-custom" onclick="viewCommunityDetails(${community.id})">
+            <i class="fas fa-info me-2"></i>Details
+        </button>
+        `;
+
+    return `
+        <div class="community-card" data-community-id="${community.id}">
+            <span class="community-badge ${badgeType}">${badgeText}</span>
+            <div class="community-header">
+                <div class="community-icon">
+                    <i class="${iconClass}"></i>
+                </div>
+                <h3 class="community-name">${safeName}</h3>
+                <p class="community-description">${safeDescription || 'No description provided.'}</p>
+                <div class="community-meta">
+                    <div class="community-stats">
+                        <div class="stat">
+                            <i class="fas fa-users"></i>
+                            <span>${community.memberCount || 0} Members</span>
                         </div>
-                    `;
-        }
+                    </div>
+                    <div class="community-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${safeLocation || 'Location Unknown'}</span>
+                    </div>
+                </div>
+                ${isSuggested && community.distance ? `
+                <div class="community-match-info">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        ${community.matchReason} • ${community.distance} away
+                    </small>
+                </div>
+                ` : ''}
+            </div>
+            <div class="community-actions">
+                ${actionButtons}
+            </div>
+        </div>
+    `;
+}
 
         // Load communities (Updated to fetch data from API)
         async function loadCommunities() {
