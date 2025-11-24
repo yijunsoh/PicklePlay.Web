@@ -45,7 +45,7 @@ namespace PicklePlay.Services
             }
         }
 
-        private async Task CheckAndReleaseEscrows()
+       private async Task CheckAndReleaseEscrows()
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -53,11 +53,10 @@ namespace PicklePlay.Services
 
                 var nowUtc = DateTime.UtcNow;
 
-                // ADD DETAILED DEBUG LOGGING
                 _logger.LogInformation($"=== Auto Release Escrow Check Starting ===");
                 _logger.LogInformation($"Current UTC Time: {nowUtc:yyyy-MM-dd HH:mm:ss}");
 
-                // FIX: Check Schedule.EscrowStatus instead of Escrow.Status
+                // Find schedules that are Completed/Past and still InEscrow
                 var schedulesToProcess = await context.Schedules
                     .Include(s => s.Participants)
                     .Include(s => s.Escrows)
@@ -68,25 +67,9 @@ namespace PicklePlay.Services
 
                 _logger.LogInformation($"Found {schedulesToProcess.Count} auto-ended schedules with escrow to process");
 
-                // DEBUG: Log each schedule found
                 foreach (var schedule in schedulesToProcess)
                 {
-                    _logger.LogInformation($"Processing Schedule {schedule.ScheduleId}: {schedule.GameName}");
-                    _logger.LogInformation($"  - Status: {schedule.Status}");
-                    _logger.LogInformation($"  - EscrowStatus: {schedule.EscrowStatus}");
-
-                    var escrowCount = await context.Escrows
-                        .CountAsync(e => e.ScheduleId == schedule.ScheduleId && e.Status == "Held");
-                    var disputeCount = await context.EscrowDisputes
-                        .CountAsync(d => d.ScheduleId == schedule.ScheduleId && d.AdminDecision == "Pending");
-
-                    _logger.LogInformation($"  - Held Escrows: {escrowCount}");
-                    _logger.LogInformation($"  - Pending Disputes: {disputeCount}");
-                }
-
-                foreach (var schedule in schedulesToProcess)
-                {
-                    // Check if escrows actually exist with 'Held' status
+                    // 1. Check if escrows actually exist with 'Held' status
                     var hasHeldEscrows = await context.Escrows
                         .AnyAsync(e => e.ScheduleId == schedule.ScheduleId && e.Status == "Held");
 
@@ -96,14 +79,28 @@ namespace PicklePlay.Services
                         continue;
                     }
 
+                    // 2. Check for Pending Disputes
                     var hasPendingDisputes = await context.EscrowDisputes
                         .AnyAsync(d => d.ScheduleId == schedule.ScheduleId &&
                                      d.AdminDecision == "Pending");
+
+                    // 3. Check for Pending Refund Requests (NEW LOGIC)
+                    // We check if any refund request linked to this schedule's escrows is Pending
+                    var hasPendingRefunds = await context.RefundRequests
+                        .Include(r => r.Escrow)
+                        .AnyAsync(r => r.Escrow!.ScheduleId == schedule.ScheduleId &&
+                                       r.AdminDecision == "Pending");
 
                     if (hasPendingDisputes)
                     {
                         _logger.LogInformation($"⏸️ Blocking release for schedule {schedule.ScheduleId} due to disputes");
                         await HandleBlockedRelease(context, schedule);
+                    }
+                    else if (hasPendingRefunds)
+                    {
+                        // NEW BLOCKING LOGIC FOR REFUNDS
+                        _logger.LogInformation($"⏸️ Blocking release for schedule {schedule.ScheduleId} due to pending refund requests");
+                        await HandleBlockedByRefund(context, schedule);
                     }
                     else
                     {
@@ -350,5 +347,58 @@ namespace PicklePlay.Services
     await context.SaveChangesAsync();
     _logger.LogInformation($"Notified host and {disputes.Count} players about blocked escrow release for schedule {schedule.ScheduleId}");
 }
+    
+
+    private async Task HandleBlockedByRefund(ApplicationDbContext context, Schedule schedule)
+        {
+            var nowMYT = DateTimeHelper.GetMalaysiaTime();
+
+            _logger.LogInformation($"⏸️ Escrow release blocked for schedule {schedule.ScheduleId} due to pending refund requests");
+
+            // UPDATE STATUS to 'BlockedByRefund'
+            schedule.EscrowStatus = "BlockedByRefund";
+            _logger.LogInformation($"Updated schedule {schedule.ScheduleId} EscrowStatus to 'BlockedByRefund'");
+
+            // Notify Host
+            var host = await context.ScheduleParticipants
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.ScheduleId == schedule.ScheduleId &&
+                                         p.Role == ParticipantRole.Organizer);
+
+            if (host != null && host.User != null)
+            {
+                context.Notifications.Add(new Notification
+                {
+                    UserId = host.UserId,
+                    Message = $"Escrow release for '{schedule.GameName}' is delayed due to a pending refund request. Funds are held until admin review.",
+                    LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
+                    DateCreated = nowMYT,
+                    CreatedAt = nowMYT,
+                    IsRead = false
+                });
+            }
+
+            // Notify Users who requested refunds
+            var refunds = await context.RefundRequests
+                .Include(r => r.Escrow)
+                .Where(r => r.Escrow!.ScheduleId == schedule.ScheduleId && r.AdminDecision == "Pending")
+                .ToListAsync();
+
+            foreach (var req in refunds)
+            {
+                context.Notifications.Add(new Notification
+                {
+                    UserId = req.ReportedBy,
+                    Message = $"Your refund request for '{schedule.GameName}' is under admin review. Escrow payments are currently held.",
+                    LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
+                    DateCreated = nowMYT,
+                    CreatedAt = nowMYT,
+                    IsRead = false
+                });
+            }
+
+            await context.SaveChangesAsync();
+            _logger.LogInformation($"Notified host and {refunds.Count} users about blocked escrow release for schedule {schedule.ScheduleId}");
+        }
     }
 }
