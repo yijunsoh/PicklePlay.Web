@@ -388,6 +388,44 @@
 .chat-user-name:hover {
     text-decoration: underline;
 }
+
+.chat-attach-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+
+    .chat-attach-btn:hover {
+        background: #e9ecef;
+        color: #2E8B57;
+    }
+
+    /* Image Message Styling */
+    .chat-image {
+        max-width: 200px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .chat-image:hover {
+        transform: scale(1.02);
+    }
+
+    .message-bubble.has-image {
+        background: transparent !important; /* Remove bubble bg for images */
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
 </style>
 
 <div class="container mt-4">
@@ -676,7 +714,6 @@
                 // 1. If chat is open with this person, append message
                 if (currentChatFriendId === data.senderId) {
                     appendMessage(data, false);
-                    // Mark as read visually (optional, backend handles logic later)
                 } 
                 
                 // 2. Update Left Panel (Sidebar)
@@ -862,7 +899,6 @@
             friendElement.classList.add('active');
             friendElement.classList.remove('unread'); // Remove unread styling
             
-            // ⬇️ NEW: Find and hide the unread badge immediately
             const badge = friendElement.querySelector('.unread-badge');
             if (badge) {
                 badge.style.display = 'none'; // Hide visually
@@ -876,7 +912,7 @@
             friendData.unreadMessageCount = 0;
         }
 
-        // 3. Fetch Chat History (Existing logic)
+        // 3. Fetch Chat History
         try {
             const response = await fetch(`/Friendship/GetChatMessages?friendId=${friendId}`);
             const result = await response.json();
@@ -921,10 +957,18 @@
                 ${renderMessages(chatData.messages)}
             </div>
             <div class="chat-input-area">
+                <input type="file" id="chatFileInput" hidden accept="image/*" onchange="handleFileSelect(this)">
+
                 <form class="chat-input-form" onsubmit="window.sendMessage(event); return false;">
+                    
+                    <button type="button" class="chat-attach-btn" onclick="document.getElementById('chatFileInput').click()" title="Upload Image">
+                        <i class="bi bi-paperclip fs-5"></i>
+                    </button>
+
                     <input type="text" class="chat-input" id="messageInput" 
                            placeholder="Type a message..." required />
-                    <button type="submit" class="chat-send-btn">
+                    
+                    <button type="submit" class="chat-send-btn" id="sendBtn">
                         <i class="bi bi-send-fill"></i>
                     </button>
                 </form>
@@ -937,6 +981,20 @@
         }
     }
 
+    function isImageUrl(content) {
+        return content && content.startsWith('/uploads/chat/');
+    }
+
+    function escapeHtml(unsafe) {
+        if (!unsafe) return "";
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+
     function renderMessages(messages) {
         if (messages.length === 0) {
             return '<div class="text-center text-muted py-5">No messages yet. Start the conversation!</div>';
@@ -944,11 +1002,18 @@
 
         let html = '';
         messages.forEach(msg => {
+            const isImg = isImageUrl(msg.content);
+            const contentHtml = isImg 
+                ? `<img src="${msg.content}" class="chat-image" onclick="window.open(this.src, '_blank')">` 
+                : escapeHtml(msg.content);
+
+            const bubbleClass = isImg ? 'message-bubble has-image' : `message-bubble ${msg.isMine ? 'message-sent' : 'message-received'}`;
+
             // align-items: flex-end ensures bubbles don't stretch vertically or horizontally
             html += `
                 <div class="message-group" style="display: flex; flex-direction: column; align-items: ${msg.isMine ? 'flex-end' : 'flex-start'};">
-                    <div class="message-bubble ${msg.isMine ? 'message-sent' : 'message-received'}">
-                        ${msg.content}
+                    <div class="${bubbleClass}">
+                        ${contentHtml}
                     </div>
                     <div class="message-time">
                         ${formatMessageTime(new Date(msg.sentAt))}
@@ -985,11 +1050,17 @@
         const messagesDiv = document.getElementById('chatMessages');
         if (!messagesDiv) return;
 
-        // ⬇️ FIX: Updated HTML structure to match renderMessages() exactly
+        const isImg = isImageUrl(data.content);
+        const contentHtml = isImg 
+            ? `<img src="${data.content}" class="chat-image" onclick="window.open(this.src, '_blank')">` 
+            : escapeHtml(data.content);
+
+        const bubbleClass = isImg ? 'message-bubble has-image' : `message-bubble ${isMine ? 'message-sent' : 'message-received'}`;
+
         const messageHtml = `
             <div class="message-group" style="display: flex; flex-direction: column; align-items: ${isMine ? 'flex-end' : 'flex-start'};">
-                <div class="message-bubble ${isMine ? 'message-sent' : 'message-received'}">
-                    ${data.content}
+                <div class="${bubbleClass}">
+                    ${contentHtml}
                 </div>
                 <div class="message-time">
                     Just now
@@ -1000,6 +1071,53 @@
         messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
+
+    // File Handling
+    window.handleFileSelect = async function(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("File is too large. Max 5MB.");
+            input.value = '';
+            return;
+        }
+
+        await uploadAndSend(file);
+        input.value = ''; // Reset
+    };
+
+    async function uploadAndSend(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const sendBtn = document.getElementById('sendBtn');
+        const originalIcon = sendBtn.innerHTML;
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+            const response = await fetch('/Friendship/UploadChatMedia', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Send the URL as a message via SignalR
+                await chatConnection.invoke("SendPrivateMessage", currentChatFriendId, result.url);
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error("Upload failed:", error);
+            alert("Failed to upload image.");
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalIcon;
+        }
+    };
 
     window.acceptFriendRequest = async function(friendshipId, event) {
         event.stopPropagation();
@@ -1097,36 +1215,31 @@
 
     // NEW: Helper to update sidebar when message is sent/received
     function updateFriendListUI(userId, message, time, isUnread) {
-        // 1. Find friend in the local data
         const friendIndex = friendsData.friends.findIndex(f => f.userId === userId);
         
         if (friendIndex > -1) {
-            // 2. Update Data
             const friend = friendsData.friends[friendIndex];
-            friend.lastMessage = message;
+            
+            // If message is an image, show [Image] in the sidebar preview
+            const previewText = isImageUrl(message) ? '[Image]' : message;
+            
+            friend.lastMessage = previewText;
             friend.lastMessageTime = time;
             
             if (isUnread) {
                 friend.unreadMessageCount = (friend.unreadMessageCount || 0) + 1;
             }
 
-            // 3. Move to Top of List (Bump)
             friendsData.friends.splice(friendIndex, 1);
             friendsData.friends.unshift(friend);
 
-            // 4. Re-render list if on 'all' tab
             if (currentTab === 'all') {
                 renderFriendList();
-                
-                // Re-apply active class if this person is currently selected
                 if (currentChatFriendId === userId) {
                     const el = document.querySelector(`.friend-item[data-user-id="${userId}"]`);
                     if (el) el.classList.add('active');
                 }
             }
-        } else {
-            // Optional: If friend not in list (rare case for confirmed friends), reload list
-            // loadFriendList(); 
         }
     }
 
@@ -1160,7 +1273,6 @@
                     if (!isNaN(friendId)) {
                         setTimeout(() => {
                             openChatFromList(friendId);
-                            // Clear the chatWith parameter
                             const url = new URL(window.location);
                             url.searchParams.delete('chatWith');
                             window.history.replaceState({}, '', url);

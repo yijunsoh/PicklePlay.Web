@@ -4,7 +4,6 @@
     int analyzedCount = ViewBag.AnalyzedCount ?? 0;
     var items = (Model ?? Enumerable.Empty<PicklePlay.Models.ViewModels.AiSuggestionViewModel>()).ToList();
     int total = items.Count;
-    // Calculate layout: sets of 3, then the remainder
     int fullRows = (total / 3) * 3;
     int remainder = total - fullRows;
 }
@@ -12,13 +11,23 @@
 <div class="container py-5">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
-            <h2 class="fw-bold d-inline">Partner Recommendations</h2>
-            <button type="button" class="btn btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#analyticsExplainModal" title="How analytics works">
-                <i class="bi bi-question-circle" style="font-size:1.05rem"></i>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold d-inline mb-0">AI Partner Recommendations</h2>
+                
+                <div class="badge bg-white text-dark border shadow-sm d-flex align-items-center px-3 py-2 rounded-pill">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" class="me-2">
+                        <path fill="#000" d="M22.2819 9.82116C22.1842 8.42443 21.2311 7.17203 19.9096 6.68761C19.9096 6.68761 19.9096 6.68761 19.9049 6.68761C19.7662 4.32198 17.8337 2.44902 15.4681 2.19432C13.1072 1.93493 10.8635 3.02189 9.65208 4.97796C7.29633 4.67703 5.09645 6.0784 4.32435 8.32602C3.55225 10.5736 4.46613 13.0619 6.52477 14.4171C6.52477 14.4171 6.52477 14.4171 6.52948 14.4171C6.66815 16.7827 8.60067 18.6557 10.9663 18.9104C13.3319 19.1698 15.5756 18.0828 16.7823 16.1267C19.1381 16.4277 21.338 15.0263 22.1101 12.7787C22.7173 11.9443 22.8913 10.8871 22.2819 9.82116ZM11.772 17.0167C9.70427 17.0167 8.02127 15.3337 8.02127 13.266C8.02127 13.0964 8.03069 12.9315 8.05423 12.7714L10.6228 14.0527C10.9713 14.2269 11.3905 14.2269 11.7343 14.0527L16.7163 11.5599C16.6928 11.5929 16.6692 11.6211 16.6457 11.6541C15.8636 14.7811 14.3997 16.6823 11.772 17.0167ZM17.2532 6.61224C17.0884 6.61224 16.9235 6.62166 16.7634 6.6452L14.1948 5.36384C13.8463 5.18957 13.4271 5.18957 13.0833 5.36384L8.10127 7.8567C8.12482 7.82373 8.14837 7.79547 8.17192 7.7625C8.95401 4.63546 10.4179 2.7343 13.0456 2.39993C15.1133 2.39993 16.7963 4.08293 16.7963 6.15066C16.7963 6.32022 16.7869 6.48509 16.7634 6.6452H17.2532V6.61224ZM5.52621 11.6965C6.3083 8.56946 7.77221 6.6683 10.3999 6.33393C10.5648 6.33393 10.7296 6.32451 10.8898 6.30097L10.8851 11.8943L5.90302 14.3871C5.90302 14.3541 5.90302 14.3259 5.90302 14.2882C5.90302 14.2553 5.90302 14.2223 5.90302 14.1846C5.90302 13.3179 6.19977 12.4972 6.68491 11.8331C6.23272 11.9603 5.83708 11.899 5.52621 11.6965ZM12.2101 12.5548C12.2101 12.8044 12.0076 13.0069 11.7579 13.0069C11.5083 13.0069 11.3057 12.8044 11.3057 12.5548V7.57416L15.5529 9.69353L12.2101 11.3631V12.5548ZM17.3898 11.037L13.1426 8.91762L16.4854 7.24806V11.4892C16.4854 11.2396 16.6879 11.037 16.9375 11.037C17.1871 11.037 17.3896 11.2396 17.3896 11.4892V11.037H17.3898ZM18.5154 12.7127C18.9676 12.5856 19.3632 12.6468 19.6741 12.8493C18.892 15.9763 17.4281 17.8775 14.8004 18.2119C14.6355 18.2119 14.4707 18.2213 14.3105 18.2448L14.3152 12.6515L19.2973 10.1587C19.2973 10.1916 19.2973 10.2199 19.2973 10.2576C19.2973 10.2905 19.2973 10.3235 19.2973 10.3612C19.2973 11.2278 19.0006 12.0486 18.5154 12.7127ZM9.64646 14.8572L13.8937 16.9766L10.5508 18.6462V14.405C10.5508 14.6546 10.3483 14.8572 10.0987 14.8572C9.84907 14.8572 9.64657 14.6546 9.64657 14.405L9.64646 14.8572Z"/>
+                    </svg>
+                    <span style="font-weight: 600; font-size: 0.85rem;">Powered by OpenAI</span>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-link p-0 text-muted text-decoration-none" data-bs-toggle="modal" data-bs-target="#analyticsExplainModal">
+                <i class="bi bi-info-circle"></i> How analytics works
             </button>
+            
             <div class="small text-muted mt-1">
-                Analyzed <strong class="text-dark">@analyzedCount</strong> players.
-                Top <strong class="text-primary">@(items.Count)</strong>.
+                Analyzed <strong class="text-dark">@analyzedCount</strong> players. Top <strong class="text-primary">@(items.Count)</strong>.
             </div>
         </div>
     </div>
@@ -27,12 +36,7 @@
     {
         <div class="alert alert-light text-center shadow-sm p-5">
             <h4 class="alert-heading text-muted">No suggestions found yet</h4>
-            <p class="mb-0">
-                @(ViewBag.Message ?? "We couldn't find a good match based on your current profile.")
-            </p>
-            <small class="text-muted mt-3 d-block">
-                (Debug: Analyzed @analyzedCount other users)
-            </small>
+            <p class="mb-0">@(ViewBag.Message ?? "We couldn't find a good match based on your current profile.")</p>
         </div>
     }
     else
@@ -48,7 +52,7 @@
                     var isHighMatch = s.Score >= 80;
 
                     <div class="col">
-                        <div class="card h-100 border-0 shadow-sm position-relative" style="border-radius:16px;overflow:hidden; transition: transform .18s;" 
+                        <div class="card h-100 border-0 shadow-sm position-relative" style="border-radius:16px;overflow:hidden; transition: transform .18s;"
                              onmouseover="this.style.transform='translateY(-5px)'" 
                              onmouseout="this.style.transform='translateY(0)'">
                             
@@ -85,24 +89,47 @@
                     <div class="modal fade" id="reasonModal-@i" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content border-0 shadow">
-                                <div class="modal-header border-0">
-                                    <h5 class="modal-title fw-bold">Analysis for @s.UserName</h5>
+                                <div class="modal-header border-0 bg-light">
+                                    <h5 class="modal-title fw-bold text-primary"><i class="bi bi-stars me-2"></i>AI Analysis for @s.UserName</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
-                                <div class="modal-body">
-                                    <div class="d-flex align-items-start">
-                                        <div class="fs-1 text-info me-3"><i class="bi bi-cpu"></i></div>
-                                        <div>
-                                            <p class="text-muted small mb-1 text-uppercase fw-bold">Reasoning</p>
-                                            <p class="fw-medium mb-0">@s.Explanation</p>
-                                        </div>
-                                    </div>
-                                    <hr class="my-3 opacity-25" />
-                                    <div class="text-muted small">
-                                        <strong>Data Reliability: @s.Reliability%</strong><br/>
-                                        (Based on: Rank, History, Location, Endorsements)
-                                    </div>
-                                </div>
+                                <div class="modal-body p-4">
+    <div class="d-flex align-items-start mb-4">
+        <div class="fs-1 text-primary me-3"><i class="bi bi-quote"></i></div>
+        <div>
+            <p class="text-muted small mb-1 text-uppercase fw-bold">GPT-4o Reasoning</p>
+            <p class="fw-medium mb-0 fst-italic">"@s.Explanation"</p>
+        </div>
+    </div>
+
+    @if (s.ScoreBreakdown != null && s.ScoreBreakdown.Any())
+    {
+        <div class="bg-light p-3 rounded-3">
+            <h6 class="fw-bold mb-3 small text-uppercase text-muted">Match Breakdown</h6>
+            
+            @foreach (var item in s.ScoreBreakdown)
+            {
+                // Calculate percentage relative to the weights defined in prompt
+                // Weights: Rating(20), History(20), Vibe(15), Location(15), Active(15), Demo(15)
+                double maxVal = (item.Key.Contains("Rating") || item.Key.Contains("History")) ? 20.0 : 15.0;
+                double percent = (item.Value / maxVal) * 100;
+                
+                // Color logic
+                string barColor = percent >= 80 ? "bg-success" : (percent >= 50 ? "bg-primary" : "bg-warning");
+
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>@item.Key</span>
+                        <span class="fw-bold">@item.Value <span class="text-muted">/ @maxVal</span></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar @barColor" role="progressbar" style="width: @percent%"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
                                 <div class="modal-footer border-0 bg-light">
                                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                                 </div>
@@ -112,7 +139,8 @@
                 }
             </div>
         }
-
+        
+        // ... (Repeater for remainder logic, same fix for onclick) ...
         @if (remainder > 0)
         {
             <div class="row g-4 mb-3 justify-content-center">
@@ -156,28 +184,50 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="modal fade" id="reasonModal-@i" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content border-0 shadow">
-                                <div class="modal-header border-0">
-                                    <h5 class="modal-title fw-bold">Analysis for @s.UserName</h5>
+                                <div class="modal-header border-0 bg-light">
+                                    <h5 class="modal-title fw-bold text-primary"><i class="bi bi-stars me-2"></i>AI Analysis for @s.UserName</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
-                                <div class="modal-body">
-                                    <div class="d-flex align-items-start">
-                                        <div class="fs-1 text-info me-3"><i class="bi bi-cpu"></i></div>
-                                        <div>
-                                            <p class="text-muted small mb-1 text-uppercase fw-bold">Reasoning</p>
-                                            <p class="fw-medium mb-0">@s.Explanation</p>
-                                        </div>
-                                    </div>
-                                    <hr class="my-3 opacity-25" />
-                                    <div class="text-muted small">
-                                        <strong>Data Reliability: @s.Reliability%</strong><br/>
-                                        (Based on: Rank, History, Location, Endorsements)
-                                    </div>
-                                </div>
+                                <div class="modal-body p-4">
+    <div class="d-flex align-items-start mb-4">
+        <div class="fs-1 text-primary me-3"><i class="bi bi-quote"></i></div>
+        <div>
+            <p class="text-muted small mb-1 text-uppercase fw-bold">GPT-4o Reasoning</p>
+            <p class="fw-medium mb-0 fst-italic">"@s.Explanation"</p>
+        </div>
+    </div>
+
+    @if (s.ScoreBreakdown != null && s.ScoreBreakdown.Any())
+    {
+        <div class="bg-light p-3 rounded-3">
+            <h6 class="fw-bold mb-3 small text-uppercase text-muted">Match Breakdown</h6>
+            
+            @foreach (var item in s.ScoreBreakdown)
+            {
+                // Calculate percentage relative to the weights defined in prompt
+                // Weights: Rating(20), History(20), Vibe(15), Location(15), Active(15), Demo(15)
+                double maxVal = (item.Key.Contains("Rating") || item.Key.Contains("History")) ? 20.0 : 15.0;
+                double percent = (item.Value / maxVal) * 100;
+                
+                // Color logic
+                string barColor = percent >= 80 ? "bg-success" : (percent >= 50 ? "bg-primary" : "bg-warning");
+
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>@item.Key</span>
+                        <span class="fw-bold">@item.Value <span class="text-muted">/ @maxVal</span></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar @barColor" role="progressbar" style="width: @percent%"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
                                 <div class="modal-footer border-0 bg-light">
                                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                                 </div>
@@ -190,6 +240,7 @@
     }
 </div>
 
+      
 <div class="modal fade" id="analyticsExplainModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -204,8 +255,8 @@
                 <h6 class="mt-3">Signals and Weights</h6>
                 <ul>
                     <li><strong>Rating (weight ~20%)</strong> — normalized user rating.</li>
-                    <li><strong>History / Endorsements (weight ~15%)</strong> — number and relevance of past matches.</li>
-                    <li><strong>Vibe / Personality match (weight ~15%)</strong> — trait overlap based on endorsements.</li>
+                    <li><strong>Match History (weight ~20%)</strong> — number and relevance of past matches.</li>
+                    <li><strong>Endorsements (weight ~15%)</strong> — trait overlap based on endorsements.</li>
                     <li><strong>Location / Proximity (weight ~15%)</strong> — nearby preferred.</li>
                     <li><strong>Activeness (weight ~15%)</strong> — recent activity.</li>
                     <li><strong>Age / Gender fit (weight ~20%)</strong> — preferences and reasonable age gaps.</li>

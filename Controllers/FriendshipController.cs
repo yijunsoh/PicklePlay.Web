@@ -11,11 +11,14 @@ namespace PicklePlay.Controllers
     public class FriendshipController : Controller
     {
         private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _webHostEnvironment; // Add this
 
-        public FriendshipController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
+    // Update Constructor
+    public FriendshipController(ApplicationDbContext context, IWebHostEnvironment webHostEnvironment)
+    {
+        _context = context;
+        _webHostEnvironment = webHostEnvironment;
+    }
 
         // ⬇️ CHANGED: Use Session instead of Claims
         private int GetCurrentUserId()
@@ -352,6 +355,45 @@ namespace PicklePlay.Controllers
 
             return Json(new { success = true, message = "Message sent!", data = new { messageId = message.MessageId } });
         }
+
+        [HttpPost]
+    public async Task<IActionResult> UploadChatMedia(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { success = false, message = "No file selected" });
+
+        // Validate File Type (Images only for now)
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+            return BadRequest(new { success = false, message = "Invalid file type. Only images allowed." });
+
+        // Validate Size (5MB)
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(new { success = false, message = "File too large (Max 5MB)" });
+
+        try
+        {
+            // Save File
+            string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "chat");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            string uniqueName = $"{Guid.NewGuid()}{extension}";
+            string filePath = Path.Combine(uploadsFolder, uniqueName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Return the URL
+            return Json(new { success = true, url = $"/uploads/chat/{uniqueName}" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
 
         [HttpGet]
         public IActionResult TestSignalR()

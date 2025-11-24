@@ -12,5 +12,6 @@ namespace PicklePlay.Models.ViewModels
         public string SuitabilityLabel { get; set; } = "Good";
         public string Explanation { get; set; } = string.Empty;
         public double Reliability { get; set; }
+        public Dictionary<string, double> ScoreBreakdown { get; set; } = new();
     }
 }
