@@ -985,19 +985,18 @@
         const messagesDiv = document.getElementById('chatMessages');
         if (!messagesDiv) return;
 
+        // ⬇️ FIX: Updated HTML structure to match renderMessages() exactly
         const messageHtml = `
-            <div class="message-group" style="display: flex; ${isMine ? 'justify-content: flex-end;' : ''}">
-                <div>
-                    <div class="message-bubble ${isMine ? 'message-sent' : 'message-received'}">
-                        ${data.content}
-                    </div>
-                    <div class="message-time ${isMine ? 'text-end' : ''}">
-                        Just now
-                    </div>
+            <div class="message-group" style="display: flex; flex-direction: column; align-items: ${isMine ? 'flex-end' : 'flex-start'};">
+                <div class="message-bubble ${isMine ? 'message-sent' : 'message-received'}">
+                    ${data.content}
+                </div>
+                <div class="message-time">
+                    Just now
                 </div>
             </div>
         `;
-
+        
         messagesDiv.insertAdjacentHTML('beforeend', messageHtml);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
