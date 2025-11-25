@@ -17,23 +17,36 @@
     }
 
     // Get status text and CSS class
-    (string, string) GetStatusInfo(ScheduleParticipant? p)
+    (string, string) GetStatusInfo(ScheduleParticipant? p, bool isFull)
     {
-        if (p == null) return ("", "");
-        return p.Status switch
+        if (p != null)
         {
-            ParticipantStatus.Confirmed => ("Confirmed", "status-confirmed"),
-            ParticipantStatus.PendingPayment => ("Pending", "status-pending"),
-            ParticipantStatus.OnHold => ("On Hold", "status-onhold"),
-            ParticipantStatus.Cancelled => ("Quit", "status-cancelled"),
-            _ => ("", "")
-        };
+            return p.Status switch
+            {
+                ParticipantStatus.Confirmed => ("Confirmed", "status-confirmed"),
+                ParticipantStatus.PendingPayment => ("Pending", "status-pending"),
+                ParticipantStatus.OnHold => ("On Hold", "status-onhold"),
+                ParticipantStatus.Cancelled => ("Quit", "status-cancelled"),
+                _ => ("", "")
+            };
+        }
+        
+        // If user not joined, check if full
+        if (isFull)
+        {
+            return ("FULL", "status-full");
+        }
+
+        return ("", "");
     }
 
-    // Filter by OneOff, StartTime.HasValue, and future games
+    // ⬇️ UPDATED QUERY: Filter by OneOff, Future, Public Game & Public Community
+    // (Assuming Model passed from controller already has .Include(s => s.Community))
     var games = Model.Where(s => s.ScheduleType == ScheduleType.OneOff &&
                                  s.StartTime.HasValue &&
-                                 s.StartTime.Value.Date >= today)
+                                 s.StartTime.Value.Date >= today &&
+                                 s.Privacy == Privacy.Public &&
+                                 (s.Community == null || s.Community.CommunityType == "Public")) // Ensure community is public
                      .OrderBy(s => s.StartTime);
 
     var groupedByDay = games.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
@@ -41,128 +54,171 @@
 
 <style>
     .game-card {
-        position: relative; /* Needed for the status badge */
-        overflow: hidden; /* Ensures badge corners look clean */
+        position: relative;
+        overflow: hidden;
+        border-left: 4px solid transparent; /* Prep for hover effect */
+        transition: all 0.2s ease;
     }
     .game-card:hover {
         background-color: #f8f9fa;
-        transform: scale(1.01);
-        transition: 0.2s;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-left-color: #2E8B57; /* Green accent on hover */
     }
     
-    /* === NEW STATUS BADGE STYLES === */
+    /* === STATUS BADGE STYLES === */
     .status-badge {
         position: absolute;
-        top: -1px;
-        right: -1px;
+        top: 0;
+        right: 0;
         font-size: 0.75rem;
         font-weight: bold;
-        padding: 0.3em 0.6em;
-        border-bottom-left-radius: 0.375rem; /* Equivalent to 'rounded-bottom-start' */
+        padding: 0.3em 0.8em;
+        border-bottom-left-radius: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .status-confirmed {
-        background-color: #d1e7dd; /* success-subtle */
-        color: #0a3622; /* success-emphasis */
-        border: 1px solid #a3cfbb;
-    }
+    .status-confirmed { background-color: #d1e7dd; color: #0f5132; }
+    .status-pending { background-color: #cff4fc; color: #055160; }
+    .status-onhold { background-color: #fff3cd; color: #664d03; }
+    .status-cancelled { background-color: #f8d7da; color: #842029; }
+    .status-full { background-color: #6c757d; color: #fff; } /* Gray for Full */
 
-    .status-pending {
-        background-color: #cff4fc; /* info-subtle */
-        color: #055160; /* info-emphasis */
-        border: 1px solid #9eeaf9;
+    /* Community Badge */
+    .community-tag {
+        font-size: 0.75rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
     }
-
-    .status-onhold {
-        background-color: #fff3cd; /* warning-subtle */
-        color: #664d03; /* warning-emphasis */
-        border: 1px solid #ffe69c;
+    .community-icon-small {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        object-fit: cover;
+        margin-right: 6px;
+        background-color: #e9ecef; /* Placeholder color */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
     }
-
-    .status-cancelled {
-        background-color: #f8d7da; /* danger-subtle */
-        color: #58151c; /* danger-emphasis */
-        border: 1px solid #f1aeb5;
-    }
-    /* === END NEW STYLES === */
 </style>
 
 <div class="container mt-4 page-wrapper">
-    <h2 class="mb-4">Games Schedule</h2>
+    <h2 class="mb-4"><i class="bi bi-calendar3-event me-2"></i>Public Games</h2>
 
     @if (!groupedByDay.Any())
     {
-        <p class="text-muted">No upcoming one-off games found.</p>
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-calendar-x fs-1"></i>
+            <p class="mt-2">No upcoming public games found.</p>
+        </div>
     }
 
     @foreach (var dayGroup in groupedByDay)
     {
-        <h4 class="mt-5 mb-3" style="border-bottom: 2px solid #eee; padding-bottom: 5px;">
-            @GetFriendlyDateString(dayGroup.Key)
-        </h4>
+        <h5 class="mt-4 mb-3 text-primary border-bottom pb-2">
+            <i class="bi bi-calendar-date me-2"></i>@GetFriendlyDateString(dayGroup.Key)
+        </h5>
 
         var groupedByTime = dayGroup.GroupBy(g => g.StartTime!.Value.TimeOfDay).OrderBy(tg => tg.Key);
 
         @foreach (var timeGroup in groupedByTime)
         {
-            <h6 class="text-muted mt-3">@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")</h6>
+            <div class="mb-2 text-muted small fw-bold">
+                <i class="bi bi-clock me-1"></i>@timeGroup.First().StartTime!.Value.ToString("hh:mm tt")
+            </div>
 
-            @foreach (var game in timeGroup)
-            {
-                // --- Find user's status for this game ---
-                var userParticipation = currentUserId.HasValue ? 
-                    game.Participants?.FirstOrDefault(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player) : 
-                    null;
-                
-                var (statusText, statusClass) = GetStatusInfo(userParticipation);
-                
-                <div class="card mb-3 shadow-sm game-card"
-                     onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
-                     style="cursor:pointer;">
+            <div class="row g-3">
+                @foreach (var game in timeGroup)
+                {
+                    // --- Calculate Counts (Include Reserved Slots) ---
+                    var confirmedPlayers = game.Participants!.Where(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed).ToList();
+                    int totalConfirmedCount = confirmedPlayers.Sum(p => 1 + p.ReservedSlots); // 1 (Self) + Reserved
+                    int maxPlayers = game.NumPlayer ?? 0;
+                    bool isFull = maxPlayers > 0 && totalConfirmedCount >= maxPlayers;
+
+                    // --- Find user's status ---
+                    var userParticipation = currentUserId.HasValue ? 
+                        game.Participants?.FirstOrDefault(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player) : 
+                        null;
                     
-                    <!-- *** NEW: STATUS BADGE *** -->
-                    @if (!string.IsNullOrEmpty(statusText))
-                    {
-                        <div class="status-badge @statusClass">@statusText</div>
-                    }
+                    var (statusText, statusClass) = GetStatusInfo(userParticipation, isFull);
                     
-                    <div class="card-body d-flex justify-content-between align-items-center">
-                        
-                        <div>
-                            <h5 class="card-title mb-1">@game.GameName</h5>
-                            <p class="mb-0"><strong>Location:</strong> @game.Location</p>
-                            <p class="mb-0 text-muted">
-                                @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm game-card"
+                             onclick="location.href='@Url.Action("Details", "Schedule", new { id = game.ScheduleId })'"
+                             style="cursor:pointer;">
+                            
+                            @if (!string.IsNullOrEmpty(statusText))
+                            {
+                                <div class="status-badge @statusClass">@statusText</div>
+                            }
+                            
+                            <div class="card-body">
+                                @if (game.Community != null)
                                 {
-                                    <span class="badge bg-primary">@game.EventTag.ToString()</span>
+                                    <div class="community-tag">
+                                        @if(!string.IsNullOrEmpty(game.Community.CommunityPic))
+                                        {
+                                            // Assuming Icon is a FontAwesome class like "fa-users"
+                                            <div class="community-icon-small text-white bg-secondary">
+                                                <i class="fas fa-@game.Community.CommunityPic"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="community-icon-small text-white bg-secondary">
+                                                <i class="fas fa-users"></i>
+                                            </div>
+                                        }
+                                        <span>@game.Community.CommunityName</span>
+                                    </div>
                                 }
-                            </p>
-                        </div>
 
-                        <div class="text-end">
-                            @{
-                                var confirmedCount = game.Participants?.Count(p => p.Role == ParticipantRole.Player && p.Status == ParticipantStatus.Confirmed) ?? 0;
-                            }
+                                <h5 class="card-title mb-2 text-truncate" title="@game.GameName">@game.GameName</h5>
+                                
+                                <div class="text-muted small mb-2">
+                                    <i class="bi bi-geo-alt-fill me-1 text-danger"></i>@game.Location
+                                </div>
 
-                            @if (game.NumPlayer.HasValue && game.NumPlayer > 0)
-                            {
-                                <h5 class="mb-0">
-                                    <i class="bi bi-people-fill text-success"></i>
-                                    <span class="ms-1">@confirmedCount / @game.NumPlayer</span>
-                                </h5>
-                            }
-                            else
-                            {
-                                <h5 class="mb-0">
-                                    <i class="bi bi-people-fill text-success"></i>
-                                    <span class="ms-1">@confirmedCount</span>
-                                </h5>
-                            }
+                                <div class="d-flex justify-content-between align-items-end mt-3">
+                                    <div>
+                                        @if(game.EventTag.HasValue && game.EventTag != EventTag.None)
+                                        {
+                                            <span class="badge bg-light text-primary border border-primary">
+                                                @game.EventTag.ToString()
+                                            </span>
+                                        }
+                                        @if(game.FeeType == FeeType.Free || game.FeeType == FeeType.None)
+                                        {
+                                            <span class="badge bg-success ms-1">Free</span>
+                                        }
+                                    </div>
+
+                                    <div class="text-end">
+                                        @if (maxPlayers > 0)
+                                        {
+                                            <span class="fw-bold @(isFull ? "text-danger" : "text-success")">
+                                                <i class="bi bi-person-fill"></i> @totalConfirmedCount / @maxPlayers
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold text-success">
+                                                <i class="bi bi-person-fill"></i> @totalConfirmedCount
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            }
-        }
+                }
+            </div>
+            <div class="mb-4"></div> }
     }
 </div>
-

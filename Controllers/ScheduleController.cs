@@ -32,15 +32,22 @@ namespace PicklePlay.Controllers
 
 
         // *** MODIFIED THIS ACTION ***
-        public async Task<IActionResult> GameListing()
-        {
-            // We use _context directly to be able to use .Include()
-            // This pulls in the Participants list for each schedule
-            var schedules = await _context.Schedules
-                                          .Include(s => s.Participants)
-                                          .ToListAsync();
-            return View(schedules);
-        }
+public async Task<IActionResult> GameListing()
+{
+    var schedules = await _context.Schedules
+        .Include(s => s.Participants) // Needed for counting players
+        .Include(s => s.Community)    // ⬅️ CRITICAL: Needed to show Community Name & Icon
+        .Where(s => 
+            s.ScheduleType == ScheduleType.OneOff &&   // Only show One-Off games
+            s.StartTime >= DateTime.Today &&           // Only show future games
+            s.Privacy == Privacy.Public &&             // Only Public games
+            (s.Community == null || s.Community.CommunityType == "Public") // Only Public Communities (or no community)
+        )
+        .OrderBy(s => s.StartTime)
+        .ToListAsync();
+
+    return View(schedules);
+}
         private int? GetCurrentUserId()
         {
             // Use GetInt32 instead of GetString
