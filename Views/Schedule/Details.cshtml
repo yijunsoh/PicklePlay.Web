@@ -174,6 +174,33 @@
             }
         }
     }
+
+    bool canCancel = true;
+    string freezeReason = "";
+
+    if (Model.StartTime.HasValue && Model.CancellationFreeze != CancellationFreeze.None)
+    {
+        int hoursBefore = Model.CancellationFreeze switch
+        {
+            CancellationFreeze.B2hr => 2,
+            CancellationFreeze.B4hr => 4,
+            CancellationFreeze.B6hr => 6,
+            CancellationFreeze.B8hr => 8,
+            CancellationFreeze.B12hr => 12,
+            CancellationFreeze.B24hr => 24,
+            _ => 0
+        };
+
+        if (hoursBefore > 0)
+        {
+            var freezeTime = Model.StartTime.Value.AddHours(-hoursBefore);
+            if (DateTime.Now >= freezeTime)
+            {
+                canCancel = false;
+                freezeReason = $"Cancellation is frozen {hoursBefore} hours before the game.";
+            }
+        }
+    }
 }
 
 <style>
@@ -685,14 +712,24 @@
 
 
 
-                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
-                                onsubmit="return confirm('Are you sure you want to leave this game?');">
-                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
-                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-box-arrow-left"></i> Leave Game
-                                </button>
-                            </form>
+                            @if (canCancel)
+        {
+            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
+                onsubmit="return confirm('Are you sure you want to leave this game?');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-box-arrow-left"></i> Leave Game
+                </button>
+            </form>
+        }
+        else
+        {
+            <button type="button" class="btn btn-sm btn-secondary w-100 mt-2" disabled title="@freezeReason">
+                <i class="bi bi-lock-fill"></i> Cancellation Frozen
+            </button>
+            <small class="text-danger d-block text-center mt-1">@freezeReason</small>
+        }
                         }
 
                         @if ((currentUserParticipation == null || currentUserParticipation.Status ==
