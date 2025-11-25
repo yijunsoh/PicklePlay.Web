@@ -27,7 +27,7 @@ namespace PicklePlay.Controllers
             return _httpContextAccessor.HttpContext?.Session.GetInt32("UserId");
         }
 
-        // --- UPDATED [HttpGet] Give ACTION ---
+ // --- UPDATED [HttpGet] Give ACTION ---
         [HttpGet]
         public async Task<IActionResult> Give(int id)
         {
@@ -37,13 +37,28 @@ namespace PicklePlay.Controllers
             var schedule = await _context.Schedules.FindAsync(id);
             if (schedule == null) return NotFound();
 
-            if (schedule.EndorsementStatus != EndorsementStatus.PendingEndorsement)
+            // 1. Check Status
+            // Allow if explicitly PendingEndorsement OR if it's Past but not explicitly Closed yet
+            bool isEndorsementOpen = schedule.EndorsementStatus == EndorsementStatus.PendingEndorsement || 
+                                    (schedule.Status == ScheduleStatus.Past && schedule.EndorsementStatus != EndorsementStatus.Closed);
+
+            if (!isEndorsementOpen)
             {
                 TempData["ErrorMessage"] = "Endorsements are not open for this game.";
                 return RedirectToAction("MyGame", "MyGame");
             }
+
+            // 2. Check 48-Hour Window (NEW)
+            // If 48 hours have passed since EndTime, block access
+            bool isWithin48Hours = schedule.EndTime.HasValue && DateTime.Now <= schedule.EndTime.Value.AddHours(48);
+
+            if (!isWithin48Hours)
+            {
+                TempData["ErrorMessage"] = "The 48-hour endorsement period has ended.";
+                return RedirectToAction("MyGame", "MyGame");
+            }
             
-            // Get all confirmed players, EXCLUDING the current user
+            // 3. Get confirmed players (excluding self)
             var participants = await _context.ScheduleParticipants
                 .Include(p => p.User)
                 .Where(p => p.ScheduleId == id &&
@@ -53,7 +68,7 @@ namespace PicklePlay.Controllers
                 .OrderBy(p => p.User!.Username)
                 .ToListAsync();
 
-            // Get endorsements this user has *already given* in this game
+            // 4. Get existing endorsements
             var existingEndorsements = await _context.Endorsements
                 .Where(e => e.ScheduleId == id && e.GiverUserId == currentUserId.Value)
                 .ToDictionaryAsync(e => e.ReceiverUserId, e => e); // Key = ReceiverUserId
@@ -64,7 +79,7 @@ namespace PicklePlay.Controllers
                 ScheduleName = schedule.GameName ?? "Game"
             };
 
-            // Map participants and their existing endorsements
+            // 5. Map data
             foreach (var p in participants)
             {
                 var participantVM = new ParticipantEndorsement

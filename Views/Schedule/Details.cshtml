@@ -421,7 +421,7 @@
                         <div class="organizer-item" style="cursor: pointer;" onclick="showUserProfilePreview(@p.UserId)"
                             title="Click to view @p.User?.Username's profile">
                             <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User.ProfilePicture)"
-                                alt="Profile" />
+                                alt="Profile" onerror="this.src='/images/user.png'"/>
                             <span class="player-name">@p.User?.Username</span>
                         </div>
                     }
@@ -450,7 +450,7 @@
                         title="Click to view @p.User?.Username's profile">
                         <div class="player-slot">
                             <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                alt="Profile" />
+                                alt="Profile" onerror="this.src='/images/user.png'"/>
                         </div>
                         <span class="player-name">@p.User?.Username</span>
                     </div>
@@ -460,7 +460,7 @@
                         <div class="player-slot-wrapper" title="Reserved by @p.User?.Username">
                             <div class="player-slot">
                                 <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                    alt="Profile" />
+                                    alt="Profile" onerror="this.src='/images/user.png'"/>
                             </div>
                             <span class="player-name">@p.User?.Username+@i</span>
                         </div>
@@ -492,7 +492,7 @@
                             title="Click to view @p.User?.Username's profile">
                             <div class="player-slot">
                                 <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                    alt="Profile" />
+                                    alt="Profile" onerror="this.src='/images/user.png'"/>
                             </div>
                             <span class="player-name">@p.User?.Username</span>
                         </div>
@@ -502,7 +502,7 @@
                             <div class="player-slot-wrapper" title="Reserved by @p.User?.Username">
                                 <div class="player-slot">
                                     <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                        alt="Profile" />
+                                        alt="Profile" onerror="this.src='/images/user.png'"/>
                                 </div>
                                 <span class="player-name">@p.User?.Username+@i</span>
                             </div>
@@ -522,7 +522,7 @@
                             title="Click to view @p.User?.Username's profile">
                             <div class="player-slot">
                                 <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                    alt="Profile" />
+                                    alt="Profile" onerror="this.src='/images/user.png'"/>
                             </div>
                             <span class="player-name">@p.User?.Username</span>
                         </div>
@@ -532,7 +532,7 @@
                             <div class="player-slot-wrapper" title="Reserved by @p.User?.Username">
                                 <div class="player-slot">
                                     <img src="@(string.IsNullOrEmpty(p.User?.ProfilePicture) ? "/images/profile_image.jpg" : p.User?.ProfilePicture)"
-                                        alt="Profile" />
+                                        alt="Profile" onerror="this.src='/images/user.png'"/>
                                 </div>
                                 <span class="player-name">@p.User?.Username+@i</span>
                             </div>
@@ -730,17 +730,6 @@
             </button>
             <small class="text-danger d-block text-center mt-1">@freezeReason</small>
         }
-                        }
-
-                        @if ((currentUserParticipation == null || currentUserParticipation.Status ==
-                                                ParticipantStatus.Cancelled) &&
-                                                organizers.Any(o => o.UserId == currentUserId) &&
-                                                Model.HostRole == HostRole.HostOnly)
-                        {
-                            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
-                                data-bs-target="#joinGameModal">
-                                <i class="bi bi-person-plus-fill"></i> Host and Play
-                            </button>
                         }
 
                         @if (!currentUserId.HasValue)

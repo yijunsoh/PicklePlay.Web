@@ -120,7 +120,11 @@
 
                     <div class="endorsement-card">
                         <div class="endorsement-header">
-                            <img src="@(string.IsNullOrEmpty(p.ProfilePicture) ? "/images/profile_image.jpg" : p.ProfilePicture)" alt="@p.Username" />
+                            <img src="@(string.IsNullOrEmpty(p.ProfilePicture) ? "/images/profile_image.jpg" : p.ProfilePicture)" 
+         alt="@p.Username"
+         onerror="this.src='/images/user.png'"
+         onclick="showUserProfilePreview(@p.ReceiverUserId)"
+         style="cursor: pointer;" />
                             <h4>@p.Username</h4>
                         </div>
                         <div class="endorsement-body">

@@ -83,12 +83,26 @@
         </div>
         
         <div class="mt-auto pt-2">
-            
-            @if (Model.EndorsementStatus == EndorsementStatus.PendingEndorsement)
+            @{
+                // ⬇️ NEW: Check 48-Hour Window
+                bool isWithin48Hours = Model.EndTime.HasValue && DateTime.Now <= Model.EndTime.Value.AddHours(48);
+                bool isEndorsementOpen = (Model.EndorsementStatus == EndorsementStatus.PendingEndorsement || 
+                                         (Model.Status == ScheduleStatus.Past && Model.EndorsementStatus != EndorsementStatus.Closed));
+            }
+
+            @* Show button ONLY if status allows AND it's within 48 hours *@
+            @if (isEndorsementOpen && isWithin48Hours)
             {
                 <a asp-action="Give" asp-controller="Endorsement" asp-route-id="@Model.ScheduleId" class="btn btn-sm btn-warning w-100 mb-1">
                     <i class="bi bi-award-fill"></i> @(hasEndorsed ? "Give/Edit Endorsements" : "Give Endorsements")
                 </a>
+            }
+            else if (isEndorsementOpen && !isWithin48Hours)
+            {
+                // Optional: Show a disabled button or message saying "Closed"
+                <button class="btn btn-sm btn-secondary w-100 mb-1" disabled>
+                    <i class="bi bi-clock-history"></i> Endorsement Closed
+                </button>
             }
 
             @if (hasEndorsed)
@@ -98,11 +112,12 @@
                 </a>
             }
 
-            @if (Model.EndorsementStatus == EndorsementStatus.InProgress)
+            @* Show View Details logic remains the same *@
+            @if (Model.Status == ScheduleStatus.Active || Model.EndorsementStatus == EndorsementStatus.InProgress || Model.EndorsementStatus == EndorsementStatus.Closed)
             {
                 <a asp-controller="Schedule" asp-action="Details" asp-route-id="@Model.ScheduleId" class="btn btn-sm btn-outline-primary w-100">View Details</a>
             }
-            
+       
         </div>
     </div>
 </div>

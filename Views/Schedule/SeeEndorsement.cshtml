@@ -136,23 +136,26 @@
                     <div class="endorsement-grid">
                          @foreach (var r in group.Recipients!)
                         {
-                            <div class="player-avatar">
-                                <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
-                                     alt="@r.Username" 
-                                     class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")" />
-                                
-                                <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
-                                
-                                <span class="player-count">
-                                    @if (r.IsEndorsedByMe && r.Count > 1) {
-                                        <span class="text-success">You, +@(r.Count - 1)</span>
-                                    } else if (r.IsEndorsedByMe && r.Count == 1) {
-                                        <span class="text-success">You</span>
-                                    } else {
-                                        <span>x@(r.Count)</span>
-                                    }
-                                </span>
-                                </div>
+<div class="player-avatar">
+    <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
+         alt="@r.Username" 
+         class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")"
+         onerror="this.src='/images/user.png'"
+         onclick="showUserProfilePreview(@r.UserId)"
+         style="cursor: pointer;" />
+    
+    <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
+    
+    <span class="player-count">
+        @if (r.IsEndorsedByMe && r.Count > 1) {
+            <span class="text-success">You, +@(r.Count - 1)</span>
+        } else if (r.IsEndorsedByMe && r.Count == 1) {
+            <span class="text-success">You</span>
+        } else {
+            <span>x@(r.Count)</span>
+        }
+    </span>
+</div>
                         }
                     </div>
                 }
@@ -176,22 +179,25 @@
                         @foreach (var r in group.Recipients!)
                         {
                             <div class="player-avatar">
-                                <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
-                                     alt="@r.Username" 
-                                     class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")" />
-                                
-                                <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
-                                
-                                <span class="player-count">
-                                    @if (r.IsEndorsedByMe && r.Count > 1) {
-                                        <span class="text-success">You, +@(r.Count - 1)</span>
-                                    } else if (r.IsEndorsedByMe && r.Count == 1) {
-                                        <span class="text-success">You</span>
-                                    } else {
-                                        <span>x@(r.Count)</span>
-                                    }
-                                </span>
-                                </div>
+    <img src="@(string.IsNullOrEmpty(r.ProfilePicture) ? "/images/profile_image.jpg" : r.ProfilePicture)" 
+         alt="@r.Username" 
+         class="@(r.IsEndorsedByMe ? "endorsed-by-me" : "")"
+         onerror="this.src='/images/user.png'"
+         onclick="showUserProfilePreview(@r.UserId)"
+         style="cursor: pointer;" />
+    
+    <span class="player-name">@(r.IsCurrentUser ? "You" : r.Username)</span>
+    
+    <span class="player-count">
+        @if (r.IsEndorsedByMe && r.Count > 1) {
+            <span class="text-success">You, +@(r.Count - 1)</span>
+        } else if (r.IsEndorsedByMe && r.Count == 1) {
+            <span class="text-success">You</span>
+        } else {
+            <span>x@(r.Count)</span>
+        }
+    </span>
+</div>
                         }
                     </div>
                 }
