@@ -1012,16 +1012,26 @@ bool isEligible = true;
                                             </div>
 
                                             <div class="btn-group">
-                                                @if (currentUserId == team.CreatedByUserId &&
-                                                                                            team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
-                                                {
-                                                    <button
-                                                        onclick="openCompetitionPaymentModal(@team.TeamId, @Model.ScheduleId, @Model.FeeAmount)"
-                                                        class="btn btn-sm btn-primary">
-                                                        <i class="bi bi-credit-card"></i> Pay Entry Fee
-                                                    </button>
-                                                }
+                                               @if (currentUserId == team.CreatedByUserId && team.PaymentStatusForSchedule == PaymentStatusForSchedule.Unpaid)
+{
+    // --- EARLY BIRD LOGIC START ---
+    decimal finalFee = Model.FeeAmount ?? 0;
+    bool isEarlyBirdActive = false;
 
+    // Check if Early Bird is configured and we are before the deadline
+    if (Model.EarlyBirdClose.HasValue && DateTime.Now <= Model.EarlyBirdClose.Value && Model.EarlyBirdPrice.HasValue)
+    {
+        finalFee = Model.EarlyBirdPrice.Value;
+        isEarlyBirdActive = true;
+    }
+    // --- EARLY BIRD LOGIC END ---
+
+    <button onclick="openCompetitionPaymentModal(@team.TeamId, @Model.ScheduleId, @finalFee, @(isEarlyBirdActive.ToString().ToLower()))"
+            class="btn btn-sm btn-primary">
+        <i class="bi bi-credit-card"></i> Pay Entry Fee 
+        @if(isEarlyBirdActive) { <span class="badge bg-warning text-dark ms-1">Early Bird</span> }
+    </button>
+}
                                                 @if (team.CreatedByUserId == currentUserId)
                                                 {
                                                                         <form asp-controller="Team" asp-action="DeleteTeam" method="post" class="d-inline"
@@ -3925,17 +3935,44 @@ bool isEligible = true;
     // ================================
     // 2. Open Competition Payment Modal
     // ================================
-    function openCompetitionPaymentModal(teamId, scheduleId, amount) {
+    // ================================
+    // 2. Open Competition Payment Modal (AMENDED)
+    // ================================
+    function openCompetitionPaymentModal(teamId, scheduleId, amount, isEarlyBird) {
 
         teamIdForPayment = teamId;
         compScheduleId = scheduleId;
         compPaymentAmount = amount;
 
-        console.log("OPEN COMP MODAL =>", { teamId, scheduleId, amount });
+        console.log("OPEN COMP MODAL =>", { teamId, scheduleId, amount, isEarlyBird });
 
-        // Update modal UI
-        document.getElementById("paymentAmount").innerText = amount.toFixed(2);
-        document.getElementById("totalAmount").innerText = amount.toFixed(2);
+        // Update modal UI - Total Amount
+        const totalAmountEl = document.getElementById("totalAmount");
+        if(totalAmountEl) {
+            totalAmountEl.innerText = amount.toFixed(2);
+        }
+
+        // Optional: Update the "Fee:" label to show "Early Bird Fee:" if applicable
+        // We find the label that usually says "gameName Fee:" (Source: 6-7 in _PaymentModal)
+        // Note: This assumes the structure in _PaymentModal.cshtml hasn't changed structure heavily.
+        const summaryDiv = document.querySelector('.payment-summary');
+        if (summaryDiv) {
+            // Find the span that holds the label (usually the first span in the flex container)
+            const labelSpan = summaryDiv.querySelector('.d-flex.justify-content-between.mb-2 > span');
+            if (labelSpan) {
+                if (isEarlyBird) {
+                    labelSpan.innerHTML = '<i class="bi bi-stopwatch-fill text-warning"></i> Early Bird Fee:';
+                } else {
+                    labelSpan.innerHTML = 'Registration Fee:';
+                }
+            }
+            
+            // Update the fee amount display next to the label
+            const amountStrong = summaryDiv.querySelector('.d-flex.justify-content-between.mb-2 > strong');
+            if (amountStrong) {
+                amountStrong.innerText = 'RM ' + amount.toFixed(2);
+            }
+        }
 
         // Reuse existing globals from payment modal
         paymentAmount = amount;
@@ -3947,10 +3984,12 @@ bool isEligible = true;
         // Show modal
         let modal = new bootstrap.Modal(document.getElementById("paymentModal"));
         modal.show();
-
-        // Payment modal itself will call checkBalance() automatically
+        
+        // Trigger balance check immediately
+        if (typeof checkBalance === "function") {
+            setTimeout(checkBalance, 300); 
+        }
     }
-
     // ================================
     // 3. Execute Team Payment
     // ================================
