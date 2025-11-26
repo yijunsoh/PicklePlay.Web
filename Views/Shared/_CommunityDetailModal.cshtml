@@ -81,6 +81,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="modalEnterCommunityBtn" class="btn btn-info text-white" style="display: none;">
+                    <i class="fas fa-sign-in-alt me-1"></i>Enter Community
+                </a>
                 <button type="button" class="btn btn-primary" id="modalJoinCommunityBtn">
                     <i class="fas fa-plus me-1"></i>
                     <span>Join Community</span>
@@ -204,6 +207,12 @@
             if (elements.members) elements.members.innerHTML = '<i class="fas fa-users me-1"></i>Loading...';
             if (elements.lastActivity) elements.lastActivity.innerHTML = '<i class="fas fa-clock me-1"></i>Loading...';
 
+            const enterButton = document.getElementById('modalEnterCommunityBtn');
+            if (enterButton) {
+                enterButton.style.display = 'none';
+                enterButton.href = '#';
+            }
+
             const joinButton = document.getElementById('modalJoinCommunityBtn');
             if (joinButton) {
                 joinButton.disabled = false;
@@ -315,27 +324,47 @@
             this.updateJoinButton(community);
         },
 
-        updateJoinButton(community) {
+       updateJoinButton(community) {
             const joinButton = document.getElementById('modalJoinCommunityBtn');
+            const enterButton = document.getElementById('modalEnterCommunityBtn');
+            
             if (!joinButton) return;
 
-            // FIX: Only show "Already Joined" for ACTIVE memberships
-            // Allow rejoining for INACTIVE memberships
+            // SCENARIO 1: User is an Active Member
             if (community.isMember && community.memberStatus === "Active") {
-                joinButton.disabled = true;
-                joinButton.innerHTML = '<i class="fas fa-check me-1"></i>Already Joined';
-                joinButton.classList.remove('btn-primary');
-                joinButton.classList.add('btn-success');
-            } else if (community.isPending) {
-                joinButton.disabled = true;
-                joinButton.innerHTML = '<i class="fas fa-clock me-1"></i>Request Pending';
-                joinButton.classList.remove('btn-primary');
-                joinButton.classList.add('btn-warning');
-            } else {
-                joinButton.disabled = false;
-                joinButton.classList.remove('btn-success', 'btn-warning');
-                joinButton.classList.add('btn-primary');
-                joinButton.innerHTML = `<i class="fas fa-plus me-1"></i><span>${community.communityType === 'Private' ? 'Request to Join' : 'Join Community'}</span>`;
+                
+                // Show the Enter button
+                if (enterButton) {
+                    enterButton.style.display = 'block'; // Show Enter button
+                    enterButton.href = `/Community/Activity?communityId=${community.communityId}`; 
+                }
+
+                // Hide the Join button (it's redundant if we have an Enter button)
+                joinButton.style.display = 'none';
+
+            } 
+            // SCENARIO 2: User is NOT a member (or Pending)
+            else {
+                // Hide the Enter button
+                if (enterButton) enterButton.style.display = 'none';
+                
+                // Make sure Join button is visible
+                joinButton.style.display = 'block';
+
+                // Check if Pending
+                if (community.isPending) {
+                    joinButton.disabled = true;
+                    joinButton.innerHTML = '<i class="fas fa-clock me-1"></i>Request Pending';
+                    joinButton.classList.remove('btn-primary', 'btn-success');
+                    joinButton.classList.add('btn-warning');
+                } 
+                // Not Joined at all
+                else {
+                    joinButton.disabled = false;
+                    joinButton.classList.remove('btn-success', 'btn-warning');
+                    joinButton.classList.add('btn-primary');
+                    joinButton.innerHTML = `<i class="fas fa-plus me-1"></i><span>${community.communityType === 'Private' ? 'Request to Join' : 'Join Community'}</span>`;
+                }
             }
         },
 
@@ -343,10 +372,12 @@
             const nameElement = document.getElementById('modalCommunityName');
             const descElement = document.getElementById('modalCommunityDescription');
             const joinButton = document.getElementById('modalJoinCommunityBtn');
+            const enterButton = document.getElementById('modalEnterCommunityBtn'); // Also hide enter button on error
 
             if (nameElement) nameElement.textContent = 'Error';
             if (descElement) descElement.textContent = message;
             if (joinButton) joinButton.style.display = 'none';
+            if (enterButton) enterButton.style.display = 'none';
         },
 
         async joinCommunityFromModal(communityId, communityType) {
