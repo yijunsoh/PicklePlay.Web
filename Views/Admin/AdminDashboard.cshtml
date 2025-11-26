@@ -9,41 +9,35 @@
 
 <!-- Stats Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
+    <div class="col-md-4">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center align-items-center">
                 <h5>Total Users</h5>
-                <h3 class="text-primary">@Model.TotalUsers.ToString("N0")</h3>
+                <h3 class="text-primary mb-0">@Model.TotalUsers.ToString("N0")</h3>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
+
+    <div class="col-md-4">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center align-items-center">
                 <h5>Active Communities</h5>
-                <h3 class="text-success">@Model.ActiveCommunities.ToString("N0")</h3>
+                <h3 class="text-success mb-0">@Model.ActiveCommunities.ToString("N0")</h3>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
+
+    <div class="col-md-4">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body d-flex flex-column justify-content-center align-items-center">
                 <h5>Pending Requests</h5>
                 <h3 class="text-danger">@Model.TotalPendingRequests.ToString("N0")</h3>
-                <small class="text-muted">
+                <small class="text-muted mt-2">
                     Communities: @Model.PendingCommunityRequestsCount | 
                     Disputes: @Model.PendingEscrowDisputesCount | 
                     Refunds: @Model.PendingRefundRequestsCount | 
                     Suspensions: @Model.PendingSuspensionRequestsCount
                 </small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
-                <h5>Total Revenue</h5>
-                <h3 class="text-warning">RM @Model.TotalTransactions.ToString("N2")</h3>
             </div>
         </div>
     </div>
