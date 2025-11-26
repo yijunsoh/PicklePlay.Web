@@ -583,181 +583,181 @@
                         }
                     </p>
 
-                    <div class="d-grid gap-2 mt-4">
-                        @* LOGIC FLOW FOR BUTTONS *@
+<div class="d-grid gap-2 mt-4">
+    @* ⬇️ 1. CHECK IF GAME IS CANCELLED *@
+    @if (Model.Status == ScheduleStatus.Cancelled)
+    {
+        <div class="alert alert-danger text-center mb-2">
+            <h5 class="alert-heading"><i class="bi bi-x-circle-fill"></i> Cancelled</h5>
+            <p class="mb-0 small">This game has been cancelled by the organizer.</p>
+        </div>
+    }
+    else
+    {
+        @* ⬇️ 2. NORMAL GAME LOGIC (Not Cancelled) *@
 
-                        @* ⬇️ NEW: Check if Game Ended (Status 2) AND user is not a participant *@
-                        @if (Model.Status == ScheduleStatus.Past && currentUserParticipation == null)
-                        {
-                            <button class="btn btn-secondary btn-lg" disabled>
-                                <i class="bi bi-calendar-x"></i> Game Ended
-                            </button>
-                        }
-                        @* ⬇️ EXISTING: If not logged in (and game is NOT past due to 'else') *@
-                        else if (!currentUserId.HasValue)
-                        {
-                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
-                                class="btn btn-success btn-lg">
-                                <i class="bi bi-box-arrow-in-right"></i> Log in to Join
-                            </a>
-                        }
-                        @* ⬇️ EXISTING: Logged in, not a participant *@
-                        else if (currentUserParticipation == null && currentUserId.HasValue)
-                        {
-                            bool isOrganizer = organizers.Any(o => o.UserId == currentUserId);
-
-                            if (isOrganizer && Model.HostRole == HostRole.HostOnly)
-                            {
-                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
-                                    data-bs-target="#joinGameModal">
-                                    <i class="bi bi-person-plus-fill"></i> Host and Play
-                                </button>
-                            }
-                            else if (maxPlayers > 0 && confirmedCount >= maxPlayers)
-                            {
-                                <button class="btn btn-secondary btn-lg" disabled>
-                                    <i class="bi bi-person-x-fill"></i> Game Full
-                                </button>
-                            }
-                            // ⬇️ NEW: CHECK ELIGIBILITY BEFORE SHOWING JOIN BUTTON
-                            else if (!isEligible)
-                            {
-                                <button class="btn btn-secondary btn-lg" disabled>
-                                    <i class="bi bi-slash-circle"></i> Not Eligible
-                                </button>
-                                <div class="alert alert-warning mt-2 p-2 small">
-                                    <strong>Requirements not met:</strong>
-                                    <ul class="mb-0 ps-3">
-                                        @foreach (var reason in restrictionReasons)
-                                        {
-                                            <li>@reason</li>
-                                        }
-                                    </ul>
-                                </div>
-                            }
-                            else
-                            {
-                                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
-                                    data-bs-target="#joinGameModal">
-                                    <i class="bi bi-person-plus-fill"></i> Join Game
-                                </button>
-                            }
-                        }
-                        else if (currentUserParticipation?.Status == ParticipantStatus.OnHold)
-                        {
-                            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid">
-                                @Html.AntiForgeryToken() <!-- *** FIX: Added Token *** -->
-                                <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                                <button type="submit" class="btn btn-outline-danger btn-lg">
-                                    <i class="bi bi-x-circle"></i> Cancel Join
-                                </button>
-                            </form>
-                            <small class="text-muted text-center">Pending approval</small>
-                        }
-                        else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
-                        {
-                            <div class="payment-section">
-                                @if (maxPlayers > 0 && confirmedCount >= maxPlayers)
-                                {
-                                    <button class="btn btn-secondary btn-lg" disabled>
-                                        <i class="bi bi-person-x-fill"></i> Game Full
-                                    </button>
-                                    <div class="text-danger small mt-1 text-center">
-                                        Sorry, someone else took the last spot.
-                                    </div>
-                                }
-                                else
-                                {
-                                    @* Show Payment Button only if slots are available *@
-                                    <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal"
-                                        data-bs-target="#paymentModal">
-                                        <i class="bi bi-credit-card-fill"></i> Make Payment
-                                    </button>
-                                }
-
-                                <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        Cancel Spot
-                                    </button>
-                                </form>
-
-                                <small class="text-muted text-center">Your spot is reserved. Please complete
-                                    payment.</small>
-                            </div>
-
-
-
-                            <!-- Include Payment Modal Partial -->
-                            <partial name="_PaymentModal" model="Model"
-                                view-data='@new ViewDataDictionary(ViewData) { { "TotalToPay", totalToPay }, { "PaxCount", paxCount } }' />
-                        }
-                        else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
-                        {
-                            <button type="button" class="btn btn-success btn-lg" disabled>
-                                <i class="bi bi-check-circle-fill"></i> Joined
-                            </button>
-
-                            @if (ViewData["EscrowStatus"]?.ToString() == "Held" && Model.Status != ScheduleStatus.Past)
-                            {
-                                <button class="btn btn-danger btn-sm mt-2" onclick="openDisputeModal(@Model.ScheduleId)">
-                                    <i class="bi bi-exclamation-octagon"></i> Raise Dispute
-                                </button>
-                                <button class="btn btn-warning btn-sm mt-2" onclick="openRefundModal(@Model.ScheduleId)"
-                                    id="refundBtn">
-                                    Request Refund
-                                </button>
-                            }
-
-
-
-                            @if (canCancel)
+        @* Check if Game Ended (Status 2) AND user is not a participant *@
+        if (Model.Status == ScheduleStatus.Past && currentUserParticipation == null)
         {
-            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
-                onsubmit="return confirm('Are you sure you want to leave this game?');">
+            <button class="btn btn-secondary btn-lg" disabled>
+                <i class="bi bi-calendar-x"></i> Game Ended
+            </button>
+        }
+        @* If not logged in *@
+        else if (!currentUserId.HasValue)
+        {
+            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
+               class="btn btn-success btn-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Log in to Join
+            </a>
+        }
+        @* Logged in, Not a Participant *@
+        else if (currentUserParticipation == null && currentUserId.HasValue)
+        {
+            bool isOrganizer = organizers.Any(o => o.UserId == currentUserId);
+
+            if (isOrganizer && Model.HostRole == HostRole.HostOnly)
+            {
+                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                        data-bs-target="#joinGameModal">
+                    <i class="bi bi-person-plus-fill"></i> Host and Play
+                </button>
+            }
+            else if (maxPlayers > 0 && confirmedCount >= maxPlayers)
+            {
+                <button class="btn btn-secondary btn-lg" disabled>
+                    <i class="bi bi-person-x-fill"></i> Game Full
+                </button>
+            }
+            @* Check Eligibility *@
+            else if (!isEligible)
+            {
+                <button class="btn btn-secondary btn-lg" disabled>
+                    <i class="bi bi-slash-circle"></i> Not Eligible
+                </button>
+                <div class="alert alert-warning mt-2 p-2 small">
+                    <strong>Requirements not met:</strong>
+                    <ul class="mb-0 ps-3">
+                        @foreach (var reason in restrictionReasons)
+                        {
+                            <li>@reason</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                        data-bs-target="#joinGameModal">
+                    <i class="bi bi-person-plus-fill"></i> Join Game
+                </button>
+            }
+        }
+        @* Participant: On Hold *@
+        else if (currentUserParticipation?.Status == ParticipantStatus.OnHold)
+        {
+            <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-box-arrow-left"></i> Leave Game
+                <button type="submit" class="btn btn-outline-danger btn-lg">
+                    <i class="bi bi-x-circle"></i> Cancel Join
                 </button>
             </form>
+            <small class="text-muted text-center">Pending approval</small>
         }
-        else
+        @* Participant: Pending Payment *@
+        else if (currentUserParticipation?.Status == ParticipantStatus.PendingPayment)
         {
-            <button type="button" class="btn btn-sm btn-secondary w-100 mt-2" disabled title="@freezeReason">
-                <i class="bi bi-lock-fill"></i> Cancellation Frozen
-            </button>
-            <small class="text-danger d-block text-center mt-1">@freezeReason</small>
-        }
-                        }
-
-                        @if (!currentUserId.HasValue)
-                        {
-                            <a asp-controller="Auth" asp-action="Login" asp-route-returnUrl="@Context.Request.Path"
-                                class="btn btn-success btn-lg">
-                                <i class="bi bi-box-arrow-in-right"></i> Log in to Join
-                            </a>
-                        }
-
-                        @if (organizers.Any())
-                        {
-                            var hostId = organizers.First().UserId;
-
-                            <button type="button" class="btn btn-outline-secondary mt-2"
-                                onclick="showUserProfilePreview('@hostId')">
-                                <i class="bi bi-chat-dots"></i> Contact Host
-                            </button>
-
-                            <div class="text-center mt-1">
-                                <small class="text-muted fst-italic" style="font-size: 0.75rem;">
-                                    * You need to be friends with the host in order to chat *
-                                </small>
-                            </div>
-                        }
+            <div class="payment-section">
+                @if (maxPlayers > 0 && confirmedCount >= maxPlayers)
+                {
+                    <button class="btn btn-secondary btn-lg" disabled>
+                        <i class="bi bi-person-x-fill"></i> Game Full
+                    </button>
+                    <div class="text-danger small mt-1 text-center">
+                        Sorry, someone else took the last spot.
                     </div>
-                </div>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#paymentModal">
+                        <i class="bi bi-credit-card-fill"></i> Make Payment
+                    </button>
+                }
+
+                <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        Cancel Spot
+                    </button>
+                </form>
+
+                <small class="text-muted text-center">Your spot is reserved. Please complete payment.</small>
             </div>
+
+            <partial name="_PaymentModal" model="Model"
+                     view-data='@new ViewDataDictionary(ViewData) { { "TotalToPay", totalToPay }, { "PaxCount", paxCount } }' />
+        }
+        @* Participant: Confirmed *@
+        else if (currentUserParticipation?.Status == ParticipantStatus.Confirmed)
+        {
+            <button type="button" class="btn btn-success btn-lg" disabled>
+                <i class="bi bi-check-circle-fill"></i> Joined
+            </button>
+
+            @if (ViewData["EscrowStatus"]?.ToString() == "Held" && Model.Status != ScheduleStatus.Past)
+            {
+                <button class="btn btn-danger btn-sm mt-2" onclick="openDisputeModal(@Model.ScheduleId)">
+                    <i class="bi bi-exclamation-octagon"></i> Raise Dispute
+                </button>
+                <button class="btn btn-warning btn-sm mt-2" onclick="openRefundModal(@Model.ScheduleId)"
+                        id="refundBtn">
+                    Request Refund
+                </button>
+            }
+
+            @if (canCancel)
+            {
+                <form asp-controller="Community" asp-action="CancelJoin" method="post" class="d-grid mt-2"
+                      onsubmit="return confirm('Are you sure you want to leave this game?');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="scheduleId" value="@Model.ScheduleId" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-left"></i> Leave Game
+                    </button>
+                </form>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-secondary w-100 mt-2" disabled title="@freezeReason">
+                    <i class="bi bi-lock-fill"></i> Cancellation Frozen
+                </button>
+                <small class="text-danger d-block text-center mt-1">@freezeReason</small>
+            }
+        }
+    }
+
+    @* ⬇️ 3. CONTACT HOST BUTTON (Always visible unless no organizer) *@
+    @if (organizers.Any())
+    {
+        var hostId = organizers.First().UserId;
+
+        <button type="button" class="btn btn-outline-secondary mt-2"
+                onclick="showUserProfilePreview('@hostId')">
+            <i class="bi bi-chat-dots"></i> Contact Host
+        </button>
+
+        <div class="text-center mt-1">
+            <small class="text-muted fst-italic" style="font-size: 0.75rem;">
+                * You need to be friends with the host in order to chat *
+            </small>
+        </div>
+    }
+</div>
+</div>
+</div>
 
             @if (hasRestrictions)
             {

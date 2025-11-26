@@ -34,14 +34,27 @@ namespace PicklePlay.Controllers
         // *** MODIFIED THIS ACTION ***
 public async Task<IActionResult> GameListing()
 {
+    var currentUserId = GetCurrentUserId();
+    var today = DateTime.Today;
+
     var schedules = await _context.Schedules
         .Include(s => s.Participants) // Needed for counting players
-        .Include(s => s.Community)    // ⬅️ CRITICAL: Needed to show Community Name & Icon
+        .Include(s => s.Community)    // Needed for Community Name/Icon
         .Where(s => 
-            s.ScheduleType == ScheduleType.OneOff &&   // Only show One-Off games
-            s.StartTime >= DateTime.Today &&           // Only show future games
-            s.Privacy == Privacy.Public &&             // Only Public games
-            (s.Community == null || s.Community.CommunityType == "Public") // Only Public Communities (or no community)
+            s.ScheduleType == ScheduleType.OneOff &&   // One-Off only
+            s.Status != ScheduleStatus.Cancelled &&    // Not Cancelled
+            s.StartTime >= today &&                    // Future games only
+            (
+                // Condition 1: Game has NO Community (and is Public)
+                (s.CommunityId == null && s.Privacy == Privacy.Public)
+                ||
+                // Condition 2: Community is PUBLIC (and Game is Public)
+                (s.Community != null && s.Community.CommunityType == "Public" && s.Privacy == Privacy.Public)
+                ||
+                // Condition 3: User is a MEMBER of the Community (Can see Private/Public games from their own communities)
+                (currentUserId.HasValue && s.CommunityId != null && 
+                 _context.CommunityMembers.Any(cm => cm.CommunityId == s.CommunityId && cm.UserId == currentUserId.Value && cm.Status == "Active"))
+            )
         )
         .OrderBy(s => s.StartTime)
         .ToListAsync();
@@ -351,30 +364,41 @@ public async Task<IActionResult> GameListing()
         }
 
         // POST: /Schedule/Delete/{id} - Performs the delete
-        [HttpPost, ActionName("Delete")] // Use ActionName to map POST to /Schedule/Delete/{id}
+        // POST: /Schedule/Delete/{id} - Performs the SOFT DELETE (Update Status to Cancelled)
+        [HttpPost, ActionName("Delete")] 
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id) // Changed to async
         {
-            var schedule = _scheduleRepository.GetById(id);
+            // Use _context directly to get full entity access for updating
+            var schedule = await _context.Schedules.FindAsync(id);
+            
             if (schedule == null)
             {
-                // Should not happen if GET worked, but good practice
                 return NotFound();
             }
 
             try
             {
-                _scheduleRepository.Delete(id);
-                // Optional: Add TempData success message
-                TempData["SuccessMessage"] = "Schedule deleted successfully!";
-                return RedirectToAction("Activity", "Community"); // Redirect to listing after delete
+                // ⬇️ CHANGE: Soft Delete (Set Status to Cancelled instead of Remove)
+                schedule.Status = ScheduleStatus.Cancelled;
+                _context.Schedules.Update(schedule);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Schedule cancelled successfully!";
+                
+                // Determine redirect based on type
+                if (schedule.ScheduleType == ScheduleType.Competition)
+                {
+                    return RedirectToAction("Listing", "Competition");
+                }
+                else
+                {
+                    return RedirectToAction("Activity", "Community");
+                }
             }
             catch (Exception ex)
             {
-                // Log the error
-                // Add error message to TempData or ModelState
-                TempData["ErrorMessage"] = $"Error deleting schedule: {ex.Message}";
-                // Redirect back to details or show error view
+                TempData["ErrorMessage"] = $"Error cancelling schedule: {ex.Message}";
                 return RedirectToAction("Details", new { id = id });
             }
         }

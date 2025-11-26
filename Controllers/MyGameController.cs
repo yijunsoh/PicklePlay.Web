@@ -35,38 +35,39 @@ namespace PicklePlay.Controllers
 
             var now = DateTime.Now;
 
-            // Get ALL player participations for the user, including Cancelled ones
+            // 1. Get ALL player participations (Joined, Pending, Quit, etc.)
+            // We Include Schedule so we can check dates and status
             var userParticipations = await _context.ScheduleParticipants
                 .Where(p => p.UserId == currentUserId.Value && p.Role == ParticipantRole.Player)
                 .Include(p => p.Schedule)
-                    .ThenInclude(s => s!.Participants) 
+                    .ThenInclude(s => s!.Participants) // Needed for player counts in cards
                 .ToListAsync();
 
-            // *** FIX: Get ALL bookmarks for the user ***
+            // 2. Get Bookmarks
             var userBookmarks = await _context.Bookmarks
                 .Where(b => b.UserId == currentUserId.Value)
                 .Include(b => b.Schedule)
                     .ThenInclude(s => s!.Participants)
                 .ToListAsync();
 
-            // --- *** THIS PART IS ESSENTIAL *** ---
+            // 3. Get Endorsements (Essential for UI buttons)
             var endorsedGameIds = await _context.Endorsements
                 .Where(e => e.GiverUserId == currentUserId.Value)
                 .Select(e => e.ScheduleId)
                 .Distinct()
                 .ToListAsync();
             
-            // This passes the list to the _GameCard partial
             ViewBag.EndorsedGameIds = endorsedGameIds;
-            // --- *** END OF ESSENTIAL PART *** ---
 
+            // 4. Sort data into lists
             var viewModel = new MyGameViewModel
             {
-                // Active Games (Correct)
+                // Active: Future + Valid Status + Schedule NOT Cancelled
                 ActiveGames = userParticipations
                     .Where(p => p.Schedule != null &&                          
                                 p.Schedule.EndTime.HasValue &&                
                                 p.Schedule.EndTime.Value >= now &&
+                                p.Schedule.Status != ScheduleStatus.Cancelled && // Don't show cancelled here
                                 (p.Status == ParticipantStatus.Confirmed ||
                                  p.Status == ParticipantStatus.PendingPayment ||
                                  p.Status == ParticipantStatus.OnHold))
@@ -74,27 +75,35 @@ namespace PicklePlay.Controllers
                     .OrderBy(s => s.StartTime)
                     .ToList(),
 
-                // History Games (Correct)
+                // History: Past + Confirmed + Schedule NOT Cancelled
                 HistoryGames = userParticipations
                     .Where(p => p.Schedule != null &&                          
                                 p.Schedule.EndTime.HasValue &&                
                                 p.Schedule.EndTime.Value < now &&
+                                p.Schedule.Status != ScheduleStatus.Cancelled && // Don't show cancelled here
                                 p.Status == ParticipantStatus.Confirmed)
                     .Select(p => p.Schedule!)
                     .OrderByDescending(s => s.StartTime)
                     .ToList(),
 
-                // *** FIX: Add logic for Hidden Games ***
+                // Hidden: (I Quit) OR (Organizer Cancelled AND I was Confirmed)
                 HiddenGames = userParticipations
-                    .Where(p => p.Schedule != null &&
-                                p.Status == ParticipantStatus.Cancelled) // Filter by the "Cancelled" status
+                    .Where(p => p.Schedule != null && 
+                           (
+                               // Case 1: I voluntarily cancelled/quit
+                               p.Status == ParticipantStatus.Cancelled 
+                               ||
+                               // Case 2: Organizer cancelled the game
+                               // BUT I must have been Confirmed to see it (ignores Pending/OnHold)
+                               (p.Schedule.Status == ScheduleStatus.Cancelled && p.Status == ParticipantStatus.Confirmed)
+                           ))
                     .Select(p => p.Schedule!)
                     .OrderByDescending(s => s.StartTime)
                     .ToList(),
 
-                // *** FIX: Add logic for Bookmarked Games ***
+                // Bookmarks: Standard logic
                 BookmarkedGames = userBookmarks
-                    .Where(b => b.Schedule != null) // Filter out any bookmarks for deleted schedules
+                    .Where(b => b.Schedule != null)
                     .Select(b => b.Schedule!)
                     .OrderBy(s => s.StartTime)
                     .ToList()

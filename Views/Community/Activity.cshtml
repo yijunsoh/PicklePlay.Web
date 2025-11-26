@@ -90,7 +90,7 @@
     }
 
     // Process ALL displayable schedules (OneOff instances and Competitions)
-    foreach (var schedule in Model.Where(s => s.ScheduleType != ScheduleType.Recurring && s.StartTime.HasValue))
+    foreach (var schedule in Model.Where(s => s.ScheduleType != ScheduleType.Recurring && s.StartTime.HasValue && s.Status != ScheduleStatus.Cancelled))
     {
         // Check if it's in the displayed month
         if (schedule.StartTime!.Value.Year == displayYear && schedule.StartTime.Value.Month == displayMonth)
@@ -124,7 +124,7 @@
 
     // Get ONLY the game instances (ScheduleType.OneOff).
     // This correctly excludes the parent "Recurring" templates.
-    var allGames = Model.Where(s => s.ScheduleType == ScheduleType.OneOff);
+    var allGames = Model.Where(s => s.ScheduleType == ScheduleType.OneOff && s.Status != ScheduleStatus.Cancelled);
 
     // Active games are OneOff instances in the future (or today).
     var activeGames = allGames.Where(g => g.StartTime.HasValue && g.StartTime.Value >= today)

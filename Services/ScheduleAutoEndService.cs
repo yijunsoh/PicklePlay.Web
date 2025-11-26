@@ -50,9 +50,8 @@ namespace PicklePlay.Services
                 {
                     _logger.LogError(ex, "Error in Schedule Auto-End Service");
                 }
-
-                // Check every 30 minutes
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+               
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
 

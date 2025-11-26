@@ -42,14 +42,12 @@
 
     // ⬇️ UPDATED QUERY: Filter by OneOff, Future, Public Game & Public Community
     // (Assuming Model passed from controller already has .Include(s => s.Community))
-    var games = Model.Where(s => s.ScheduleType == ScheduleType.OneOff &&
-                                 s.StartTime.HasValue &&
-                                 s.StartTime.Value.Date >= today &&
-                                 s.Privacy == Privacy.Public &&
-                                 (s.Community == null || s.Community.CommunityType == "Public")) // Ensure community is public
-                     .OrderBy(s => s.StartTime);
 
-    var groupedByDay = games.GroupBy(g => g.StartTime!.Value.Date).OrderBy(g => g.Key);
+
+    var groupedByDay = Model
+        .OrderBy(s => s.StartTime)
+        .GroupBy(g => g.StartTime!.Value.Date)
+        .OrderBy(g => g.Key);
 }
 
 <style>
