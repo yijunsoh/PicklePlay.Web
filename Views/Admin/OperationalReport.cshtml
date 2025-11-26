@@ -1,0 +1,290 @@
+@model PicklePlay.ViewModels.OperationalReportViewModel
+@using System.Globalization
+
+@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+    ViewData["Title"] = "Daily Cash Flow & Operations";
+}
+
+<style>
+    /* Report Container */
+    .report-sheet {
+        background: white;
+        padding: 40px;
+        color: #000;
+        font-family: 'Times New Roman', Times, serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    }
+
+    /* Header & Logos */
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 2px solid #000;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+
+    /* KPI Cards */
+    .kpi-row { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 15px; }
+    .kpi-card { flex: 1; background: #fff; border: 1px solid #000; padding: 15px; text-align: center; }
+    .kpi-title { font-size: 0.8rem; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #ccc; margin-bottom: 10px; padding-bottom: 5px; }
+    .kpi-value { font-size: 1.2rem; font-weight: bold; }
+
+    /* TABLE STYLES */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th {
+        border-top: 2px solid #000;
+        border-bottom: 2px solid #000;
+        padding: 10px;
+        text-align: right;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    .data-table th:first-child { text-align: left; }
+
+    .data-table td {
+        padding: 6px 10px;
+        text-align: right;
+    }
+
+    /* --- YEAR HEADER (Reduced Gap + Double Line Logic) --- */
+    .year-header {
+        font-size: 1.2rem;
+        font-weight: 900;
+        text-align: left !important;
+        color: #000;
+        /* Reduce bottom padding to bring Month closer */
+        padding-bottom: 2px !important; 
+        padding-top: 10px !important;
+    }
+
+    /* Use this class for years after the first one to add the double line */
+    .year-separator-top {
+        border-top: 4px double #000 !important; /* The requested Double Line */
+        padding-top: 20px !important; /* Space above the line */
+    }
+
+    /* --- MONTH HEADER (Reduced Gap) --- */
+    .month-header {
+        font-size: 1rem;
+        font-weight: bold;
+        text-align: left !important;
+        text-decoration: underline;
+        color: #333;
+        /* Reduce top padding to close gap with Year */
+        padding-top: 2px !important; 
+        padding-bottom: 10px !important;
+    }
+
+    /* Dashed line between months within the same year */
+    .month-separator td {
+        border-bottom: 1px dashed #999;
+        height: 15px;
+    }
+
+    .data-table tfoot td {
+        border-top: 2px solid #000;
+        border-bottom: 2px double #000;
+        font-weight: bold;
+        padding-top: 15px;
+        font-size: 1rem;
+    }
+
+    @@media print {
+        body * { visibility: hidden; }
+        #report-content, #report-content * { visibility: visible; }
+        .no-print { display: none !important; }
+        #report-content { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; }
+    }
+</style>
+
+<div class="card mb-4 shadow-sm no-print">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold">Report Period</label>
+                <div class="input-group">
+                    <input type="date" class="form-control" name="startDate" value="@Model.FromDate.ToString("yyyy-MM-dd")">
+                    <span class="input-group-text">to</span>
+                    <input type="date" class="form-control" name="endDate" value="@Model.ToDate.ToString("yyyy-MM-dd")">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100">Update</button>
+            </div>
+            <div class="col-md-5 text-end">
+                <div class="btn-group">
+                    <button type="button" id="export-png-btn" class="btn btn-outline-dark">PNG</button>
+                    <button type="button" id="export-pdf-btn" class="btn btn-outline-dark">PDF</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="report-content" class="report-sheet">
+    
+    <div class="report-header">
+        <div>
+            <h2 style="font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Operational Summary</h2>
+            <div style="font-size: 0.9rem;">
+                Period: @Model.FromDate.ToString("dd MMM yyyy") - @Model.ToDate.ToString("dd MMM yyyy")
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <img src="@Model.LogoPath" alt="Logo" style="height: 60px; margin-bottom: 10px;">
+            <div style="font-weight: bold; font-size: 1.1rem;">@Model.CompanyName</div>
+            <div style="font-size: 0.8rem; margin-left: auto; max-width: 250px;">
+                @Model.CompanyAddress<br>Tel: @Model.CompanyPhone
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-title">Net Cash Flow</div>
+            <div class="kpi-value">RM @Model.NetCashFlow.ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Total Escrow</div>
+            <div class="kpi-value">RM @Model.TotalEscrowLocked.ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Total Payouts</div>
+            <div class="kpi-value">RM @Model.TotalEscrowReleased.ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Refunds</div>
+            <div class="kpi-value">RM @Model.TotalRefunds.ToString("N0")</div>
+        </div>
+    </div>
+
+    <h5 style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;">Transaction Breakdown</h5>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="10%">Day</th>
+                <th width="18%">Top Up</th>
+                <th width="18%">Withdraw</th>
+                <th width="18%">Escrow Hold</th>
+                <th width="18%">Released</th>
+                <th width="18%">Refunds</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.DailyMetrics.Any())
+            {
+                var yearGroups = Model.DailyMetrics.GroupBy(m => m.Date.Year).OrderByDescending(y => y.Key).ToList();
+                int yearCounter = 0;
+
+                foreach (var yearGroup in yearGroups)
+                {
+                    // Check if this is the first year or subsequent years
+                    // If subsequent (index > 0), add the 'year-separator-top' class for the double line
+                    string yearClass = (yearCounter > 0) ? "year-header year-separator-top" : "year-header";
+
+                    <tr>
+                        <td colspan="6" class="@yearClass">@yearGroup.Key</td>
+                    </tr>
+
+                    var monthGroups = yearGroup.GroupBy(m => m.Date.Month).OrderByDescending(m => m.Key).ToList();
+                    int monthCounter = 0;
+
+                    foreach (var monthGroup in monthGroups)
+                    {
+                        <tr>
+                            <td colspan="6" class="month-header">
+                                @CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthGroup.Key)
+                            </td>
+                        </tr>
+
+                        foreach (var day in monthGroup.OrderByDescending(d => d.Date))
+                        {
+                            <tr>
+                                <td style="text-align: left; padding-left: 15px;">
+                                    @day.Date.Day.ToString("00")
+                                </td>
+                                <td>@day.Deposits.ToString("N2")</td>
+                                <td>@((day.Withdrawals != 0) ? $"({day.Withdrawals:N2})" : "0.00")</td>
+                                <td>@day.EscrowLocked.ToString("N2")</td>
+                                <td>@day.EscrowReleased.ToString("N2")</td>
+                                <td>@day.Refunds.ToString("N2")</td>
+                            </tr>
+                        }
+
+                        // Add dashed separator between months, BUT NOT after the last month of the year
+                        if (monthCounter < monthGroups.Count - 1)
+                        {
+                            <tr class="month-separator"><td colspan="6"></td></tr>
+                        }
+                        monthCounter++;
+                    }
+                    yearCounter++;
+                }
+            }
+            else
+            {
+                <tr><td colspan="6" style="text-align: center; padding: 30px; font-style: italic;">No transactions found.</td></tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>TOTALS</td>
+                <td>@Model.TotalDeposits.ToString("N2")</td>
+                <td>@((Model.TotalWithdrawals != 0) ? $"({Model.TotalWithdrawals:N2})" : "0.00")</td>
+                <td>@Model.TotalEscrowLocked.ToString("N2")</td>
+                <td>@Model.TotalEscrowReleased.ToString("N2")</td>
+                <td>@Model.TotalRefunds.ToString("N2")</td>
+            </tr>
+        </tfoot>
+    </table>
+    
+    <div style="margin-top: 50px; border-top: 1px solid #000; padding-top: 10px; font-size: 0.75rem; text-align: center;">
+        Generated on @DateTime.Now.ToString("dd MMM yyyy, hh:mm tt") | CONFIDENTIAL
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        // Export scripts remain same
+        document.getElementById('export-png-btn').addEventListener('click', function() {
+            const element = document.getElementById('report-content');
+            const button = this; const originalText = button.innerHTML;
+            button.innerHTML = 'Saving...'; button.disabled = true;
+            html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+                const link = document.createElement('a'); link.download = 'Operational_Report.png';
+                link.href = canvas.toDataURL('image/png'); link.click();
+                button.innerHTML = originalText; button.disabled = false;
+            });
+        });
+
+        document.getElementById('export-pdf-btn').addEventListener('click', function() {
+            const element = document.getElementById('report-content');
+            const button = this; const originalText = button.innerHTML;
+            button.innerHTML = 'PDF...'; button.disabled = true;
+            html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save('Operational_Report.pdf');
+                button.innerHTML = originalText; button.disabled = false;
+            });
+        });
+    </script>
+}

@@ -767,89 +767,174 @@ public class AdminController : Controller
     }
 
     // Add this method to your AdminController.cs
-    public async Task<IActionResult> GrowthReport()
+    // GET: Admin/TransactionReport
+// public async Task<IActionResult> TransactionReport(DateTime? startDate, DateTime? endDate, string mode = "monthly")
+// {
+//     var userRole = HttpContext.Session.GetString("UserRole");
+//     if (userRole != "Admin")
+//     {
+//         return RedirectToAction("Login", "Auth");
+//     }
+
+//     try
+//     {
+//         // 1. Set Date Range
+//         var now = NowMYT(); // Use your existing time helper
+//         var start = startDate ?? new DateTime(now.Year, now.Month, 1);
+//         var end = endDate ?? now;
+//         var endOfDay = end.Date.AddDays(1).AddTicks(-1);
+
+//         // 2. Fetch Data (Fixed: Joining Transaction -> Wallet -> User)
+//         // We assume your DbContext has 'Wallets' and 'Users'
+//         var query = from t in _context.Transactions
+//                     join w in _context.Wallets on t.WalletId equals w.WalletId
+//                     join u in _context.Users on w.UserId equals u.UserId
+//                     where t.CreatedAt >= start && t.CreatedAt <= endOfDay
+//                     // Fixed: Use 'PaymentStatus' from your Model, not 'Status'
+//                     where t.PaymentStatus == "Completed" || t.PaymentStatus == "Refunded" 
+//                     orderby t.CreatedAt descending
+//                     select new 
+//                     {
+//                         t.TransactionId,
+//                         t.CreatedAt,
+//                         t.Amount,
+//                         t.Description,
+//                         // Fixed: Use 'TransactionType' from your Model
+//                         t.TransactionType, 
+//                         t.PaymentStatus,
+//                         u.Username
+//                     };
+
+//         var rawTransactions = await query.ToListAsync();
+
+//         // 3. Helper Function to Map Data
+//         TransactionItem MapToItem(dynamic t) 
+//         {
+//             return new TransactionItem
+//             {
+//                 // Fixed: Convert int ID to string
+//                 TransactionId = t.TransactionId.ToString(), 
+//                 Date = t.CreatedAt,
+//                 User = t.Username,
+//                 Description = t.Description ?? (t.TransactionType + " - " + t.PaymentStatus),
+//                 Type = t.TransactionType, 
+//                 Amount = t.Amount
+//             };
+//         }
+
+//         // 4. Group Data
+//         List<TransactionGroup> groupedResult = new List<TransactionGroup>();
+
+//         if (mode == "daily")
+//         {
+//             groupedResult = rawTransactions
+//                 .GroupBy(t => t.CreatedAt.ToString("dd MMM yyyy")) 
+//                 .Select(g => new TransactionGroup
+//                 {
+//                     GroupHeader = g.Key,
+//                     Transactions = g.Select(t => MapToItem(t)).ToList(),
+//                     // Logic: Refunds subtract from total, others add
+//                     GroupTotal = g.Sum(t => (t.TransactionType == "Refund" ? -(decimal)t.Amount : (decimal)t.Amount))
+//                 }).ToList();
+//         }
+//         else 
+//         {
+//             // Monthly Grouping
+//             groupedResult = rawTransactions
+//                 .GroupBy(t => t.CreatedAt.ToString("MMMM yyyy")) 
+//                 .Select(g => new TransactionGroup
+//                 {
+//                     GroupHeader = g.Key,
+//                     Transactions = g.Select(t => MapToItem(t)).ToList(),
+//                     GroupTotal = g.Sum(t => (t.TransactionType == "Refund" ? -(decimal)t.Amount : (decimal)t.Amount))
+//                 }).ToList();
+//         }
+
+//         // 5. Build View Model
+//         var viewModel = new TransactionReportViewModel
+//         {
+//             ReportTitle = "Financial Transaction Report",
+//             FromDate = start,
+//             ToDate = end,
+//             FilterType = mode,
+//             GroupedData = groupedResult,
+//             GrandTotalRevenue = groupedResult.Sum(g => g.GroupTotal)
+//         };
+
+//         return View(viewModel);
+//     }
+//     catch (Exception ex)
+//     {
+//         // Helpful for debugging: Print the error to console
+//         Console.WriteLine(ex.Message); 
+        
+//         var errorModel = new TransactionReportViewModel
+//         {
+//             ReportTitle = "Error Loading Report",
+//             FromDate = DateTime.Now,
+//             ToDate = DateTime.Now
+//         };
+//         return View(errorModel);
+//     }
+// }
+
+public async Task<IActionResult> OperationalReport(DateTime? startDate, DateTime? endDate)
+{
+    var userRole = HttpContext.Session.GetString("UserRole");
+    if (userRole != "Admin") return RedirectToAction("Login", "Auth");
+
+    // 1. Setup Dates
+    var now = NowMYT();
+    var start = startDate ?? now.AddDays(-30);
+    var end = endDate ?? now;
+    var endOfDay = end.Date.AddDays(1).AddTicks(-1);
+
+    // 2. Fetch Data
+    var transactions = await _context.Transactions
+        .Where(t => t.CreatedAt >= start && t.CreatedAt <= endOfDay)
+        .Select(t => new { t.CreatedAt, t.TransactionType, t.Amount }) 
+        .ToListAsync();
+
+    // 3. Group by Date
+    var groupedData = transactions
+        .GroupBy(t => t.CreatedAt.Date)
+        .Select(g => new DailyMetric
+        {
+            Date = g.Key,
+            
+            // Deposits
+            Deposits = g.Where(t => t.TransactionType == "TopUp").Sum(t => t.Amount),
+            
+            // Withdrawals
+            Withdrawals = g.Where(t => t.TransactionType == "Withdraw").Sum(t => t.Amount),
+            
+            // Escrow Hold
+            EscrowLocked = g.Where(t => t.TransactionType == "Escrow_Hold").Sum(t => t.Amount),
+            
+            // Escrow Released (Check all possible naming variations)
+            EscrowReleased = g.Where(t => t.TransactionType == "Released" || t.TransactionType == "Escrow_Released").Sum(t => t.Amount),
+            
+            // --- FIX IS HERE ---
+            // Now checks for "Escrow_Refund" OR "Refund"
+            Refunds = g.Where(t => t.TransactionType == "Refund" || t.TransactionType == "Escrow_Refund").Sum(t => t.Amount)
+        })
+        .OrderByDescending(d => d.Date)
+        .ToList();
+
+    // 4. Create ViewModel
+    var viewModel = new OperationalReportViewModel
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return RedirectToAction("Login", "Auth");
-        }
+        FromDate = start,
+        ToDate = end,
+        DailyMetrics = groupedData,
+        TotalDeposits = groupedData.Sum(x => x.Deposits),
+        TotalWithdrawals = groupedData.Sum(x => x.Withdrawals),
+        TotalEscrowLocked = groupedData.Sum(x => x.EscrowLocked),
+        TotalEscrowReleased = groupedData.Sum(x => x.EscrowReleased),
+        TotalRefunds = groupedData.Sum(x => x.Refunds)
+    };
 
-        try
-        {
-            // Fetch real data only - no sample data
-            var sixMonthsAgo = NowMYT().AddMonths(-6);
-
-            var monthlyGrowth = await _context.Users
-                .Where(u => u.CreatedDate >= sixMonthsAgo)
-                .GroupBy(u => new { Year = u.CreatedDate.Year, Month = u.CreatedDate.Month })
-                .Select(g => new
-                {
-                    Year = g.Key.Year,
-                    Month = g.Key.Month,
-                    NewUsers = g.Count()
-                })
-                .OrderBy(x => x.Year)
-                .ThenBy(x => x.Month)
-                .ToListAsync();
-
-            List<MonthlyGrowthData> monthlyData = new List<MonthlyGrowthData>();
-
-            if (monthlyGrowth.Any())
-            {
-                // Use real data only
-                monthlyData = monthlyGrowth.Select(g => new MonthlyGrowthData
-                {
-                    Month = new DateTime(g.Year, g.Month, 1).ToString("MMM"),
-                    Users = g.NewUsers
-                }).ToList();
-            }
-
-            // Calculate summary with real data only
-            var peakGrowth = monthlyData.Any() ? monthlyData.OrderByDescending(m => m.Users).First() : null;
-            var lowestGrowth = monthlyData.Any() ? monthlyData.OrderBy(m => m.Users).First() : null;
-            var totalUsersGained = monthlyData.Sum(m => m.Users);
-            var averageMonthlyGrowth = monthlyData.Any() ? (int)monthlyData.Average(m => m.Users) : 0;
-
-            var viewModel = new GrowthReportViewModel
-            {
-                ReportTitle = "Yearly User Growth (2025)",
-                MonthlyData = monthlyData,
-                Summary = new ReportSummary
-                {
-                    PeakGrowthMonth = peakGrowth?.Month ?? "No data",
-                    PeakGrowthValue = peakGrowth?.Users ?? 0,
-                    LowestGrowthMonth = lowestGrowth?.Month ?? "No data",
-                    LowestGrowthValue = lowestGrowth?.Users ?? 0,
-                    TotalUsersGained = totalUsersGained,
-                    AverageMonthlyGrowth = averageMonthlyGrowth,
-                    Period = "6 months"
-                }
-            };
-
-            return View("GrowthReport", viewModel);
-        }
-        catch (Exception)
-        {
-            // Return empty data instead of sample data
-            var viewModel = new GrowthReportViewModel
-            {
-                ReportTitle = "Yearly User Growth (2025)",
-                MonthlyData = new List<MonthlyGrowthData>(),
-                Summary = new ReportSummary
-                {
-                    PeakGrowthMonth = "No data",
-                    PeakGrowthValue = 0,
-                    LowestGrowthMonth = "No data",
-                    LowestGrowthValue = 0,
-                    TotalUsersGained = 0,
-                    AverageMonthlyGrowth = 0,
-                    Period = "6 months"
-                }
-            };
-
-            return View("GrowthReport", viewModel);
-        }
-    }
+    return View("OperationalReport", viewModel);
+}
 
 }
