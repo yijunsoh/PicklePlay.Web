@@ -129,11 +129,17 @@ namespace PicklePlay.Controllers
             return View(games);
         }
 
-        [HttpGet]
-        public IActionResult CreateGameSchedule()
-        {
-            return View(new ScheduleUnifiedViewModel());
-        }
+[HttpGet]
+public IActionResult CreateGameSchedule()
+{
+    var communityId = HttpContext.Session.GetInt32("CurrentCommunityId");
+    if (communityId.HasValue)
+    {
+        var community = _context.Communities.Find(communityId.Value);
+        ViewData["CurrentCommunity"] = community;
+    }
+    return View(new ScheduleUnifiedViewModel());
+}
 
         [HttpPost]
         [ValidateAntiForgeryToken]
