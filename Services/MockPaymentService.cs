@@ -16,6 +16,11 @@ namespace PicklePlay.Services
             _logger = logger;
             _payPalService = payPalService;
         }
+        private DateTime GetMalaysiaTime()
+        {
+            var mytZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, mytZone);
+        }
 
         public async Task<PaymentResult> ProcessTopUpAsync(int userId, decimal amount, string paymentMethod, CardInfo? cardInfo = null)
         {
@@ -50,12 +55,13 @@ namespace PicklePlay.Services
 
                 // Mock payment processing - always success for demo
                 var paymentSuccess = await ProcessMockPayment(amount, paymentMethod);
+                var nowMYT = GetMalaysiaTime();
 
                 if (paymentSuccess)
                 {
                     // Update wallet balance
                     wallet.WalletBalance += amount;
-                    wallet.LastUpdated = DateTime.UtcNow;
+                    wallet.LastUpdated = nowMYT;
 
                     // Create transaction record
                     var transaction = new Transaction
@@ -67,8 +73,8 @@ namespace PicklePlay.Services
                         PaymentStatus = "Completed",
                         PaymentGatewayId = Guid.NewGuid().ToString(),
                         CardLastFour = cardInfo?.CardNumber.Length >= 4 ? cardInfo.CardNumber[^4..] : null,
-                        PaymentCompletedAt = DateTime.UtcNow,
-                        CreatedAt = DateTime.UtcNow,
+                        PaymentCompletedAt = nowMYT,
+                        CreatedAt = nowMYT,
                         Description = $"Top Up via {paymentMethod}"
                     };
 
@@ -119,9 +125,11 @@ namespace PicklePlay.Services
                     return new PaymentResult { Success = false, Message = "Amount must be greater than 0" };
                 }
 
+                var nowMYT = GetMalaysiaTime();
+
                 // Update wallet balance
                 wallet.WalletBalance += amount;
-                wallet.LastUpdated = DateTime.UtcNow;
+                wallet.LastUpdated = nowMYT;
 
                 // Create transaction record
                 var transaction = new Transaction
@@ -132,8 +140,9 @@ namespace PicklePlay.Services
                     PaymentMethod = "PayPal",
                     PaymentStatus = "Completed",
                     PaymentGatewayId = paypalPaymentId,
-                    PaymentCompletedAt = DateTime.UtcNow,
-                    CreatedAt = DateTime.UtcNow
+                    PaymentCompletedAt = nowMYT,
+                    CreatedAt = nowMYT,
+                    Description = "Top up via PayPal"
 
                 };
 
@@ -183,8 +192,8 @@ namespace PicklePlay.Services
 
                     // CALL REAL PAYPAL PAYOUTS API
                     var batchId = await _payPalService.PayoutAsync(
-                        paymentDetails.PayPalEmail, 
-                        amount, 
+                        paymentDetails.PayPalEmail,
+                        amount,
                         "MYR", // Using MYR as per your previous files
                         gatewayId
                     );
@@ -208,12 +217,13 @@ namespace PicklePlay.Services
                     notes = $"Withdrawal to {withdrawMethod}";
                 }
 
+                var nowMYT = GetMalaysiaTime();
                 if (withdrawalSuccess)
                 {
                     // Update wallet balance
                     wallet.WalletBalance -= amount;
                     wallet.TotalSpent += amount;
-                    wallet.LastUpdated = DateTime.UtcNow;
+                    wallet.LastUpdated = nowMYT;
 
                     var withdrawalTransaction = new Transaction
                     {
@@ -225,8 +235,8 @@ namespace PicklePlay.Services
                         PaymentGatewayId = gatewayId,
                         Description = $"Withdraw to {withdrawMethod}",
                         CardLastFour = GetLastFourDigits(paymentDetails),
-                        CreatedAt = DateTime.UtcNow,
-                        PaymentCompletedAt = DateTime.UtcNow,
+                        CreatedAt = nowMYT,
+                        PaymentCompletedAt = nowMYT,
                     };
 
                     _context.Transactions.Add(withdrawalTransaction);
@@ -240,7 +250,7 @@ namespace PicklePlay.Services
                         NewBalance = wallet.WalletBalance
                     };
                 }
-                
+
                 return new PaymentResult { Success = false, Message = "Withdrawal failed" };
             }
             catch (Exception ex)
@@ -297,7 +307,12 @@ namespace PicklePlay.Services
         // Helper method to generate payment reference
         private string GeneratePaymentReference()
         {
-            return $"WDW_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            // 1. Get Malaysia Time
+            var mytZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            var nowMYT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, mytZone);
+
+            // 2. Use nowMYT instead of UtcNow
+            return $"WDW_{nowMYT:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
         }
 
         private async Task<bool> ProcessMockPayment(decimal amount, string paymentMethod)
@@ -343,6 +358,40 @@ namespace PicklePlay.Services
             }
 
             return true;
+        }
+
+        public async Task RecordFailedTransactionAsync(int userId, decimal amount, string transactionType, string paymentMethod, string reason, string? gatewayId = null)
+        {
+            try
+            {
+                var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+                if (wallet == null) return; // Cannot log if no wallet exists
+
+                var nowMYT = GetMalaysiaTime();
+
+                var transaction = new Transaction
+                {
+                    WalletId = wallet.WalletId,
+                    TransactionType = transactionType, // e.g., "TopUp" or "Withdraw"
+                    Amount = amount,
+                    PaymentMethod = paymentMethod, // e.g., "PayPal"
+
+                    // KEY FIELDS FOR FAILURE:
+                    PaymentStatus = "Failed", // Or "Cancelled"
+                    Description = reason, // e.g., "User cancelled" or "Insufficient funds"
+
+                    PaymentGatewayId = gatewayId,
+                    CreatedAt = nowMYT,
+                    // PaymentCompletedAt is LEFT NULL because it failed
+                };
+
+                _context.Transactions.Add(transaction);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log failed transaction");
+            }
         }
     }
 

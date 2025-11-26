@@ -151,6 +151,15 @@ namespace PicklePlay.Controllers
                 });
 
                 e.Status = "Released";
+                // NOTIFY PAYER
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = e.UserId,
+                    Message = $"Your escrow payment of RM{paid:0.00} for '{schedule.GameName}' has been released to the host.",
+                    LinkUrl = $"/Schedule/Details/{scheduleId}",
+                    DateCreated = nowMYT,
+                    IsRead = false
+                });
             }
 
             hostWallet.WalletBalance += totalAmount;
@@ -189,7 +198,15 @@ namespace PicklePlay.Controllers
                 d.AdminDecision = "Released";
                 d.UpdatedAt = nowMYT;
             }
-
+            //NOTIFY HOST
+            _context.Notifications.Add(new Notification
+            {
+                UserId = host.UserId,
+                Message = $"You received RM{totalAmount:0.00} escrow payment for '{schedule.GameName}'.",
+                LinkUrl = $"/Schedule/Details/{scheduleId}",
+                DateCreated = nowMYT,
+                IsRead = false
+            });
 
             await _context.SaveChangesAsync();
 
@@ -234,6 +251,11 @@ namespace PicklePlay.Controllers
                 if (payerWallet.EscrowBalance < 0)
                     payerWallet.EscrowBalance = 0;
 
+                if (payerWallet.TotalSpent >= paid)
+                {
+                    payerWallet.TotalSpent -= paid;
+                }
+
                 _context.Transactions.Add(new Transaction
                 {
                     WalletId = payerWallet.WalletId,
@@ -247,6 +269,16 @@ namespace PicklePlay.Controllers
                 });
 
                 e.Status = "Refunded";
+
+                // 🔔 NOTIFY PAYER
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = e.UserId,
+                    Message = $"Your escrow payment of RM{paid:0.00} for '{schedule.GameName}' has been refunded to your wallet.",
+                    LinkUrl = $"/Schedule/Details/{scheduleId}",
+                    DateCreated = nowMYT,
+                    IsRead = false
+                });
             }
 
             schedule.EscrowStatus = "Refunded";
@@ -271,6 +303,20 @@ namespace PicklePlay.Controllers
             {
                 d.AdminDecision = "Refunded";
                 d.UpdatedAt = nowMYT;
+            }
+
+            // 🔔 NOTIFY HOST (That game was refunded by admin)
+            var host = schedule.Participants.FirstOrDefault(p => p.Role == ParticipantRole.Organizer);
+            if (host != null)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = host.UserId,
+                    Message = $"The escrow for '{schedule.GameName}' has been fully refunded to players by admin.",
+                    LinkUrl = $"/Schedule/Details/{scheduleId}",
+                    DateCreated = nowMYT,
+                    IsRead = false
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -343,6 +389,11 @@ namespace PicklePlay.Controllers
             wallet.EscrowBalance -= paid;
             if (wallet.EscrowBalance < 0) wallet.EscrowBalance = 0;
 
+            if (wallet.TotalSpent >= paid)
+            {
+                wallet.TotalSpent -= paid;
+            }
+
             _context.Transactions.Add(new Transaction
             {
                 WalletId = wallet.WalletId,
@@ -371,14 +422,21 @@ namespace PicklePlay.Controllers
             request.UpdatedAt = nowMYT;
 
             // Notification
+            // 🔔 NOTIFY USER
             _context.Notifications.Add(new Notification
             {
                 UserId = escrow.UserId,
-                Message = $"Your refund request for schedule #{escrow.ScheduleId} was approved.",
-                LinkUrl = "/Schedule/Details/" + escrow.ScheduleId,
+                Message = $"Your refund request for schedule #{escrow.ScheduleId} was approved. RM{paid:0.00} returned.",
+                LinkUrl = $"/Schedule/Details/{escrow.ScheduleId}",
                 DateCreated = nowMYT,
                 IsRead = false
             });
+
+            // 🔔 NOTIFY HOST (Optional: To let them know a player was refunded)
+            var scheduleHost = await _context.ScheduleParticipants
+                .Where(p => p.ScheduleId == escrow.ScheduleId && p.Role == ParticipantRole.Organizer)
+                .Select(p => p.UserId)
+                .FirstOrDefaultAsync();
 
             await _context.SaveChangesAsync();
 

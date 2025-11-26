@@ -340,9 +340,9 @@
                     labels: ['Available Balance', 'Escrow', 'Spent'],
                     datasets: [{
                         data: [
-                                                @Model.Wallet?.WalletBalance ?? 0,
-                                                @Model.Wallet?.EscrowBalance ?? 0,
-                                                @Model.Wallet?.TotalSpent ?? 0
+                                                    @Model.Wallet?.WalletBalance ?? 0,
+                                                    @Model.Wallet?.EscrowBalance ?? 0,
+                                                    @Model.Wallet?.TotalSpent ?? 0
                         ],
                         backgroundColor: [
                             'rgba(46, 139, 87, 0.8)',
@@ -418,23 +418,23 @@
 
                 // Previous
                 pagination.innerHTML += `
-                <li class="page-item ${currentPage === 1 ? "disabled" : ""}">
-                    <a class="page-link" data-page="${currentPage - 1}">Previous</a>
-                </li>`;
+                    <li class="page-item ${currentPage === 1 ? "disabled" : ""}">
+                        <a class="page-link" data-page="${currentPage - 1}">Previous</a>
+                    </li>`;
 
                 // Page numbers
                 for (let i = 1; i <= totalPages; i++) {
                     pagination.innerHTML += `
-                    <li class="page-item ${i === currentPage ? "active" : ""}">
-                        <a class="page-link" data-page="${i}">${i}</a>
-                    </li>`;
+                        <li class="page-item ${i === currentPage ? "active" : ""}">
+                            <a class="page-link" data-page="${i}">${i}</a>
+                        </li>`;
                 }
 
                 // Next
                 pagination.innerHTML += `
-                <li class="page-item ${currentPage === totalPages ? "disabled" : ""}">
-                    <a class="page-link" data-page="${currentPage + 1}">Next</a>
-                </li>`;
+                    <li class="page-item ${currentPage === totalPages ? "disabled" : ""}">
+                        <a class="page-link" data-page="${currentPage + 1}">Next</a>
+                    </li>`;
 
                 // Bind click events
                 pagination.querySelectorAll("a").forEach(a => {
@@ -525,10 +525,6 @@
                 <div class="side-box">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h3 class="section-title mb-0"><i class="fas fa-receipt me-2"></i>Payment Transactions</h3>
-
-                        <button class="btn btn-sm btn-outline-custom">
-                            <i class="fas fa-download me-1"></i> Export
-                        </button>
                     </div>
 
                     <div class="row mb-3">
@@ -543,10 +539,12 @@
                         <div class="col-md-6 mb-2">
                             <select id="filterType" class="form-select">
                                 <option value="all" selected>All Types</option>
-                                <option value="TopUp">TopUp</option>
+                                <option value="TopUp">Top Up</option>
                                 <option value="Withdraw">Withdraw</option>
                                 <option value="Escrow_Hold">Escrow Hold</option>
-                                <option value="Released">Released</option>
+                                <option value="Escrow_Released">Escrow Released</option>
+                                <option value="Escrow_Receive">Escrow Received</option>
+                                <option value="Escrow_Refund">Escrow Refund</option>
                             </select>
                         </div>
                     </div>
@@ -569,13 +567,15 @@
                                     foreach (var t in Model.Transactions.OrderByDescending(x => x.CreatedAt))
                                     {
                                         var icon = t.TransactionType switch
-                                        {
-                                            "TopUp" => "transaction-icon top-up fas fa-arrow-down",
-                                            "Withdraw" => "transaction-icon withdraw fas fa-arrow-up",
-                                            "Escrow_Hold" => "transaction-icon escrow fas fa-lock",
-                                            "Released" => "transaction-icon released fas fa-unlock",
-                                            _ => "transaction-icon fas fa-money-bill"
-                                        };
+    {
+        "TopUp" => "transaction-icon top-up fas fa-arrow-down",
+        "Withdraw" => "transaction-icon withdraw fas fa-arrow-up",
+        "Escrow_Hold" => "transaction-icon escrow fas fa-lock",
+        "Escrow_Released" or "Released" => "transaction-icon released fas fa-unlock",
+        "Escrow_Receive" => "transaction-icon released fas fa-hand-holding-usd",
+        "Escrow_Refund" or "Refund" => "transaction-icon withdraw fas fa-undo",
+        _ => "transaction-icon fas fa-money-bill"
+    };
 
                                         var isPositive = t.Amount >= 0;
 

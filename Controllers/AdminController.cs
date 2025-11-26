@@ -14,165 +14,169 @@ public class AdminController : Controller
         _context = context;
     }
 
+    public static DateTime NowMYT()
+    {
+        var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
+    }
     // GET: /Admin/Dashboard
-// GET: /Admin/Dashboard
-public async Task<IActionResult> AdminDashboard()
-{
-    var userRole = HttpContext.Session.GetString("UserRole");
-    if (userRole != "Admin")
+    public async Task<IActionResult> AdminDashboard()
     {
-        return RedirectToAction("Login", "Auth");
-    }
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction("Login", "Auth");
+        }
 
-    var viewModel = new AdminDashboardViewModel();
+        var viewModel = new AdminDashboardViewModel();
 
-    try
-    {
-        // Get basic stats
-        viewModel.TotalUsers = await _context.Users.CountAsync();
-        viewModel.ActiveCommunities = await _context.Communities
-            .Where(c => c.Status == "Active")
-            .CountAsync();
-        
-        // Get individual pending counts
-        viewModel.PendingCommunityRequestsCount = await _context.CommunityRequests
-            .Where(cr => cr.RequestStatus == "Pending")
-            .CountAsync();
+        try
+        {
+            // Get basic stats
+            viewModel.TotalUsers = await _context.Users.CountAsync();
+            viewModel.ActiveCommunities = await _context.Communities
+                .Where(c => c.Status == "Active")
+                .CountAsync();
 
-        viewModel.PendingEscrowDisputesCount = await _context.EscrowDisputes
-            .Where(ed => ed.AdminDecision == "Pending")
-            .CountAsync();
+            // Get individual pending counts
+            viewModel.PendingCommunityRequestsCount = await _context.CommunityRequests
+                .Where(cr => cr.RequestStatus == "Pending")
+                .CountAsync();
 
-        viewModel.PendingRefundRequestsCount = await _context.RefundRequests
-            .Where(rr => rr.AdminDecision == "Pending")
-            .CountAsync();
+            viewModel.PendingEscrowDisputesCount = await _context.EscrowDisputes
+                .Where(ed => ed.AdminDecision == "Pending")
+                .CountAsync();
 
-        viewModel.PendingSuspensionRequestsCount = await _context.UserSuspensions
-            .Where(us => us.AdminDecision == "Pending")
-            .CountAsync();
+            viewModel.PendingRefundRequestsCount = await _context.RefundRequests
+                .Where(rr => rr.AdminDecision == "Pending")
+                .CountAsync();
 
-        // Calculate TOTAL pending requests (sum of all types)
-        viewModel.TotalPendingRequests = viewModel.PendingCommunityRequestsCount + 
-                                       viewModel.PendingEscrowDisputesCount + 
-                                       viewModel.PendingRefundRequestsCount + 
-                                       viewModel.PendingSuspensionRequestsCount;
-        
-        // Total transactions amount in RM (completed payments only)
-        viewModel.TotalTransactions = await _context.Transactions
-            .Where(t => t.PaymentStatus == "Completed" && t.TransactionType != "Escrow_Hold")
-            .SumAsync(t => t.Amount);
+            viewModel.PendingSuspensionRequestsCount = await _context.UserSuspensions
+                .Where(us => us.AdminDecision == "Pending")
+                .CountAsync();
 
-        // Get recent activities (last 7 days)
-        var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
-        
-        var recentActivities = new List<RecentActivityViewModel>();
+            // Calculate TOTAL pending requests (sum of all types)
+            viewModel.TotalPendingRequests = viewModel.PendingCommunityRequestsCount +
+                                           viewModel.PendingEscrowDisputesCount +
+                                           viewModel.PendingRefundRequestsCount +
+                                           viewModel.PendingSuspensionRequestsCount;
 
-        // Recent community requests
-        var recentCommunityRequests = await _context.CommunityRequests
-            .Where(cr => cr.RequestDate >= sevenDaysAgo)
-            .Include(cr => cr.RequestByUser)
-            .OrderByDescending(cr => cr.RequestDate)
-            .Take(10)
-            .Select(cr => new RecentActivityViewModel
-            {
-                Type = "Community Request",
-                Description = $"New community request: {cr.CommunityName}",
-                CreatedAt = cr.RequestDate,
-                Username = cr.RequestByUser.Username,
-                Status = cr.RequestStatus
-            })
-            .ToListAsync();
+            // Total transactions amount in RM (completed payments only)
+            viewModel.TotalTransactions = await _context.Transactions
+                .Where(t => t.PaymentStatus == "Completed" && t.TransactionType != "Escrow_Hold")
+                .SumAsync(t => t.Amount);
 
-        recentActivities.AddRange(recentCommunityRequests);
+            // Get recent activities (last 7 days)
+            var sevenDaysAgo = NowMYT().AddDays(-7);
 
-        // Recent disputes
-        var recentDisputes = await _context.EscrowDisputes
-            .Where(ed => ed.CreatedAt >= sevenDaysAgo)
-            .Include(ed => ed.RaisedByUser)
-            .OrderByDescending(ed => ed.CreatedAt)
-            .Take(10)
-            .Select(ed => new RecentActivityViewModel
-            {
-                Type = "Escrow Dispute",
-                Description = $"Dispute raised for schedule",
-                CreatedAt = ed.CreatedAt,
-                Username = ed.RaisedByUser.Username,
-                Status = ed.AdminDecision
-            })
-            .ToListAsync();
+            var recentActivities = new List<RecentActivityViewModel>();
 
-        recentActivities.AddRange(recentDisputes);
-
-        // Recent refund requests
-        var recentRefunds = await _context.RefundRequests
-            .Where(rr => rr.CreatedAt >= sevenDaysAgo)
-            .Include(rr => rr.User)
-            .OrderByDescending(rr => rr.CreatedAt)
-            .Take(10)
-            .Select(rr => new RecentActivityViewModel
-            {
-                Type = "Refund Request",
-                Description = $"Refund request submitted",
-                CreatedAt = rr.CreatedAt,
-                Username = rr.User.Username,
-                Status = rr.AdminDecision
-            })
-            .ToListAsync();
-
-        recentActivities.AddRange(recentRefunds);
-
-        viewModel.RecentActivities = recentActivities
-            .OrderByDescending(ra => ra.CreatedAt)
-            .Take(8)
-            .ToList();
-
-        // Get user growth data for chart (last 6 months) - SIMPLIFIED
-        var sixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
-        
-        var monthlyGrowth = await _context.Users
-            .Where(u => u.CreatedDate >= sixMonthsAgo)
-            .GroupBy(u => new { Year = u.CreatedDate.Year, Month = u.CreatedDate.Month })
-            .Select(g => new
-            {
-                Year = g.Key.Year,
-                Month = g.Key.Month,
-                NewUsers = g.Count()
-            })
-            .OrderBy(x => x.Year)
-            .ThenBy(x => x.Month)
-            .ToListAsync();
-
-        // Calculate cumulative totals for tooltips
-        var allUsersBeforePeriod = await _context.Users
-            .Where(u => u.CreatedDate < sixMonthsAgo)
-            .CountAsync();
-
-        int cumulativeTotal = allUsersBeforePeriod;
-        viewModel.MonthlyTotalUsers = new Dictionary<string, int>();
-        
-        viewModel.MonthlyUserGrowth = monthlyGrowth
-            .Select(m => 
-            {
-                var monthKey = new DateTime(m.Year, m.Month, 1).ToString("MMM yyyy");
-                cumulativeTotal += m.NewUsers;
-                viewModel.MonthlyTotalUsers[monthKey] = cumulativeTotal;
-                
-                return new MonthlyUserGrowth
+            // Recent community requests
+            var recentCommunityRequests = await _context.CommunityRequests
+                .Where(cr => cr.RequestDate >= sevenDaysAgo)
+                .Include(cr => cr.RequestByUser)
+                .OrderByDescending(cr => cr.RequestDate)
+                .Take(10)
+                .Select(cr => new RecentActivityViewModel
                 {
-                    Month = monthKey,
-                    NewUsers = m.NewUsers
-                };
-            })
-            .ToList();
-    }
-    catch (Exception ex)
-    {
-        // Log error but don't crash the page
-        Console.WriteLine($"Error loading dashboard data: {ex.Message}");
-    }
+                    Type = "Community Request",
+                    Description = $"New community request: {cr.CommunityName}",
+                    CreatedAt = cr.RequestDate,
+                    Username = cr.RequestByUser.Username,
+                    Status = cr.RequestStatus
+                })
+                .ToListAsync();
 
-    return View("AdminDashboard", viewModel);
-}
+            recentActivities.AddRange(recentCommunityRequests);
+
+            // Recent disputes
+            var recentDisputes = await _context.EscrowDisputes
+                .Where(ed => ed.CreatedAt >= sevenDaysAgo)
+                .Include(ed => ed.RaisedByUser)
+                .OrderByDescending(ed => ed.CreatedAt)
+                .Take(10)
+                .Select(ed => new RecentActivityViewModel
+                {
+                    Type = "Escrow Dispute",
+                    Description = $"Dispute raised for schedule",
+                    CreatedAt = ed.CreatedAt,
+                    Username = ed.RaisedByUser.Username,
+                    Status = ed.AdminDecision
+                })
+                .ToListAsync();
+
+            recentActivities.AddRange(recentDisputes);
+
+            // Recent refund requests
+            var recentRefunds = await _context.RefundRequests
+                .Where(rr => rr.CreatedAt >= sevenDaysAgo)
+                .Include(rr => rr.User)
+                .OrderByDescending(rr => rr.CreatedAt)
+                .Take(10)
+                .Select(rr => new RecentActivityViewModel
+                {
+                    Type = "Refund Request",
+                    Description = $"Refund request submitted",
+                    CreatedAt = rr.CreatedAt,
+                    Username = rr.User.Username,
+                    Status = rr.AdminDecision
+                })
+                .ToListAsync();
+
+            recentActivities.AddRange(recentRefunds);
+
+            viewModel.RecentActivities = recentActivities
+                .OrderByDescending(ra => ra.CreatedAt)
+                .Take(8)
+                .ToList();
+
+            // Get user growth data for chart (last 6 months) - SIMPLIFIED
+            var sixMonthsAgo = NowMYT().AddMonths(-6);
+
+            var monthlyGrowth = await _context.Users
+                .Where(u => u.CreatedDate >= sixMonthsAgo)
+                .GroupBy(u => new { Year = u.CreatedDate.Year, Month = u.CreatedDate.Month })
+                .Select(g => new
+                {
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    NewUsers = g.Count()
+                })
+                .OrderBy(x => x.Year)
+                .ThenBy(x => x.Month)
+                .ToListAsync();
+
+            // Calculate cumulative totals for tooltips
+            var allUsersBeforePeriod = await _context.Users
+                .Where(u => u.CreatedDate < sixMonthsAgo)
+                .CountAsync();
+
+            int cumulativeTotal = allUsersBeforePeriod;
+            viewModel.MonthlyTotalUsers = new Dictionary<string, int>();
+
+            viewModel.MonthlyUserGrowth = monthlyGrowth
+                .Select(m =>
+                {
+                    var monthKey = new DateTime(m.Year, m.Month, 1).ToString("MMM yyyy");
+                    cumulativeTotal += m.NewUsers;
+                    viewModel.MonthlyTotalUsers[monthKey] = cumulativeTotal;
+
+                    return new MonthlyUserGrowth
+                    {
+                        Month = monthKey,
+                        NewUsers = m.NewUsers
+                    };
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't crash the page
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+
+        return View("AdminDashboard", viewModel);
+    }
 
     public IActionResult SuspendList()
     {
@@ -408,7 +412,7 @@ public async Task<IActionResult> AdminDashboard()
             }
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
-            return File(bytes, "text/csv", $"transactions_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+            return File(bytes, "text/csv", $"transactions_{NowMYT():yyyyMMdd_HHmmss}.csv");
         }
         catch (Exception ex)
         {
@@ -458,6 +462,7 @@ public async Task<IActionResult> AdminDashboard()
             return NotFound(new { success = false, message = "Pending request not found." });
         }
 
+        var nowMYT = NowMYT();
         // 1. Create the new Community
         var community = new Community
         {
@@ -466,7 +471,7 @@ public async Task<IActionResult> AdminDashboard()
             CreateByUserId = request.RequestByUserId,
             CommunityLocation = request.CommunityLocation,
             CommunityType = request.CommunityType,
-            CreatedDate = DateTime.UtcNow,
+            CreatedDate = nowMYT,
             Status = "Active" // Set as active
         };
 
@@ -480,7 +485,7 @@ public async Task<IActionResult> AdminDashboard()
             UserId = request.RequestByUserId,
             CommunityRole = "Admin", // Set initial role
             Status = "Active",
-            JoinDate = DateTime.UtcNow
+            JoinDate = nowMYT
         };
 
         _context.CommunityMembers.Add(member);
@@ -571,57 +576,57 @@ public async Task<IActionResult> AdminDashboard()
     }
 
     // GET: /Admin/InactiveCommunities
-public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, string search = "", string statusFilter = "all")
-{
-    var userRole = HttpContext.Session.GetString("UserRole");
-    if (userRole != "Admin")
+    public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, string search = "", string statusFilter = "all")
     {
-        return RedirectToAction("Login", "Auth");
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (inactiveDays == null)
+        {
+            inactiveDays = 0;
+        }
+
+        IQueryable<Community> query = _context.Communities
+            .Include(c => c.Creator)
+            .Include(c => c.Memberships);
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(search))
+        {
+            query = query.Where(c => c.CommunityName.Contains(search) ||
+                                    c.CommunityLocation!.Contains(search));
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "all")
+        {
+            query = query.Where(c => c.Status == statusFilter);
+        }
+
+        // If inactiveDays is 0, show ALL communities (including deleted)
+        // Otherwise, show only active communities inactive for more than inactiveDays
+        if (inactiveDays > 0)
+        {
+            var cutoffDate = NowMYT().AddDays(-inactiveDays.Value);
+            query = query.Where(c => c.Status == "Active" &&
+                                   (c.LastActivityDate == null || c.LastActivityDate <= cutoffDate));
+        }
+
+        // Always sort: Active first, then by name
+        query = query.OrderByDescending(c => c.Status == "Active")
+                    .ThenBy(c => c.Status)
+                    .ThenBy(c => c.CommunityName);
+
+        var communities = await query.ToListAsync();
+
+        ViewData["InactiveDays"] = inactiveDays;
+        ViewData["Search"] = search;
+        ViewData["StatusFilter"] = statusFilter;
+        return View("~/Views/Admin/InactiveCommunities.cshtml", communities);
     }
-
-    if (inactiveDays == null)
-    {
-        inactiveDays = 0;
-    }
-
-    IQueryable<Community> query = _context.Communities
-        .Include(c => c.Creator)
-        .Include(c => c.Memberships);
-
-    // Apply search filter
-    if (!string.IsNullOrEmpty(search))
-    {
-        query = query.Where(c => c.CommunityName.Contains(search) || 
-                                c.CommunityLocation!.Contains(search));
-    }
-
-    // Apply status filter
-    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "all")
-    {
-        query = query.Where(c => c.Status == statusFilter);
-    }
-
-    // If inactiveDays is 0, show ALL communities (including deleted)
-    // Otherwise, show only active communities inactive for more than inactiveDays
-    if (inactiveDays > 0)
-    {
-        var cutoffDate = DateTime.UtcNow.AddDays(-inactiveDays.Value);
-        query = query.Where(c => c.Status == "Active" && 
-                               (c.LastActivityDate == null || c.LastActivityDate <= cutoffDate));
-    }
-
-    // Always sort: Active first, then by name
-    query = query.OrderByDescending(c => c.Status == "Active")
-                .ThenBy(c => c.Status)
-                .ThenBy(c => c.CommunityName);
-
-    var communities = await query.ToListAsync();
-
-    ViewData["InactiveDays"] = inactiveDays;
-    ViewData["Search"] = search;
-    ViewData["StatusFilter"] = statusFilter;
-    return View("~/Views/Admin/InactiveCommunities.cshtml", communities);
-}
 
     // POST: /Admin/DeleteInactiveCommunity
     [HttpPost]
@@ -650,8 +655,8 @@ public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, stri
             string originalName = community.CommunityName;
 
             // Generate unique suffix with timestamp and random characters
-            var nowUtc = DateTime.UtcNow;
-            string timestamp = nowUtc.ToString("yyyyMMddHHmmss");
+            var nowMYT = NowMYT();
+            string timestamp = nowMYT.ToString("yyyyMMddHHmmss");
             string randomSuffix = Guid.NewGuid().ToString("N")[..6];
 
             // Update community name with deletion marker
@@ -659,7 +664,7 @@ public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, stri
             community.Status = "Deleted";
             community.DeletionReason = reason ?? "Deleted by admin - inactive community";
             community.DeletedByUserId = currentUserId;
-            community.DeletionDate = nowUtc;
+            community.DeletionDate = nowMYT;
 
             // --- UPDATE ALL COMMUNITY MEMBERS TO INACTIVE ---
             foreach (var member in community.Memberships)
@@ -761,90 +766,90 @@ public async Task<IActionResult> InactiveCommunities(int? inactiveDays = 0, stri
         }
     }
 
-   // Add this method to your AdminController.cs
-public async Task<IActionResult> GrowthReport()
-{
-    var userRole = HttpContext.Session.GetString("UserRole");
-    if (userRole != "Admin")
+    // Add this method to your AdminController.cs
+    public async Task<IActionResult> GrowthReport()
     {
-        return RedirectToAction("Login", "Auth");
-    }
-
-    try
-    {
-        // Fetch real data only - no sample data
-        var sixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
-        
-        var monthlyGrowth = await _context.Users
-            .Where(u => u.CreatedDate >= sixMonthsAgo)
-            .GroupBy(u => new { Year = u.CreatedDate.Year, Month = u.CreatedDate.Month })
-            .Select(g => new
-            {
-                Year = g.Key.Year,
-                Month = g.Key.Month,
-                NewUsers = g.Count()
-            })
-            .OrderBy(x => x.Year)
-            .ThenBy(x => x.Month)
-            .ToListAsync();
-
-        List<MonthlyGrowthData> monthlyData = new List<MonthlyGrowthData>();
-
-        if (monthlyGrowth.Any())
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
         {
-            // Use real data only
-            monthlyData = monthlyGrowth.Select(g => new MonthlyGrowthData
-            {
-                Month = new DateTime(g.Year, g.Month, 1).ToString("MMM"),
-                Users = g.NewUsers
-            }).ToList();
+            return RedirectToAction("Login", "Auth");
         }
 
-        // Calculate summary with real data only
-        var peakGrowth = monthlyData.Any() ? monthlyData.OrderByDescending(m => m.Users).First() : null;
-        var lowestGrowth = monthlyData.Any() ? monthlyData.OrderBy(m => m.Users).First() : null;
-        var totalUsersGained = monthlyData.Sum(m => m.Users);
-        var averageMonthlyGrowth = monthlyData.Any() ? (int)monthlyData.Average(m => m.Users) : 0;
-
-        var viewModel = new GrowthReportViewModel
+        try
         {
-            ReportTitle = "Yearly User Growth (2025)",
-            MonthlyData = monthlyData,
-            Summary = new ReportSummary
-            {
-                PeakGrowthMonth = peakGrowth?.Month ?? "No data",
-                PeakGrowthValue = peakGrowth?.Users ?? 0,
-                LowestGrowthMonth = lowestGrowth?.Month ?? "No data",
-                LowestGrowthValue = lowestGrowth?.Users ?? 0,
-                TotalUsersGained = totalUsersGained,
-                AverageMonthlyGrowth = averageMonthlyGrowth,
-                Period = "6 months"
-            }
-        };
+            // Fetch real data only - no sample data
+            var sixMonthsAgo = NowMYT().AddMonths(-6);
 
-        return View("GrowthReport", viewModel);
-    }
-    catch (Exception)
-    {
-        // Return empty data instead of sample data
-        var viewModel = new GrowthReportViewModel
+            var monthlyGrowth = await _context.Users
+                .Where(u => u.CreatedDate >= sixMonthsAgo)
+                .GroupBy(u => new { Year = u.CreatedDate.Year, Month = u.CreatedDate.Month })
+                .Select(g => new
+                {
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    NewUsers = g.Count()
+                })
+                .OrderBy(x => x.Year)
+                .ThenBy(x => x.Month)
+                .ToListAsync();
+
+            List<MonthlyGrowthData> monthlyData = new List<MonthlyGrowthData>();
+
+            if (monthlyGrowth.Any())
+            {
+                // Use real data only
+                monthlyData = monthlyGrowth.Select(g => new MonthlyGrowthData
+                {
+                    Month = new DateTime(g.Year, g.Month, 1).ToString("MMM"),
+                    Users = g.NewUsers
+                }).ToList();
+            }
+
+            // Calculate summary with real data only
+            var peakGrowth = monthlyData.Any() ? monthlyData.OrderByDescending(m => m.Users).First() : null;
+            var lowestGrowth = monthlyData.Any() ? monthlyData.OrderBy(m => m.Users).First() : null;
+            var totalUsersGained = monthlyData.Sum(m => m.Users);
+            var averageMonthlyGrowth = monthlyData.Any() ? (int)monthlyData.Average(m => m.Users) : 0;
+
+            var viewModel = new GrowthReportViewModel
+            {
+                ReportTitle = "Yearly User Growth (2025)",
+                MonthlyData = monthlyData,
+                Summary = new ReportSummary
+                {
+                    PeakGrowthMonth = peakGrowth?.Month ?? "No data",
+                    PeakGrowthValue = peakGrowth?.Users ?? 0,
+                    LowestGrowthMonth = lowestGrowth?.Month ?? "No data",
+                    LowestGrowthValue = lowestGrowth?.Users ?? 0,
+                    TotalUsersGained = totalUsersGained,
+                    AverageMonthlyGrowth = averageMonthlyGrowth,
+                    Period = "6 months"
+                }
+            };
+
+            return View("GrowthReport", viewModel);
+        }
+        catch (Exception)
         {
-            ReportTitle = "Yearly User Growth (2025)",
-            MonthlyData = new List<MonthlyGrowthData>(),
-            Summary = new ReportSummary
+            // Return empty data instead of sample data
+            var viewModel = new GrowthReportViewModel
             {
-                PeakGrowthMonth = "No data",
-                PeakGrowthValue = 0,
-                LowestGrowthMonth = "No data", 
-                LowestGrowthValue = 0,
-                TotalUsersGained = 0,
-                AverageMonthlyGrowth = 0,
-                Period = "6 months"
-            }
-        };
+                ReportTitle = "Yearly User Growth (2025)",
+                MonthlyData = new List<MonthlyGrowthData>(),
+                Summary = new ReportSummary
+                {
+                    PeakGrowthMonth = "No data",
+                    PeakGrowthValue = 0,
+                    LowestGrowthMonth = "No data",
+                    LowestGrowthValue = 0,
+                    TotalUsersGained = 0,
+                    AverageMonthlyGrowth = 0,
+                    Period = "6 months"
+                }
+            };
 
-        return View("GrowthReport", viewModel);
+            return View("GrowthReport", viewModel);
+        }
     }
-}
 
 }

@@ -21,6 +21,12 @@ public class AuthService : IAuthService
         _httpClient = httpClient;
     }
 
+    private DateTime NowMYT()
+    {
+        var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
+    }
+
     public async Task<RegisterResult> RegisterAsync(RegisterRequest request, Func<int, string, string> buildVerificationLink)
     {
         // Normalize & validate
@@ -43,7 +49,7 @@ public class AuthService : IAuthService
             Password = passwordHash,
             Status = "Pending Verification",
             EmailVerify = false,
-            CreatedDate = DateTime.UtcNow,
+            CreatedDate = NowMYT(),
             Role = "Player"
         };
         user.GenerateEmailVerificationToken();
@@ -129,7 +135,7 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(user.EmailVerificationToken) ||
             user.EmailVerificationToken != token ||
             user.VerificationTokenExpiry == null ||
-            DateTime.UtcNow > user.VerificationTokenExpiry.Value)
+            NowMYT() > user.VerificationTokenExpiry.Value)
         {
             return false;
         }
@@ -290,8 +296,8 @@ public class AuthService : IAuthService
                     Success = false,
                     Error = "Invalid email or password."
                 };
-            } 
-            
+            }
+
             // AUTO-REACTIVATE CHECK: Check if suspension period has ended
             if (user.Status == "Suspended")
             {
@@ -300,7 +306,7 @@ public class AuthService : IAuthService
                                 us.AdminDecision == "Approved" &&
                                 !us.IsBanned &&
                                 us.SuspensionEnd.HasValue &&
-                                us.SuspensionEnd <= DateTime.UtcNow)
+                                us.SuspensionEnd <= NowMYT())
                     .FirstOrDefaultAsync();
 
                 if (expiredSuspension != null)
@@ -330,13 +336,13 @@ public class AuthService : IAuthService
                                 us.AdminDecision == "Approved" &&
                                 !us.IsBanned &&
                                 us.SuspensionStart.HasValue &&
-                                us.SuspensionEnd > DateTime.UtcNow && // Still in suspension period
-                                DateTime.UtcNow <= us.SuspensionStart.Value.AddHours(72)) // Still in first 3 days
+                                us.SuspensionEnd > NowMYT() && // Still in suspension period
+                                NowMYT() <= us.SuspensionStart.Value.AddHours(72)) // Still in first 3 days
                     .FirstOrDefaultAsync();
 
                 if (activeSuspension != null)
                 {
-                    var remainingTime = activeSuspension.SuspensionStart!.Value.AddHours(72) - DateTime.UtcNow;
+                    var remainingTime = activeSuspension.SuspensionStart!.Value.AddHours(72) - NowMYT();
 
                     // Calculate days and hours
                     var totalDays = (int)remainingTime.TotalDays;
@@ -440,11 +446,11 @@ public class AuthService : IAuthService
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
-        if (user == null) return false; 
+        if (user == null) return false;
 
         // Generate reset token with 1 minute expiry
         user.PasswordResetToken = GenerateSecureToken();
-        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(1); 
+        user.PasswordResetTokenExpiry = NowMYT().AddMinutes(1);
         await _db.SaveChangesAsync();
 
         var resetLink = buildResetLink(user.UserId, user.PasswordResetToken);
@@ -510,7 +516,7 @@ public class AuthService : IAuthService
             u.UserId == userId &&
             u.PasswordResetToken == token &&
             u.PasswordResetTokenExpiry.HasValue &&
-            u.PasswordResetTokenExpiry > DateTime.UtcNow);
+            u.PasswordResetTokenExpiry > NowMYT());
     }
 
     public async Task<bool> ResetPasswordAsync(int userId, string newPassword)

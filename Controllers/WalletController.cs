@@ -27,55 +27,55 @@ public class WalletController : Controller
     }
 
     public async Task<IActionResult> WalletManagement()
-{
-    if (HttpContext.Session.GetString("UserEmail") == null)
-        return RedirectToAction("Login", "Auth");
-
-    int? userId = HttpContext.Session.GetInt32("UserId");
-    if (userId == null)
-        return RedirectToAction("Login", "Auth");
-
-    // Fetch Wallet
-    var wallet = await _context.Wallets
-        .Include(w => w.Transactions)
-        .FirstOrDefaultAsync(w => w.UserId == userId.Value);
-
-    // Fetch User
-    var user = await _context.Users
-        .FirstOrDefaultAsync(u => u.UserId == userId.Value);
-
-    // Fetch Escrow
-    var escrows = await _context.Escrows
-        .Include(e => e.Transactions)
-        .Where(e => e.UserId == userId.Value)
-        .ToListAsync();
-
-    // Fetch Disputes (by schedule ID from escrows)
-    var escrowScheduleIds = escrows.Select(e => e.ScheduleId).ToList();
-    var disputes = await _context.EscrowDisputes
-        .Where(d => d.RaisedByUserId == userId.Value)
-        .ToListAsync();
-
-    // Fetch Escrow Payment Requests  
-    // (If you store them in DB - if not, keep empty)
-    var escrowRequests = new List<EscrowPaymentRequest>(); 
-    // Add your DB fetch here later when implemented 
-
-    var vm = new WalletManagementViewModel
     {
-        Wallet = wallet ?? new Wallet(),
-        User = user ?? new User(),
-        Transactions = wallet?.Transactions.OrderByDescending(t => t.CreatedAt).ToList() ?? new List<Transaction>(),
-        Escrows = escrows,
-        EscrowDisputes = disputes,
-        EscrowPaymentRequests = escrowRequests
-    };
+        if (HttpContext.Session.GetString("UserEmail") == null)
+            return RedirectToAction("Login", "Auth");
 
-    ViewData["Title"] = "Wallet Management";
-    ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return RedirectToAction("Login", "Auth");
 
-    return View(vm);
-}
+        // Fetch Wallet
+        var wallet = await _context.Wallets
+            .Include(w => w.Transactions)
+            .FirstOrDefaultAsync(w => w.UserId == userId.Value);
+
+        // Fetch User
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.UserId == userId.Value);
+
+        // Fetch Escrow
+        var escrows = await _context.Escrows
+            .Include(e => e.Transactions)
+            .Where(e => e.UserId == userId.Value)
+            .ToListAsync();
+
+        // Fetch Disputes (by schedule ID from escrows)
+        var escrowScheduleIds = escrows.Select(e => e.ScheduleId).ToList();
+        var disputes = await _context.EscrowDisputes
+            .Where(d => d.RaisedByUserId == userId.Value)
+            .ToListAsync();
+
+        // Fetch Escrow Payment Requests  
+        // (If you store them in DB - if not, keep empty)
+        var escrowRequests = new List<EscrowPaymentRequest>();
+        // Add your DB fetch here later when implemented 
+
+        var vm = new WalletManagementViewModel
+        {
+            Wallet = wallet ?? new Wallet(),
+            User = user ?? new User(),
+            Transactions = wallet?.Transactions.OrderByDescending(t => t.CreatedAt).ToList() ?? new List<Transaction>(),
+            Escrows = escrows,
+            EscrowDisputes = disputes,
+            EscrowPaymentRequests = escrowRequests
+        };
+
+        ViewData["Title"] = "Wallet Management";
+        ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
+
+        return View(vm);
+    }
 
 
     // GET: /Wallet/TopUp
@@ -254,14 +254,17 @@ public class WalletController : Controller
         }
     }
 
-    // GET: PayPal Success Callback
     [HttpGet]
     [Route("/api/PayPal/success")]
     public async Task<IActionResult> PayPalSuccess([FromQuery] string paymentId, [FromQuery] string PayerID)
     {
+        // 1. Declare amount outside try block so it is accessible in catch block
+        decimal topUpAmount = 50.00m;
+        int? userId = null;
+
         try
         {
-            var userId = GetCurrentUserId();
+            userId = GetCurrentUserId();
             if (userId == null)
             {
                 return RedirectToAction("Login", "Auth");
@@ -269,73 +272,104 @@ public class WalletController : Controller
 
             _logger.LogInformation($"PayPal payment success: {paymentId}, payer: {PayerID}");
 
-            // Get the amount from session or database (you might need to store it temporarily)
-            var amount = HttpContext.Session.GetString("PayPalAmount");
-            if (string.IsNullOrEmpty(amount) || !decimal.TryParse(amount, out decimal topUpAmount))
+            // 2. Get the amount from session
+            var amountStr = HttpContext.Session.GetString("PayPalAmount");
+            if (!string.IsNullOrEmpty(amountStr) && decimal.TryParse(amountStr, out decimal parsedAmount))
             {
-                topUpAmount = 50.00m; // Default amount if not stored
+                topUpAmount = parsedAmount;
             }
 
-            // Execute the payment
+            // 3. Execute the payment (Ask PayPal to finalize the transaction)
             var paymentSuccess = await _payPalService.ExecutePaymentAsync(paymentId, PayerID);
 
             if (paymentSuccess)
             {
-                // Process the top-up in our system
+                // 4. Process the top-up in our system (Add balance to DB)
                 var topUpResult = await _paymentService.ProcessPayPalTopUpAsync(userId.Value, topUpAmount, paymentId);
 
                 if (topUpResult.Success)
                 {
-                    // Clear the session
+                    // SUCCESS: Clear session and show success page
                     HttpContext.Session.Remove("PayPalAmount");
-
-                    // Redirect to success page
                     return Redirect($"/Wallet/TopUpSuccess?amount={topUpAmount}&transactionId={topUpResult.TransactionId}&newBalance={topUpResult.NewBalance}");
                 }
                 else
                 {
+                    // FAILURE A: PayPal took money, but our DB update failed
+                    await _paymentService.RecordFailedTransactionAsync(
+                        userId.Value,
+                        topUpAmount,
+                        "TopUp",
+                        "PayPal",
+                        $"Internal DB Error: {topUpResult.Message}",
+                        paymentId
+                    );
+
                     return Redirect($"/Wallet/TopUpFailed?message={topUpResult.Message}");
                 }
             }
             else
             {
+                // FAILURE B: PayPal declined the execution (e.g. Insufficient funds or Fraud check)
+                await _paymentService.RecordFailedTransactionAsync(
+                    userId.Value,
+                    topUpAmount,
+                    "TopUp",
+                    "PayPal",
+                    "PayPal Execution Failed (Declined)",
+                    paymentId
+                );
+
                 return Redirect("/Wallet/TopUpFailed?message=Payment execution failed");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing PayPal payment success");
+
+            // FAILURE C: System Exception (Crash)
+            if (userId.HasValue)
+            {
+                await _paymentService.RecordFailedTransactionAsync(
+                    userId.Value,
+                    topUpAmount,
+                    "TopUp",
+                    "PayPal",
+                    $"System Error: {ex.Message}",
+                    paymentId
+                );
+            }
+
             return Redirect($"/Wallet/TopUpFailed?message={ex.Message}");
         }
     }
 
-    // GET: PayPal Cancel Callback
-    [HttpGet]   
+    [HttpGet]
     [Route("/api/PayPal/cancel")]
-    public IActionResult PayPalCancel()
+    public async Task<IActionResult> PayPalCancel() // Make this async
     {
         _logger.LogInformation("PayPal payment cancelled by user");
-        HttpContext.Session.Remove("PayPalAmount");
-        return Redirect("/Wallet/TopUpFailed?message=Payment cancelled by user");
-    }
 
-    // GET: Top Up Success Page
-    [HttpGet]
-    [Route("/Wallet/TopUpSuccess")]
-    public IActionResult TopUpSuccess()
-    {
-        if (HttpContext.Session.GetString("UserEmail") == null)
+        // 1. Retrieve User and Amount
+        var userId = GetCurrentUserId();
+        var amountString = HttpContext.Session.GetString("PayPalAmount");
+        decimal.TryParse(amountString ?? "0", out decimal amount);
+
+        // 2. Insert Failed Transaction Data (If user is logged in)
+        if (userId.HasValue && amount > 0)
         {
-            return RedirectToAction("Login", "Auth");
+            await _paymentService.RecordFailedTransactionAsync(
+                userId.Value,
+                amount,
+                "TopUp",
+                "PayPal",
+                "Payment cancelled by user"
+            );
         }
 
-        ViewData["Title"] = "Top Up Success";
-        ViewData["UserName"] = HttpContext.Session.GetString("UserName") ?? "User";
-        ViewData["Amount"] = HttpContext.Request.Query["amount"];
-        ViewData["NewBalance"] = HttpContext.Request.Query["newBalance"];
-        ViewData["TransactionId"] = HttpContext.Request.Query["transactionId"];
-
-        return View();
+        // 3. Cleanup and Redirect
+        HttpContext.Session.Remove("PayPalAmount");
+        return Redirect("/Wallet/TopUpFailed?message=Payment cancelled by user");
     }
 
     // GET: Withdraw Success Page

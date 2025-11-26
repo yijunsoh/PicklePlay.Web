@@ -19,7 +19,11 @@ namespace PicklePlay.Controllers
             _context = context;
             _logger = logger;
         }
-
+        private DateTime NowMYT()
+        {
+            var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
+        }
         private int GetCurrentUserId()
         {
             var userId = HttpContext.Session.GetInt32("UserId");
@@ -68,6 +72,41 @@ namespace PicklePlay.Controllers
                     request.Amount,
                     request.PaymentType
                 );
+
+                if (result.Success)
+                {
+                    // 2. SEND NOTIFICATIONS (New Logic)
+                    var nowMYT = NowMYT();
+                    var schedule = await _context.Schedules.FindAsync(request.ScheduleId);
+
+                    // Notify Payer
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = request.UserId,
+                        Message = $"Payment of RM{request.Amount:0.00} for '{schedule?.GameName}' successful. Funds are held in escrow.",
+                        LinkUrl = $"/Schedule/Details/{request.ScheduleId}",
+                        DateCreated = nowMYT,
+                        IsRead = false
+                    });
+
+                    // Notify Host
+                    var host = await _context.ScheduleParticipants
+                        .FirstOrDefaultAsync(p => p.ScheduleId == request.ScheduleId && p.Role == ParticipantRole.Organizer);
+
+                    if (host != null)
+                    {
+                        _context.Notifications.Add(new Notification
+                        {
+                            UserId = host.UserId,
+                            Message = $"New escrow payment received from a player for '{schedule?.GameName}'.",
+                            LinkUrl = $"/Schedule/Details/{request.ScheduleId}",
+                            DateCreated = nowMYT,
+                            IsRead = false
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
 
                 return Ok(new
                 {
@@ -199,7 +238,7 @@ namespace PicklePlay.Controllers
                 {
                     return Json(new { success = false, message = "You already have a pending dispute for this game." });
                 }
-
+                var nowMYT = NowMYT();
                 // Create new dispute
                 var dispute = new EscrowDispute
                 {
@@ -207,11 +246,28 @@ namespace PicklePlay.Controllers
                     RaisedByUserId = currentUserId,
                     DisputeReason = request.DisputeReason.Trim(),
                     AdminDecision = "Pending",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = nowMYT,
+                    UpdatedAt = nowMYT
                 };
 
                 _context.EscrowDisputes.Add(dispute);
+
+                // 🔔 NOTIFY HOST (New)
+                var host = await _context.ScheduleParticipants
+                    .FirstOrDefaultAsync(p => p.ScheduleId == request.ScheduleId && p.Role == ParticipantRole.Organizer);
+
+                if (host != null && host.UserId != currentUserId)
+                {
+                    var schedule = await _context.Schedules.FindAsync(request.ScheduleId);
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = host.UserId,
+                        Message = $"A dispute has been raised for your game '{schedule?.GameName}'. Funds are held pending admin review.",
+                        LinkUrl = $"/Schedule/Details/{request.ScheduleId}",
+                        DateCreated = nowMYT,
+                        IsRead = false
+                    });
+                }
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Dispute raised by user {UserId} for schedule {ScheduleId}", currentUserId, request.ScheduleId);
@@ -236,63 +292,79 @@ namespace PicklePlay.Controllers
 
         }
 
-       [HttpPost]
-public async Task<IActionResult> SubmitRefundRequest(int scheduleId, string reason)
-{
-    try
-    {
-        // Malaysia time
-        var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
-        var nowMYT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
-
-        var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null)
-            return Json(new { success = false, message = "User not logged in." });
-
-        if (string.IsNullOrWhiteSpace(reason))
-            return Json(new { success = false, message = "Please provide a refund reason." });
-
-        // get user's escrow for this schedule
-        var escrow = await _context.Escrows
-            .FirstOrDefaultAsync(e => e.ScheduleId == scheduleId && e.UserId == userId);
-
-        if (escrow == null)
-            return Json(new { success = false, message = "No escrow payment found for this schedule." });
-
-        // ✔ Block only pending refund requests, NOT previous ones
-        var hasPending = await _context.RefundRequests
-            .AnyAsync(r => r.EscrowId == escrow.EscrowId && r.AdminDecision == "Pending");
-
-        if (hasPending)
-            return Json(new { success = false, message = "You already have a refund request pending review." });
-
-        // ✔ allow submitting again (new row)
-        var request = new RefundRequest
+        [HttpPost]
+        public async Task<IActionResult> SubmitRefundRequest(int scheduleId, string reason)
         {
-            EscrowId = escrow.EscrowId,
-            UserId = userId.Value,       // FK to User
-            ReportedBy = userId.Value,   // For your logic
-            RefundReason = reason.Trim(),
-            AdminDecision = "Pending",
-            CreatedAt = nowMYT,
-            UpdatedAt = nowMYT
-        };
+            try
+            {
+                // Malaysia time
+                var myt = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+                var nowMYT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
 
-        _context.RefundRequests.Add(request);
-        await _context.SaveChangesAsync();
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                    return Json(new { success = false, message = "User not logged in." });
 
-        return Json(new { success = true, message = "Refund request submitted successfully." });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "Server error submitting refund request.",
-            detail = ex.Message
-        });
-    }
-}
+                if (string.IsNullOrWhiteSpace(reason))
+                    return Json(new { success = false, message = "Please provide a refund reason." });
+
+                // get user's escrow for this schedule
+                var escrow = await _context.Escrows
+                    .FirstOrDefaultAsync(e => e.ScheduleId == scheduleId && e.UserId == userId);
+
+                if (escrow == null)
+                    return Json(new { success = false, message = "No escrow payment found for this schedule." });
+
+                // ✔ Block only pending refund requests, NOT previous ones
+                var hasPending = await _context.RefundRequests
+                    .AnyAsync(r => r.EscrowId == escrow.EscrowId && r.AdminDecision == "Pending");
+
+                if (hasPending)
+                    return Json(new { success = false, message = "You already have a refund request pending review." });
+
+                // ✔ allow submitting again (new row)
+                var request = new RefundRequest
+                {
+                    EscrowId = escrow.EscrowId,
+                    UserId = userId.Value,       // FK to User
+                    ReportedBy = userId.Value,   // For your logic
+                    RefundReason = reason.Trim(),
+                    AdminDecision = "Pending",
+                    CreatedAt = nowMYT,
+                    UpdatedAt = nowMYT
+                };
+
+                _context.RefundRequests.Add(request);
+                // 🔔 NOTIFY HOST (New)
+                var host = await _context.ScheduleParticipants
+                    .FirstOrDefaultAsync(p => p.ScheduleId == scheduleId && p.Role == ParticipantRole.Organizer);
+
+                if (host != null && host.UserId != userId)
+                {
+                    var schedule = await _context.Schedules.FindAsync(scheduleId);
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = host.UserId,
+                        Message = $"A player has requested a refund for '{schedule?.GameName}'. Funds are held pending admin review.",
+                        LinkUrl = $"/Schedule/Details/{scheduleId}",
+                        DateCreated = nowMYT,
+                        IsRead = false
+                    });
+                }
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Refund request submitted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Server error submitting refund request.",
+                    detail = ex.Message
+                });
+            }
+        }
 
 
     }

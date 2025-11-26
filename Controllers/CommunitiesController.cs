@@ -31,111 +31,119 @@ namespace PicklePlay.Controllers
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, myt);
         }
         [HttpGet]
-public async Task<IActionResult> GetCommunityData()
-{
-    var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
-    int currentUserId = currentUserIdInt.GetValueOrDefault(0);
-
-    // --- 1. Fetch Member Counts (Dictionary) ---
-    var communityStats = await _context.CommunityMembers
-        .Where(cm => cm.Status == "Active")
-        .GroupBy(cm => cm.CommunityId)
-        .Select(g => new
+        public async Task<IActionResult> GetCommunityData()
         {
-            CommunityId = g.Key,
-            MemberCount = g.Count()
-        })
-        .ToDictionaryAsync(x => x.CommunityId, x => x.MemberCount);
+            var currentUserIdInt = HttpContext.Session.GetInt32("UserId");
+            int currentUserId = currentUserIdInt.GetValueOrDefault(0);
 
-    // --- 2. Fetch Pending & Rejected Requests ---
-    var pendingRequests = new List<object>();
-    var rejectedRequests = new List<object>();
+            // --- 1. APPLICATION-WIDE STATS (GLOBAL) ---
 
-    if (currentUserId > 0)
-    {
-        pendingRequests = await _context.CommunityMembers
-            .Include(cm => cm.Community)
-            .Where(cm => cm.Status == "Pending" && cm.UserId == currentUserId)
-            .Select(cm => new
+            // Total Active Communities
+            var totalActiveCommunities = await _context.Communities
+                .CountAsync(c => c.Status == "Active");
+
+            // Total Active Users
+            var totalActiveUsers = await _context.Users
+                .CountAsync(u => u.Status == "Active");
+
+            // Recent Activities (Global) 
+            // FIX: Using StartTime instead of CreatedAt
+            var sevenDaysAgo = NowMYT().AddDays(-7);
+            var recentActivitiesCount = await _context.Schedules
+                .CountAsync(s => s.StartTime >= sevenDaysAgo);
+
+            // --- 2. Fetch Member Counts Per Community ---
+            var communityStats = await _context.CommunityMembers
+                .Where(cm => cm.Status == "Active")
+                .GroupBy(cm => cm.CommunityId)
+                .Select(g => new
+                {
+                    CommunityId = g.Key,
+                    MemberCount = g.Count()
+                })
+                .ToDictionaryAsync(x => x.CommunityId, x => x.MemberCount);
+
+            // --- 3. Fetch Pending & Rejected Requests (User Specific) ---
+            var pendingRequests = new List<object>();
+            var rejectedRequests = new List<object>();
+
+            if (currentUserId > 0)
             {
-                requestId = cm.MemberId,
-                name = cm.Community.CommunityName,
-                location = cm.Community.CommunityLocation,
-                type = cm.Community.CommunityType,
-                requestDate = cm.JoinDate,
-                status = cm.Status
-            })
-            .ToListAsync<object>();
+                pendingRequests = await _context.CommunityMembers
+                    .Include(cm => cm.Community)
+                    .Where(cm => cm.Status == "Pending" && cm.UserId == currentUserId)
+                    .Select(cm => new
+                    {
+                        requestId = cm.MemberId,
+                        name = cm.Community.CommunityName,
+                        location = cm.Community.CommunityLocation,
+                        type = cm.Community.CommunityType,
+                        requestDate = cm.JoinDate,
+                        status = cm.Status
+                    })
+                    .ToListAsync<object>();
 
-        rejectedRequests = await _context.CommunityMembers
-            .Include(cm => cm.Community)
-            .Where(cm => cm.Status == "Rejected" && cm.UserId == currentUserId)
-            .Select(cm => new
+                rejectedRequests = await _context.CommunityMembers
+                    .Include(cm => cm.Community)
+                    .Where(cm => cm.Status == "Rejected" && cm.UserId == currentUserId)
+                    .Select(cm => new
+                    {
+                        requestId = cm.MemberId,
+                        communityId = cm.CommunityId,
+                        name = cm.Community.CommunityName,
+                        location = cm.Community.CommunityLocation,
+                        type = cm.Community.CommunityType,
+                        requestDate = cm.JoinDate,
+                        status = cm.Status
+                    })
+                    .ToListAsync<object>();
+            }
+
+            // --- 4. Fetch Active Communities (User Specific) ---
+            var activeRaw = await _context.CommunityMembers
+                .Where(cm => cm.UserId == currentUserId && cm.Status == "Active")
+                .Select(cm => new
+                {
+                    cm.CommunityId,
+                    cm.Community.CommunityName,
+                    cm.Community.Description,
+                    cm.Community.CommunityLocation,
+                    cm.Community.CommunityType,
+                    cm.CommunityRole
+                })
+                .ToListAsync();
+
+            var activeCommunities = activeRaw.Select(c => new
             {
-                requestId = cm.MemberId,
-                communityId = cm.CommunityId,
-                name = cm.Community.CommunityName,
-                location = cm.Community.CommunityLocation,
-                type = cm.Community.CommunityType,
-                requestDate = cm.JoinDate,
-                status = cm.Status
-            })
-            .ToListAsync<object>();
-    }
+                id = c.CommunityId,
+                name = c.CommunityName,
+                description = c.Description,
+                location = c.CommunityLocation,
+                type = c.CommunityType,
+                userRole = c.CommunityRole,
+                memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
+                gameCount = 0,
+                icon = "city"
+            }).ToList();
 
-    // --- 3. Fetch Active Communities (Joined by User) ---
-    // Step A: Get raw data from DB
-    var activeRaw = await _context.CommunityMembers
-        .Where(cm => cm.UserId == currentUserId && cm.Status == "Active")
-        .Select(cm => new
-        {
-            cm.CommunityId,
-            cm.Community.CommunityName,
-            cm.Community.Description,
-            cm.Community.CommunityLocation,
-            cm.Community.CommunityType,
-            cm.CommunityRole
-        })
-        .ToListAsync();
-
-    // Step B: Map in memory (Safe to use Dictionary here)
-    var activeCommunities = activeRaw.Select(c => new
-    {
-        id = c.CommunityId,
-        name = c.CommunityName,
-        description = c.Description,
-        location = c.CommunityLocation,
-        type = c.CommunityType,
-        userRole = c.CommunityRole,
-        memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
-        gameCount = 0,
-        icon = "city"
-    }).ToList();
-
-    // --- 4. Fetch Suggested Communities (Random 9) ---
-    
-    // Step A: Get IDs to exclude (Already Member/Pending/Rejected)
+            // --- 5. Fetch Suggested Communities ---
             var excludedIds = await _context.CommunityMembers
                 .Where(cm => cm.UserId == currentUserId &&
                             (cm.Status == "Active" || cm.Status == "Pending" || cm.Status == "Rejected"))
                 .Select(cm => cm.CommunityId)
                 .ToListAsync();
 
-            // Step B: Fetch ALL Eligible IDs first (Lightweight)
             var eligibleCommunityIds = await _context.Communities
                 .Where(c => !excludedIds.Contains(c.CommunityId) && c.Status == "Active")
                 .Select(c => c.CommunityId)
                 .ToListAsync();
 
-            // Step C: Shuffle the IDs in C# (This guarantees randomness)
             var rng = new Random();
             var selectedIds = eligibleCommunityIds
-                .OrderBy(x => rng.Next()) // Shuffle
-                .Take(9)                  // Take 9
+                .OrderBy(x => rng.Next())
+                .Take(9)
                 .ToList();
 
-            // Step D: Fetch Details for ONLY the selected 9 IDs
-            // Note: We don't need to check excludedIds here because we filtered them in Step B
             var suggestedRaw = await _context.Communities
                 .Where(c => selectedIds.Contains(c.CommunityId))
                 .Select(c => new
@@ -148,7 +156,6 @@ public async Task<IActionResult> GetCommunityData()
                 })
                 .ToListAsync();
 
-            // Step E: Map in memory
             var suggestedCommunities = suggestedRaw.Select(c => new
             {
                 id = c.CommunityId,
@@ -156,21 +163,27 @@ public async Task<IActionResult> GetCommunityData()
                 description = c.Description,
                 location = c.CommunityLocation,
                 type = c.CommunityType,
-                userRole = (string?)null, 
+                userRole = (string?)null,
                 memberCount = communityStats.ContainsKey(c.CommunityId) ? communityStats[c.CommunityId] : 0,
                 gameCount = 0,
                 icon = "compass"
             }).ToList();
 
-            // --- 5. Return Result ---
+            // --- 6. Return Result with Global Stats ---
             return Ok(new
             {
+                // Global Stats
+                totalActiveCommunities = totalActiveCommunities,
+                totalActiveUsers = totalActiveUsers,
+                recentActivities = recentActivitiesCount,
+
+                // Lists
                 pendingRequests = pendingRequests,
                 rejectedRequests = rejectedRequests,
                 activeCommunities = activeCommunities,
                 suggestedCommunities = suggestedCommunities
             });
-}
+        }
 
 
         // POST: /Communities/JoinCommunity (Handles NEW join or REACTIVATION of Inactive membership)
@@ -223,14 +236,14 @@ public async Task<IActionResult> GetCommunityData()
                 {
                     // For private communities, changing from Inactive to Active requires admin approval
                     existingMembership.Status = "Pending";
-                    existingMembership.JoinDate = DateTime.UtcNow;
+                    existingMembership.JoinDate = NowMYT();
                     _context.CommunityMembers.Update(existingMembership);
                 }
                 else
                 {
                     // For public communities, allow immediate reactivation
                     existingMembership.Status = "Active";
-                    existingMembership.JoinDate = DateTime.UtcNow;
+                    existingMembership.JoinDate = NowMYT();
                     _context.CommunityMembers.Update(existingMembership);
                 }
             }
@@ -243,7 +256,7 @@ public async Task<IActionResult> GetCommunityData()
                     UserId = userId,
                     CommunityRole = "Member",
                     Status = community.CommunityType == "Private" ? "Pending" : "Active", // Set status based on community type
-                    JoinDate = DateTime.UtcNow
+                    JoinDate = NowMYT()
                 };
                 _context.CommunityMembers.Add(membership);
             }
@@ -317,6 +330,16 @@ public async Task<IActionResult> GetCommunityData()
                 // Update the membership status to Active
                 membershipRequest.Status = "Active";
                 _context.CommunityMembers.Update(membershipRequest);
+
+                // 🔔 NEW: Notify User
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = membershipRequest.UserId,
+                    Message = $"Your request to join '{membershipRequest.Community.CommunityName}' has been accepted!",
+                    LinkUrl = Url.Action("Activity", "Community", new { communityId = membershipRequest.CommunityId }),
+                    DateCreated = NowMYT(),
+                    IsRead = false
+                });
 
                 await _context.SaveChangesAsync();
 
@@ -392,7 +415,7 @@ public async Task<IActionResult> GetCommunityData()
                     Message = $"Your request to join '{communityName}' has been rejected by the community admin.",
                     LinkUrl = Url.Action("Community", "Home"),
                     IsRead = false,
-                    DateCreated = DateTime.UtcNow
+                    DateCreated = NowMYT()
                 };
                 _context.Notifications.Add(notification);
 
@@ -1056,6 +1079,19 @@ public async Task<IActionResult> GetCommunityData()
                 targetMembership.CommunityRole = request.NewRole;
                 _context.CommunityMembers.Update(targetMembership);
 
+                // 🔔 NEW: Notify User (unless changing self, which is blocked above anyway, but good safety)
+                if (request.UserId != currentUserId)
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = request.UserId,
+                        Message = $"Your role in '{targetMembership.Community.CommunityName}' has been updated to {request.NewRole}.",
+                        LinkUrl = Url.Action("Activity", "Community", new { communityId = request.CommunityId }),
+                        DateCreated = NowMYT(),
+                        IsRead = false
+                    });
+                }
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -1131,6 +1167,19 @@ public async Task<IActionResult> GetCommunityData()
                 // Update status to Inactive (soft delete)
                 targetMembership.Status = "Inactive";
                 _context.CommunityMembers.Update(targetMembership);
+
+                // 🔔 NEW: Notify User (unless kicking self)
+                if (request.UserId != currentUserId)
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = request.UserId,
+                        Message = $"You have been removed from the community '{community?.CommunityName}'.",
+                        LinkUrl = Url.Action("Community", "Home"), // Redirect to main list since they can't access Activity anymore
+                        DateCreated = NowMYT(),
+                        IsRead = false
+                    });
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -1229,7 +1278,7 @@ public async Task<IActionResult> GetCommunityData()
                     inactiveBlock.Status = "Active";
                     inactiveBlock.BlockByAdminId = currentUserId;
                     inactiveBlock.BlockReason = blockReason ?? "Blocked by admin";
-                    inactiveBlock.BlockDate = DateTime.UtcNow;
+                    inactiveBlock.BlockDate = NowMYT();
                     _context.CommunityBlockLists.Update(inactiveBlock);
                 }
                 else
@@ -1241,7 +1290,7 @@ public async Task<IActionResult> GetCommunityData()
                         UserId = userId,
                         BlockByAdminId = currentUserId,
                         BlockReason = blockReason ?? "Blocked by admin",
-                        BlockDate = DateTime.UtcNow,
+                        BlockDate = NowMYT(),
                         Status = "Active" // Set status to Active
                     };
                     _context.CommunityBlockLists.Add(blockedUser);
@@ -1250,6 +1299,16 @@ public async Task<IActionResult> GetCommunityData()
                 // Also set membership to inactive
                 targetMembership.Status = "Inactive";
                 _context.CommunityMembers.Update(targetMembership);
+
+                // 🔔 NEW: Notify User
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    Message = $"You have been blocked from '{community?.CommunityName}'. Reason: {blockReason ?? "No reason provided."}",
+                    LinkUrl = Url.Action("Community", "Home"),
+                    DateCreated = NowMYT(),
+                    IsRead = false
+                });
 
                 await _context.SaveChangesAsync();
 
@@ -1931,7 +1990,7 @@ public async Task<IActionResult> GetCommunityData()
                 bool hasUpcomingCompetitions = await _context.Schedules
                     .Where(s => s.Location != null && s.Location.Contains(community.CommunityName) &&
                                s.ScheduleType == ScheduleType.Competition &&
-                               s.StartTime > DateTime.UtcNow &&
+                               s.StartTime > NowMYT() &&
                                s.Status != ScheduleStatus.Cancelled)
                     .AnyAsync();
 
@@ -2078,7 +2137,7 @@ public async Task<IActionResult> GetCommunityData()
 
                 // Soft delete
                 message.IsDeleted = true;
-                message.DeletedAt = DateTime.UtcNow;
+                message.DeletedAt = NowMYT();
                 message.DeletedByUserId = userId;
 
                 _context.CommunityChatMessages.Update(message);
