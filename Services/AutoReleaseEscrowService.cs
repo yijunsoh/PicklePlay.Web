@@ -39,8 +39,7 @@ namespace PicklePlay.Services
                 {
                     _logger.LogError(ex, "Error in Auto Release Escrow Service");
                 }
-
-                // Check every 30 minutes (same as auto-end service)
+                // Check every 1 second
                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }
@@ -190,6 +189,15 @@ namespace PicklePlay.Services
                 // Release each player's escrow
                 foreach (var escrow in escrows)
                 {
+
+                    bool alreadyReleased = await context.Transactions
+    .AnyAsync(t => t.EscrowId == escrow.EscrowId && t.TransactionType == "Escrow_Released");
+
+                    if (alreadyReleased)
+                    {
+                        escrow.Status = "Released";
+                        continue; // SKIP this escrow if already processed
+                    }
                     var payerWallet = await context.Wallets
                         .FirstOrDefaultAsync(w => w.UserId == escrow.UserId);
 
@@ -329,6 +337,14 @@ namespace PicklePlay.Services
                 // 2. Refund each player individually
                 foreach (var escrow in escrows)
                 {
+                    bool alreadyRefunded = await context.Transactions
+                        .AnyAsync(t => t.EscrowId == escrow.EscrowId && t.TransactionType == "Escrow_Refund");
+
+                    if (alreadyRefunded)
+                    {
+                        escrow.Status = "Refunded";
+                        continue; // SKIP this escrow if already processed
+                    }
                     var payerWallet = await context.Wallets
                         .FirstOrDefaultAsync(w => w.UserId == escrow.UserId);
 
