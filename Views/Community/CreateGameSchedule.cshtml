@@ -5,6 +5,9 @@
 
 @{
     ViewData["Title"] = "Create Game Schedule";
+
+    var currentCommunity = ViewData["CurrentCommunity"] as Community; // Ensure this is passed from Controller if not already
+    bool isPrivateCommunity = currentCommunity?.CommunityType == "Private";
 }
 
 @functions {
@@ -217,18 +220,29 @@
             <div class="row g-3 mt-2">
                 <div class="col-md-6">
                     <label asp-for="Privacy" class="form-label">Privacy</label>
-                    <div class="privacy-selector">
-                        <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Public" id="privacy-public"
-                            checked />
-                        <label class="btn btn-outline-info" for="privacy-public">
-                            <i class="bi bi-globe me-1"></i>Public
-                        </label>
-                        <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Private"
-                            id="privacy-private" />
-                        <label class="btn btn-outline-info" for="privacy-private">
-                            <i class="bi bi-lock me-1"></i>Private
-                        </label>
-                    </div>
+                    
+                    @if (isPrivateCommunity)
+                    {
+                        <input type="hidden" asp-for="Privacy" value="@Privacy.Private" />
+                        <div class="alert alert-light border d-flex align-items-center p-2 mb-0">
+                            <i class="bi bi-lock-fill text-muted me-2"></i>
+                            <span class="text-muted small">This game will be <strong>Private</strong> because your community is Private.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="privacy-selector">
+                            <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Public" id="privacy-public" checked />
+                            <label class="btn btn-outline-info" for="privacy-public">
+                                <i class="bi bi-globe me-1"></i>Public
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="Privacy" value="@Privacy.Private" id="privacy-private" />
+                            <label class="btn btn-outline-info" for="privacy-private">
+                                <i class="bi bi-lock me-1"></i>Private
+                            </label>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
