@@ -97,6 +97,7 @@
         currentCommunityType: null,
         modal: null,
         isInitialized: false,
+        hasMadeChanges: false, //
         hideHandler: null, // Store reference to handler for cleanup
         originalKeyboard: true,
         originalBackdrop: true,
@@ -114,7 +115,7 @@
                 console.error('Modal element not found');
                 return;
             }
-            
+
             this.modal = new bootstrap.Modal(modalElement);
 
             // Store original config
@@ -147,7 +148,7 @@
                     this.modal._config.backdrop = this.originalBackdrop;
                 }
             };
-            
+
             // Add event listener for modal hide
             modalElement.addEventListener('hidden.bs.modal', this.hideHandler);
 
@@ -166,17 +167,17 @@
         // Clean up method to remove event listeners
         destroy() {
             if (!this.isInitialized) return;
-            
+
             const modalElement = document.getElementById('@modalId');
             if (modalElement && this.hideHandler) {
                 modalElement.removeEventListener('hidden.bs.modal', this.hideHandler);
             }
-            
+
             const joinButton = document.getElementById('modalJoinCommunityBtn');
             if (joinButton) {
                 joinButton.replaceWith(joinButton.cloneNode(true));
             }
-            
+
             this.isInitialized = false;
             this.modal = null;
             this.hideHandler = null;
@@ -219,7 +220,7 @@
                 if (!this.isInitialized) {
                     this.init();
                 }
-
+                this.hasMadeChanges = false;
                 this.currentCommunityId = communityId;
                 this.resetModalContent();
 
@@ -235,7 +236,7 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const result = await response.json();
 
                 console.log('Community API Response:', result);
@@ -342,7 +343,7 @@
             const nameElement = document.getElementById('modalCommunityName');
             const descElement = document.getElementById('modalCommunityDescription');
             const joinButton = document.getElementById('modalJoinCommunityBtn');
-            
+
             if (nameElement) nameElement.textContent = 'Error';
             if (descElement) descElement.textContent = message;
             if (joinButton) joinButton.style.display = 'none';
@@ -384,6 +385,7 @@
                         button.classList.remove('btn-primary');
                         button.classList.add('btn-warning');
                         button.disabled = true;
+                        this.hasMadeChanges = true;
                         this.showAlert('success', data.message);
                     } else {
                         button.innerHTML = '<i class="fas fa-check me-1"></i>Joined';
@@ -403,7 +405,7 @@
                             this.modal._config.keyboard = this.originalKeyboard;
                             this.modal._config.backdrop = this.originalBackdrop;
                         }
-                        
+
                         // Refresh modal content
                         this.showCommunityDetails(communityId);
                     }, 1500);
@@ -435,13 +437,13 @@
         toggleCloseButtons(enable) {
             const closeButton = document.querySelector('#@modalId .btn-close');
             const footerCloseButton = document.querySelector('#@modalId .btn-secondary[data-bs-dismiss="modal"]');
-            
+
             if (closeButton) {
                 closeButton.disabled = !enable;
                 closeButton.style.pointerEvents = enable ? '' : 'none';
                 closeButton.style.opacity = enable ? '' : '0.5';
             }
-            
+
             if (footerCloseButton) {
                 footerCloseButton.disabled = !enable;
                 footerCloseButton.style.pointerEvents = enable ? '' : 'none';
@@ -492,7 +494,7 @@
     };
 
     // Clean up when page unloads
-    window.addEventListener('beforeunload', function() {
+    window.addEventListener('beforeunload', function () {
         CommunityModalManager.destroy();
     });
 </script>
