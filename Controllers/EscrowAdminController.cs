@@ -350,7 +350,17 @@ namespace PicklePlay.Controllers
                 d.AdminDecision = "Reviewed";
                 d.AdminReviewNote = adminNote;
                 d.UpdatedAt = nowMYT;
+
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = d.RaisedByUserId,
+                    Message = $"Admin reviewed your dispute for '{d.Schedule?.GameName}'. Note: {adminNote}",
+                    LinkUrl = $"/Schedule/Details/{scheduleId}",
+                    DateCreated = nowMYT,
+                    IsRead = false
+                });
             }
+
 
             await _context.SaveChangesAsync();
 

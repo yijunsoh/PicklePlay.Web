@@ -39,8 +39,8 @@ namespace PicklePlay.Services
                 {
                     _logger.LogError(ex, "Error in Auto Release Escrow Service");
                 }
-                // Check every 1 second
-                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                // Check every 10 seconds
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
             }
         }
 
@@ -142,90 +142,56 @@ namespace PicklePlay.Services
 
             try
             {
-                _logger.LogInformation($"Releasing escrow for schedule {schedule.ScheduleId} ({schedule.GameName})");
+                _logger.LogInformation($"Processing escrow release for schedule {schedule.ScheduleId} ({schedule.GameName})");
 
-                // Include User for escrows
-                var escrows = await context.Escrows
-                    .Include(e => e.Transactions)
-                    .Include(e => e.User) // Add this
-                    .Where(e => e.ScheduleId == schedule.ScheduleId && e.Status == "Held")
-                    .ToListAsync();
-
-                if (!escrows.Any())
-                {
-                    _logger.LogWarning($"No held escrows found for schedule {schedule.ScheduleId}");
-                    return;
-                }
-
-                // Include User for host
+                // 1. Get Host Info FIRST
                 var host = await context.ScheduleParticipants
-                    .Include(p => p.User) // Add this
+                    .Include(p => p.User)
                     .FirstOrDefaultAsync(p => p.ScheduleId == schedule.ScheduleId &&
                                              p.Role == ParticipantRole.Organizer);
 
-                if (host == null)
+                if (host?.User == null) return;
+
+                var hostWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserId == host.UserId);
+                if (hostWallet == null) return;
+
+                // 2. Get all held escrows
+                var escrows = await context.Escrows
+                    .Include(e => e.Transactions)
+                    .Include(e => e.User)
+                    .Where(e => e.ScheduleId == schedule.ScheduleId && e.Status == "Held")
+                    .ToListAsync();
+
+                // Guard clause: If no escrows, mark schedule as released and exit
+                if (!escrows.Any())
                 {
-                    _logger.LogWarning($"Host not found for schedule {schedule.ScheduleId}");
+                    schedule.EscrowStatus = "Released";
+                    await context.SaveChangesAsync();
                     return;
                 }
 
-                if (host.User == null)
-                {
-                    _logger.LogWarning($"Host user data not found for user ID {host.UserId}");
-                    return;
-                }
+                decimal totalCollectedForHost = 0;
+                int processedCount = 0;
 
-                var hostWallet = await context.Wallets
-                    .FirstOrDefaultAsync(w => w.UserId == host.UserId);
-
-                if (hostWallet == null)
-                {
-                    _logger.LogWarning($"Host wallet not found for user {host.User.Username}");
-                    return;
-                }
-
-                decimal totalAmount = 0;
-
-                // Release each player's escrow
+                // 3. Process Players ONE BY ONE (Atomic Processing)
                 foreach (var escrow in escrows)
                 {
+                    // 🛑 SAFETY CHECK: Re-query DB for this specific row
+                    var isAlreadyReleased = await context.Escrows
+                        .AnyAsync(e => e.EscrowId == escrow.EscrowId && e.Status == "Released");
 
-                    bool alreadyReleased = await context.Transactions
-    .AnyAsync(t => t.EscrowId == escrow.EscrowId && t.TransactionType == "Escrow_Released");
+                    if (isAlreadyReleased) continue;
 
-                    if (alreadyReleased)
-                    {
-                        escrow.Status = "Released";
-                        continue; // SKIP this escrow if already processed
-                    }
-                    var payerWallet = await context.Wallets
-                        .FirstOrDefaultAsync(w => w.UserId == escrow.UserId);
-
-                    if (payerWallet == null)
-                    {
-                        _logger.LogWarning($"Payer wallet not found for user {escrow.UserId}");
-                        continue;
-                    }
+                    var payerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserId == escrow.UserId);
+                    if (payerWallet == null) continue;
 
                     decimal paid = escrow.Transactions.Sum(t => t.Amount);
+                    if (paid <= 0) continue;
 
-                    // ADD THIS DEBUG CHECK:
-                    _logger.LogInformation($"Escrow {escrow.EscrowId}: {escrow.Transactions.Count} transactions, Total: RM{paid}");
-
-                    if (paid <= 0)
-                    {
-                        _logger.LogWarning($"No valid payment amount for escrow {escrow.EscrowId}");
-                        continue;
-                    }
-
-                    totalAmount += paid;
-
-                    // Deduct from payer's escrow balance
+                    // --- PLAYER TRANSACTION ---
                     payerWallet.EscrowBalance -= paid;
-                    if (payerWallet.EscrowBalance < 0)
-                        payerWallet.EscrowBalance = 0;
+                    if (payerWallet.EscrowBalance < 0) payerWallet.EscrowBalance = 0;
 
-                    // Add transaction record
                     context.Transactions.Add(new Transaction
                     {
                         WalletId = payerWallet.WalletId,
@@ -240,71 +206,83 @@ namespace PicklePlay.Services
 
                     escrow.Status = "Released";
 
-                    // Send notification to payer
-                    var payerNotification = new Notification
+                    // Notify Player
+                    context.Notifications.Add(new Notification
                     {
                         UserId = escrow.UserId,
-                        Message = $"Your escrow payment of RM{paid} for '{schedule.GameName}' has been automatically released to the host.",
+                        Message = $"Your escrow payment of RM{paid:0.00} for '{schedule.GameName}' has been released to the host.",
                         LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
                         DateCreated = nowMYT,
-                        CreatedAt = nowMYT,
                         IsRead = false
-                    };
-                    context.Notifications.Add(payerNotification);
+                    });
 
-                    // Safe logging for payer username
-                    var payerUsername = escrow.User?.Username ?? "Unknown";
-                    _logger.LogInformation($"Notified payer {payerUsername} about escrow release");
+                    // Accumulate for Host
+                    totalCollectedForHost += paid;
+                    processedCount++;
+
+                    // 🛑 SAVE IMMEDIATELY (Locks this player row)
+                    await context.SaveChangesAsync();
                 }
 
-                // Add to host's wallet
-                hostWallet.WalletBalance += totalAmount;
-
-                // Add transaction record for host
-                context.Transactions.Add(new Transaction
+                // 4. Pay Host (Only if we actually processed new payments)
+                if (totalCollectedForHost > 0)
                 {
-                    WalletId = hostWallet.WalletId,
-                    TransactionType = "Escrow_Receive",
-                    Amount = totalAmount,
-                    PaymentMethod = "Wallet",
-                    PaymentStatus = "Completed",
-                    CreatedAt = nowMYT,
-                    Description = $"Auto-received escrow from schedule {schedule.ScheduleId}"
-                });
+                    hostWallet.WalletBalance += totalCollectedForHost;
 
-                // Update schedule escrow status
-                schedule.EscrowStatus = "Released";
+                    // Optional: Update TotalEarnings if you have such a field
+                    // hostWallet.TotalEarnings += totalCollectedForHost; 
 
-                // Update disputes status
-                var allDisputes = await context.EscrowDisputes
-                    .Where(d => d.ScheduleId == schedule.ScheduleId)
-                    .ToListAsync();
+                    context.Transactions.Add(new Transaction
+                    {
+                        WalletId = hostWallet.WalletId,
+                        TransactionType = "Escrow_Receive",
+                        Amount = totalCollectedForHost,
+                        PaymentMethod = "Wallet",
+                        PaymentStatus = "Completed",
+                        CreatedAt = nowMYT,
+                        Description = $"Auto-received escrow from schedule {schedule.ScheduleId}"
+                    });
 
-                foreach (var dispute in allDisputes)
-                {
-                    dispute.AdminDecision = "Released";
-                    dispute.UpdatedAt = nowMYT;
+                    context.Notifications.Add(new Notification
+                    {
+                        UserId = host.UserId,
+                        Message = $"You have automatically received RM{totalCollectedForHost:0.00} escrow payment from {processedCount} players for '{schedule.GameName}'.",
+                        LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
+                        DateCreated = nowMYT,
+                        IsRead = false
+                    });
+
+                    _logger.LogInformation($"Paid Host RM{totalCollectedForHost}");
+
+                    // Save Host transaction
+                    await context.SaveChangesAsync();
                 }
 
-                // Send notification to host
-                var hostNotification = new Notification
+                // 5. Final Schedule Status Cleanup
+                bool anyHeldLeft = await context.Escrows.AnyAsync(e => e.ScheduleId == schedule.ScheduleId && e.Status == "Held");
+
+                if (!anyHeldLeft)
                 {
-                    UserId = host.UserId,
-                    Message = $"You have automatically received RM{totalAmount} escrow payment from {escrows.Count} players for '{schedule.GameName}'.",
-                    LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
-                    DateCreated = nowMYT,
-                    CreatedAt = nowMYT,
-                    IsRead = false
-                };
-                context.Notifications.Add(hostNotification);
+                    // Fetch fresh schedule context
+                    var currentSchedule = await context.Schedules.FindAsync(schedule.ScheduleId);
+                    if (currentSchedule != null && currentSchedule.EscrowStatus != "Released")
+                    {
+                        currentSchedule.EscrowStatus = "Released";
 
-                await context.SaveChangesAsync();
+                        // Auto-resolve disputes
+                        var disputes = await context.EscrowDisputes
+                            .Where(d => d.ScheduleId == schedule.ScheduleId && d.AdminDecision == "Pending")
+                            .ToListAsync();
 
-                _logger.LogInformation($"✅ Successfully auto-released escrow for schedule {schedule.ScheduleId}");
-                _logger.LogInformation($"   - Amount: RM{totalAmount}");
-                _logger.LogInformation($"   - Players: {escrows.Count}");
-                _logger.LogInformation($"   - Host: {host.User.Username}"); // Now safe
+                        foreach (var d in disputes)
+                        {
+                            d.AdminDecision = "Released";
+                            d.UpdatedAt = nowMYT;
+                        }
 
+                        await context.SaveChangesAsync();
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -319,7 +297,7 @@ namespace PicklePlay.Services
 
             try
             {
-                // 1. Get all held escrows (payments) for this schedule
+                // 1. Get all held escrows
                 var escrows = await context.Escrows
                     .Include(e => e.Transactions)
                     .Include(e => e.User)
@@ -328,7 +306,6 @@ namespace PicklePlay.Services
 
                 if (!escrows.Any())
                 {
-                    // If no money was held, just mark as refunded to stop future checks
                     schedule.EscrowStatus = "Refunded";
                     await context.SaveChangesAsync();
                     return;
@@ -337,14 +314,13 @@ namespace PicklePlay.Services
                 // 2. Refund each player individually
                 foreach (var escrow in escrows)
                 {
-                    bool alreadyRefunded = await context.Transactions
-                        .AnyAsync(t => t.EscrowId == escrow.EscrowId && t.TransactionType == "Escrow_Refund");
+                    // 🛑 CRITICAL: Check DB immediately before processing
+                    // This prevents Run B from processing if Run A just finished this specific row
+                    var isProcessed = await context.Escrows
+                        .AnyAsync(e => e.EscrowId == escrow.EscrowId && e.Status == "Refunded");
 
-                    if (alreadyRefunded)
-                    {
-                        escrow.Status = "Refunded";
-                        continue; // SKIP this escrow if already processed
-                    }
+                    if (isProcessed) continue;
+
                     var payerWallet = await context.Wallets
                         .FirstOrDefaultAsync(w => w.UserId == escrow.UserId);
 
@@ -353,19 +329,14 @@ namespace PicklePlay.Services
                     decimal paidAmount = escrow.Transactions.Sum(t => t.Amount);
                     if (paidAmount <= 0) continue;
 
-                    // A. Update Wallet: Return money from EscrowBalance to WalletBalance
+                    // --- REFUND LOGIC ---
                     payerWallet.WalletBalance += paidAmount;
                     payerWallet.EscrowBalance -= paidAmount;
-
-                    // Safety check to prevent negative balance
                     if (payerWallet.EscrowBalance < 0) payerWallet.EscrowBalance = 0;
 
                     if (payerWallet.TotalSpent >= paidAmount)
-                    {
                         payerWallet.TotalSpent -= paidAmount;
-                    }
 
-                    // B. Add Refund Transaction Record
                     context.Transactions.Add(new Transaction
                     {
                         WalletId = payerWallet.WalletId,
@@ -378,54 +349,62 @@ namespace PicklePlay.Services
                         Description = $"Refund for cancelled game: {schedule.GameName}"
                     });
 
-                    // C. Update Escrow Status
+                    // Update Escrow Status
                     escrow.Status = "Refunded";
 
-                    // D. Notify Player
+                    // Notify Player
                     context.Notifications.Add(new Notification
                     {
                         UserId = escrow.UserId,
-                        Message = $"The game '{schedule.GameName}' has been cancelled by the host. Your fee of RM{paidAmount:0.00} has been automatically refunded to your wallet.",
+                        Message = $"The game '{schedule.GameName}' has been cancelled. RM{paidAmount:0.00} has been refunded.",
                         LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
                         DateCreated = nowMYT,
-                        CreatedAt = nowMYT,
                         IsRead = false
                     });
+
+                    // 🛑 CRITICAL: Save AFTER EACH PLAYER
+                    // This locks the transaction immediately so the next run sees it as "Refunded"
+                    await context.SaveChangesAsync();
                 }
 
-                // 3. Update Schedule Escrow Status
-                schedule.EscrowStatus = "Refunded";
-
-                // 4. Notify Host (Organizer)
-                var host = schedule.Participants
-                    .FirstOrDefault(p => p.Role == ParticipantRole.Organizer);
-
-                if (host != null)
+                // 3. Final cleanup (Schedule Status)
+                // Re-fetch schedule to ensure we have latest state
+                var currentSchedule = await context.Schedules.FindAsync(schedule.ScheduleId);
+                if (currentSchedule != null && currentSchedule.EscrowStatus != "Refunded")
                 {
-                    context.Notifications.Add(new Notification
+                    currentSchedule.EscrowStatus = "Refunded";
+
+                    // Clean up disputes
+                    var pendingDisputes = await context.EscrowDisputes
+                        .Where(d => d.ScheduleId == schedule.ScheduleId && d.AdminDecision == "Pending")
+                        .ToListAsync();
+
+                    foreach (var d in pendingDisputes)
                     {
-                        UserId = host.UserId,
-                        Message = $"Game '{schedule.GameName}' cancellation successful. All collected fees have been automatically refunded to the players.",
-                        LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
-                        DateCreated = nowMYT,
-                        CreatedAt = nowMYT,
-                        IsRead = false
-                    });
+                        d.AdminDecision = "Refunded";
+                        d.UpdatedAt = nowMYT;
+                    }
+
+                    // Notify Host
+                    var host = await context.ScheduleParticipants
+                        .FirstOrDefaultAsync(p => p.ScheduleId == schedule.ScheduleId && p.Role == ParticipantRole.Organizer);
+
+                    if (host != null)
+                    {
+                        context.Notifications.Add(new Notification
+                        {
+                            UserId = host.UserId,
+                            Message = $"Game '{schedule.GameName}' cancelled. Fees refunded to players.",
+                            LinkUrl = $"/Schedule/Details/{schedule.ScheduleId}",
+                            DateCreated = nowMYT,
+                            IsRead = false
+                        });
+                    }
+
+                    await context.SaveChangesAsync();
                 }
 
-                // 5. Clean up any pending disputes (auto-resolve them as Refunded)
-                var pendingDisputes = await context.EscrowDisputes
-                    .Where(d => d.ScheduleId == schedule.ScheduleId && d.AdminDecision == "Pending")
-                    .ToListAsync();
-
-                foreach (var d in pendingDisputes)
-                {
-                    d.AdminDecision = "Refunded";
-                    d.UpdatedAt = nowMYT;
-                }
-
-                await context.SaveChangesAsync();
-                _logger.LogInformation($"✅ Successfully refunded {escrows.Count} players for cancelled schedule {schedule.ScheduleId}");
+                _logger.LogInformation($"✅ Successfully processed refunds for schedule {schedule.ScheduleId}");
             }
             catch (Exception ex)
             {

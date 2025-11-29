@@ -65,56 +65,57 @@ namespace PicklePlay.Controllers
         {
             return await _context.Users
                 .OrderByDescending(u => u.CreatedDate)
+                .ThenBy(u => u.UserId) // <--- ADD THIS (Tie-Breaker)
                 .Skip((page - 1) * PAGE_SIZE)
                 .Take(PAGE_SIZE)
                 .ToListAsync();
         }
 
         private async Task<List<User>> GetPlayersAsync(string searchTerm = "", string filter = "", string gender = "", int page = 1)
-        {
-            var query = _context.Users.AsQueryable();
+{
+    var query = _context.Users.AsQueryable();
 
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                query = query.Where(u =>
-                    u.Username.Contains(searchTerm) ||
-                    u.Email.Contains(searchTerm) ||
-                    (u.Bio != null && u.Bio.Contains(searchTerm))
-                );
-            }
+    if (!string.IsNullOrEmpty(searchTerm))
+    {
+        query = query.Where(u =>
+            u.Username.Contains(searchTerm) ||
+            u.Email.Contains(searchTerm) ||
+            (u.Bio != null && u.Bio.Contains(searchTerm))
+        );
+    }
 
-            if (!string.IsNullOrEmpty(gender) && gender != "all")
-            {
-                query = query.Where(u => u.Gender == gender);
-            }
+    if (!string.IsNullOrEmpty(gender) && gender != "all")
+    {
+        query = query.Where(u => u.Gender == gender);
+    }
 
-            switch (filter)
-            {
-                case "newest":
-                    query = query.OrderByDescending(u => u.CreatedDate);
-                    break;
-                case "active":
-                    query = query.OrderByDescending(u => u.LastLogin ?? u.CreatedDate);
-                    break;
-                case "experienced":
-                    query = query.OrderByDescending(u => u.Age ?? 0).ThenByDescending(u => u.CreatedDate);
-                    break;
-                case "name_asc":
-                    query = query.OrderBy(u => u.Username);
-                    break;
-                case "name_desc":
-                    query = query.OrderByDescending(u => u.Username);
-                    break;
-                default:
-                    query = query.OrderByDescending(u => u.CreatedDate);
-                    break;
-            }
+    switch (filter)
+    {
+        case "newest":
+            query = query.OrderByDescending(u => u.CreatedDate).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+        case "active":
+            query = query.OrderByDescending(u => u.LastLogin ?? u.CreatedDate).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+        case "experienced":
+            query = query.OrderByDescending(u => u.Age ?? 0).ThenByDescending(u => u.CreatedDate).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+        case "name_asc":
+            query = query.OrderBy(u => u.Username).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+        case "name_desc":
+            query = query.OrderByDescending(u => u.Username).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+        default:
+            query = query.OrderByDescending(u => u.CreatedDate).ThenBy(u => u.UserId); // <--- ADD THIS
+            break;
+    }
 
-            return await query
-                .Skip((page - 1) * PAGE_SIZE)
-                .Take(PAGE_SIZE)
-                .ToListAsync();
-        }
+    return await query
+        .Skip((page - 1) * PAGE_SIZE)
+        .Take(PAGE_SIZE)
+        .ToListAsync();
+}
 
         private async Task<int> GetTotalPlayersCountAsync(string searchTerm = "", string filter = "", string gender = "")
         {
@@ -203,7 +204,7 @@ namespace PicklePlay.Controllers
         private async Task<int> GetTotalCompetitionsCountAsync(string searchTerm = "", string filter = "")
         {
             var query = _context.Schedules
-                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled && 
+                .Where(s => s.ScheduleType == ScheduleType.Competition && s.Status != ScheduleStatus.Cancelled &&
                    s.Status != (ScheduleStatus)8)
                 .AsQueryable();
 
@@ -360,7 +361,7 @@ namespace PicklePlay.Controllers
                 .Include(s => s.Community)
                 .Where(s => s.ScheduleType == ScheduleType.OneOff &&
                            s.Status != ScheduleStatus.Cancelled &&
-                            s.Status != (ScheduleStatus)2 && 
+                            s.Status != (ScheduleStatus)2 &&
                            // Show games from public communities OR games from private communities where user is a member
                            (s.Community == null ||
                             s.Community.CommunityType == "Public" ||

@@ -4,16 +4,21 @@
 {
     foreach (var player in Model)
     {
-        <div class="col-md-6 mb-4" data-user-id="@player.UserId">
+        <div class="col-md-6 mb-4">
             <div class="result-card">
                 <div class="d-flex align-items-start">
                     <img src="@(player.ProfilePicture ?? "/images/user.png")" alt="@player.Username"
-                        class="player-avatar rounded-circle" onerror="this.src='/images/user.png'" data-user-id="@player.UserId"
-                        style="cursor:pointer;" onclick="showUserProfilePreview('@player.UserId')" />
+                         class="player-avatar rounded-circle" 
+                         onerror="this.src='/images/user.png'" 
+                         style="cursor:pointer;"
+                         onclick="showUserProfilePreview('@player.UserId', { userId: @player.UserId })" />
+
                     <div class="player-info">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h4 style="cursor:pointer;" onclick="showUserProfilePreview('@player.UserId')">@player.Username
+                                <h4 style="cursor:pointer;"
+                                    onclick="showUserProfilePreview('@player.UserId', { userId: @player.UserId })">
+                                    @player.Username
                                 </h4>
                                 <p class="text-muted mb-2">@(player.Bio ?? "Active pickleball player")</p>
                             </div>
@@ -24,17 +29,15 @@
                         </div>
                         <div class="d-flex flex-wrap mb-3">
                             <span class="stats-badge"><i class="fas fa-user me-1"></i>@(player.Gender ?? "Not specified")</span>
-                            <span class="stats-badge"><i class="fas fa-birthday-cake me-1"></i>@(player.Age?.ToString() ??
-                                                        "N/A") years old</span>
+                            <span class="stats-badge"><i class="fas fa-birthday-cake me-1"></i>@(player.Age?.ToString() ?? "N/A") years old</span>
                             <span class="stats-badge"><i class="fas fa-calendar me-1"></i>Active</span>
                         </div>
                         <div class="action-buttons">
-                            @* <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#friendModal">
-                                <i class="fas fa-user-plus me-1"></i>Add Friend
-                            </button> *@
-                             <button class="btn btn-profile" onclick="showUserProfilePreview('@player.UserId')">
+                            <button class="btn btn-profile" 
+                                    onclick="showUserProfilePreview('@player.UserId', { userId: @player.UserId })">
                                 <i class="fas fa-eye me-1"></i>View Profile
                             </button>
+                            
                             <button class="btn btn-sm favorite-btn btn-outline-custom" data-player-id="@player.UserId">
                                 <i class="fas fa-star me-1"></i>Favorite
                             </button>
